@@ -1,0 +1,21 @@
+﻿{
+  "name": "FConnect",
+  "short_name": "FConnect",
+  "description": "Kham pha nha hang ngon, AI goi y mon an, dat ban online & goi mon truoc, san voucher va quan tri nha hang toan dien.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF5A1F",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
