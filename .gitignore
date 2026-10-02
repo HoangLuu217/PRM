@@ -1,2 +1,15 @@
 /backend/node_modules
 backend/.env
+app/.env
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+*.iws
+.DS_Store
+
+# Flutter build outputs
+/app/build/
+/app/.dart_tool/
+

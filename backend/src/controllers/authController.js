@@ -33,6 +33,11 @@ export const sendEmailOtp = async (req, res) => {
           });
         }
       }
+    } else if (type === 'RESET_PASSWORD') {
+      const userExists = await User.findOne({ email: cleanEmail });
+      if (!userExists) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản với địa chỉ email này.' });
+      }
     }
 
     // Generate random 6 digit numeric code
@@ -49,7 +54,9 @@ export const sendEmailOtp = async (req, res) => {
     });
 
     // Send email via SMTP / Resend service
-    const actionLabel = type === 'MERCHANT_SECURITY' ? 'Bảo Mật Thay Đổi Trạng Thái Quán' : '';
+    const actionLabel = type === 'MERCHANT_SECURITY' 
+      ? 'Bảo Mật Thay Đổi Trạng Thái Quán' 
+      : (type === 'RESET_PASSWORD' ? 'Đặt Lại Mật Khẩu' : 'Đăng Ký Tài Khoản');
     await sendVerificationOtpEmail(cleanEmail, otpCode, fullName || 'Quý khách', actionLabel);
 
     res.json({
@@ -62,6 +69,52 @@ export const sendEmailOtp = async (req, res) => {
   } catch (error) {
     console.error('Send Email OTP Error:', error);
     res.status(500).json({ success: false, message: error.message || 'Lỗi gửi mã xác thực email' });
+  }
+};
+
+// @desc    Reset password with OTP
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ email, mã OTP và mật khẩu mới' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const existingOtp = await Otp.findOne({ email: cleanEmail, otp: otp.trim(), type: 'RESET_PASSWORD' });
+
+    if (!existingOtp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã OTP không chính xác hoặc đã hết hạn (hiệu lực trong 5 phút).',
+      });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản người dùng' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    // Xóa mã OTP sau khi đổi mật khẩu thành công
+    await Otp.deleteMany({ email: cleanEmail, type: 'RESET_PASSWORD' });
+
+    res.json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.',
+    });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lỗi đặt lại mật khẩu' });
   }
 };
 
@@ -86,12 +139,14 @@ export const verifyEmailOtp = async (req, res) => {
       });
     }
 
-    // Xóa mã OTP sau khi xác minh thành công để chống sử dụng lại
-    await Otp.deleteOne({ _id: existingOtp._id });
+    // Xóa mã OTP sau khi xác minh thành công (với RESET_PASSWORD sẽ xóa tại bước đổi mật khẩu)
+    if (type !== 'RESET_PASSWORD') {
+      await Otp.deleteOne({ _id: existingOtp._id });
+    }
 
     res.json({
       success: true,
-      message: 'Xác thực mã OTP Gmail thành công',
+      message: 'Xác thực mã OTP thành công!',
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
