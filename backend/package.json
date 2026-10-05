@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/seedRunner.js",
-    "seed:danang": "node src/seed/seedDanangRestaurants.js"
+    "seed:danang": "node src/seed/seedDanangRestaurants.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@payos/node": "^2.0.5",

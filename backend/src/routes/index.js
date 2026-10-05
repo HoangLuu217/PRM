@@ -18,6 +18,7 @@ import articleRoutes from './articleRoutes.js';
 import uploadRoutes from './uploadRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
 import subscriptionRoutes from './subscriptionRoutes.js';
+import ownerRoutes from './ownerRoutes.js';
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.use('/payments', paymentRoutes);
 router.use('/subscriptions', subscriptionRoutes);
 router.use('/carts', cartRoutes);
 router.use('/orders', orderRoutes);
+router.use('/owner', ownerRoutes);
 router.use('/favorites', favoriteRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/staff', staffRoutes);

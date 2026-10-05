@@ -1,10 +1,14 @@
-import { Booking, Branch, Notification, Table, UserInteraction } from '../models/index.js';
+import mongoose from 'mongoose';
+import { randomUUID } from 'node:crypto';
+import { fail, validDate, validTime, overlapFilter } from '../utils/operations.js';
+import { operationError } from '../utils/operations.js';
+import { Booking, Branch, Business, Notification, Table, Order, UserInteraction } from '../models/index.js';
 import { emitBookingUpdate } from '../socket.js';
 
 // Helper to generate unique booking code FCBYYYYMMXXXX
 const generateBookingCode = () => {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const randomNum = randomUUID().replaceAll('-', '').slice(0, 12);
   return `FCB${dateStr}${randomNum}`;
 };
 
@@ -19,32 +23,68 @@ export const createBooking = async (req, res) => {
       tableId,
       bookingDate,
       startTime,
-      endTime,
+      endTime = '23:59',
       guestCount = 2,
       note,
       preOrderId,
     } = req.body;
 
+    if (!['USER', 'CUSTOMER'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Chỉ khách hàng mới có thể đặt bàn' });
+    }
+    if (!businessId || !branchId || !bookingDate || !startTime) {
+      return res.status(400).json({ success: false, message: 'Thiếu businessId, branchId, bookingDate hoặc startTime' });
+    }
+    if (!validDate(bookingDate) || !validTime(startTime) || !validTime(endTime) || endTime <= startTime) {
+      return res.status(400).json({ success: false, message: 'Invalid booking date or time range' });
+    }
+    if (!Number.isInteger(Number(guestCount)) || Number(guestCount) < 1) {
+      return res.status(400).json({ success: false, message: 'Số khách phải là số nguyên lớn hơn 0' });
+    }
+
+    const [branch, business] = await Promise.all([
+      Branch.findById(branchId),
+      Business.findById(businessId),
+    ]);
+    if (!branch || !business || String(branch.businessId) !== String(business._id)) {
+      return res.status(400).json({ success: false, message: 'Chi nhánh không thuộc doanh nghiệp đã chọn' });
+    }
+    if (branch.status !== 'ACTIVE' || business.status !== 'APPROVED' || !business.isBookingEnabled) {
+      return res.status(400).json({ success: false, message: 'Chi nhánh hiện không nhận đặt bàn' });
+    }
+    if (tableId) {
+      const table = await Table.findOne({ _id: tableId, branchId, status: { $in: ['AVAILABLE', 'RESERVED'] } });
+      if (!table || table.capacity < Number(guestCount)) {
+        return res.status(400).json({ success: false, message: 'Bàn không khả dụng hoặc không đủ chỗ cho số khách' });
+      }
+    }
+
+    if (new Date(bookingDate + 'T' + startTime + ':00+07:00') <= new Date()) {
+      return res.status(400).json({ success: false, message: 'Booking must be in the future (Asia/Ho_Chi_Minh)' });
+    }
+    if (tableId && await Booking.exists(overlapFilter({ tableId, bookingDate, startTime, endTime }))) {
+      return res.status(409).json({ success: false, message: 'Table is already booked for this time range' });
+    }
+    if (preOrderId && !(await Order.exists({
+      _id: preOrderId, userId: req.user._id, branchId, businessId, status: { $ne: 'CANCELLED' },
+    }))) return res.status(400).json({ success: false, message: 'Invalid pre-order for this booking' });
     const bookingCode = generateBookingCode();
 
     // Check Business Subscription Booking Limits
-    const business = await Business.findById(businessId);
-    if (business) {
-      const maxBookings = business.subscription?.features?.maxBookingsPerMonth || 30;
-      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      const currentMonthBookings = await Booking.countDocuments({
-        businessId,
-        createdAt: { $gte: startOfMonth },
-        status: { $ne: 'CANCELLED' },
-      });
+    const maxBookings = business.subscription?.features?.maxBookingsPerMonth ?? 30;
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const currentMonthBookings = await Booking.countDocuments({
+      businessId,
+      createdAt: { $gte: startOfMonth },
+      status: { $ne: 'CANCELLED' },
+    });
 
-      if (currentMonthBookings >= maxBookings) {
-        return res.status(403).json({
-          success: false,
-          message: `Nhà hàng hiện đã đạt hạn mức nhận ${maxBookings} lượt đặt bàn trong tháng này (Gói ${business.subscription?.plan || 'STARTER'}). Chủ quán vui lòng nâng cấp gói PRO VIP để nhận đặt bàn không giới hạn!`,
-          requiresUpgrade: true,
-        });
-      }
+    if (currentMonthBookings >= maxBookings) {
+      return res.status(403).json({
+        success: false,
+        message: `Nhà hàng hiện đã đạt hạn mức nhận ${maxBookings} lượt đặt bàn trong tháng này (Gói ${business.subscription?.plan || 'STARTER'}).`,
+        requiresUpgrade: true,
+      });
     }
 
     const booking = await Booking.create({
@@ -82,7 +122,7 @@ export const createBooking = async (req, res) => {
       data: booking,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return operationError(res, error);
   }
 };
 
@@ -104,17 +144,50 @@ export const getMyBookings = async (req, res) => {
       data: bookings,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return operationError(res, error);
   }
 };
 
-// @desc    Get bookings for branch (Staff / Merchant)
+export const getBookingById = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate('businessId', 'name logoUrl')
+      .populate('branchId', 'name address phone')
+      .populate('tableId', 'name capacity location status')
+      .populate('preOrderId');
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin đặt bàn' });
+    }
+
+    const isCustomer = String(booking.userId) === String(req.user._id);
+    const isAdmin = req.user.role === 'ADMIN';
+    const isOwner = isAdmin || (booking.businessId && await Business.exists({ _id: booking.businessId._id, ownerId: req.user._id }));
+    if (!isCustomer && !isOwner) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem đặt bàn này' });
+    }
+
+    res.json({ success: true, data: booking });
+  } catch (error) {
+    return operationError(res, error);
+  }
+};
+
+// @desc    Get bookings for owned branches
 // @route   GET /api/bookings/branch/:branchId
-// @access  Private (Staff / Owner)
+// @access  Private (Owner / Admin)
 export const getBranchBookings = async (req, res) => {
   try {
     const { status, bookingDate } = req.query;
-    const query = { branchId: req.params.branchId };
+    const branchId = req.params.branchId || req.query.branchId;
+    if (branchId && req.user.role !== 'ADMIN'
+      && !(await Branch.exists({ _id: branchId, businessId: { $in: req.ownerBusinessIds || [] } }))) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem booking của chi nhánh này' });
+    }
+    const branchFilter = branchId
+      ? [branchId]
+      : await Branch.find(req.user.role === 'ADMIN' ? {} : { businessId: { $in: req.ownerBusinessIds || [] } }).distinct('_id');
+    const query = { branchId: { $in: branchFilter } };
 
     if (status) query.status = status;
     if (bookingDate) query.bookingDate = bookingDate;
@@ -131,7 +204,7 @@ export const getBranchBookings = async (req, res) => {
       data: bookings,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return operationError(res, error);
   }
 };
 
@@ -140,127 +213,81 @@ export const getBranchBookings = async (req, res) => {
 // @access  Private
 export const updateBookingStatus = async (req, res) => {
   try {
-    const { status, tableId } = req.body;
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin đặt bàn' });
-    }
-
-    if (status === 'CONFIRMED') {
-      const targetTableId = tableId || booking.tableId;
-      if (!targetTableId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Quán phải chọn bàn có sẵn để duyệt đặt bàn!',
-        });
+    let booking;
+    await mongoose.connection.transaction(async (session) => {
+      booking = await Booking.findById(req.params.id).session(session);
+      if (!booking) fail(404, 'Booking not found');
+      const isOwner = req.user.role === 'ADMIN'
+        || await Business.exists({ _id: booking.businessId, ownerId: req.user._id }).session(session);
+      const isCustomer = String(booking.userId) === String(req.user._id);
+      const { status, tableId } = req.body;
+      if (!isOwner && (!isCustomer || status !== 'CANCELLED' || !['PENDING', 'CONFIRMED'].includes(booking.status))) {
+        fail(403, 'Only the booking customer can cancel; other operations require the owner');
       }
-
-      const targetTable = await Table.findById(targetTableId);
-      if (!targetTable) {
-        return res.status(404).json({
-          success: false,
-          message: 'Bàn được chọn không tồn tại trong hệ thống',
-        });
+      const transitions = {
+        PENDING: ['CONFIRMED', 'REJECTED', 'CANCELLED'],
+        CONFIRMED: ['CHECKED_IN', 'CANCELLED'], CHECKED_IN: ['COMPLETED'],
+        REJECTED: [], CANCELLED: [], COMPLETED: [],
+      };
+      if (!transitions[booking.status]?.includes(status)) fail(400, 'Invalid booking transition');
+      const previousStatus = booking.status;
+      if (status === 'CONFIRMED') {
+        const targetTableId = tableId || booking.tableId;
+        if (!targetTableId) fail(400, 'Select a table before confirming');
+        const table = await Table.findOne({ _id: targetTableId, branchId: booking.branchId }).session(session);
+        if (!table || table.capacity < booking.guestCount) fail(400, 'Table not found or capacity too small');
+        if (!['AVAILABLE', 'RESERVED'].includes(table.status)) fail(409, 'Table unavailable');
+        booking.tableId = table._id;
+        if (await Booking.exists({
+          ...overlapFilter(booking), _id: { $ne: booking._id },
+        }).session(session)) fail(409, 'Table is already reserved for this time range');
+        // Write the shared table to serialize competing confirmations.
+        table.status = 'RESERVED';
+        table.markModified('status');
+        await table.save({ session });
       }
-
-      // Check if table is available (or if already assigned to this booking)
-      if (
-        targetTable.status !== 'AVAILABLE' &&
-        String(booking.tableId) !== String(targetTable._id)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: `Bàn ${targetTable.name} hiện không ở trạng thái trống (Trạng thái: ${targetTable.status}). Vui lòng chọn bàn có sẵn khác!`,
-        });
-      }
-
-      // If booking previously had another table reserved, revert the old table to AVAILABLE
-      if (booking.tableId && String(booking.tableId) !== String(targetTable._id)) {
-        await Table.findOneAndUpdate(
-          { _id: booking.tableId, status: 'RESERVED' },
-          { status: 'AVAILABLE' }
+      if (status === 'CHECKED_IN') {
+        if (!booking.tableId) fail(400, 'Booking has no table');
+        const table = await Table.findOneAndUpdate(
+          { _id: booking.tableId, branchId: booking.branchId, status: 'RESERVED' },
+          { status: 'UNAVAILABLE' }, { new: true, session }
         );
+        if (!table) fail(409, 'Table is no longer reserved');
+        booking.checkedInAt = new Date();
       }
-
-      // Assign table & update table status to RESERVED
-      booking.tableId = targetTable._id;
-      await Table.findByIdAndUpdate(targetTable._id, { status: 'RESERVED' });
-    } else if (status === 'REJECTED' || status === 'CANCELLED') {
-      // If booking was rejected/cancelled, free up the table if it was RESERVED
-      if (booking.tableId) {
-        await Table.findOneAndUpdate(
-          { _id: booking.tableId, status: 'RESERVED' },
-          { status: 'AVAILABLE' }
-        );
+      booking.status = status;
+      if (status === 'COMPLETED') booking.completedAt = new Date();
+      await booking.save({ session });
+      // Cancelling a pending booking must not release another reservation.
+      if (booking.tableId && (
+        status === 'COMPLETED' || (status === 'CANCELLED' && previousStatus === 'CONFIRMED')
+      )) {
+        const occupied = await Booking.exists({
+          tableId: booking.tableId, _id: { $ne: booking._id }, status: 'CHECKED_IN',
+        }).session(session);
+        const reserved = await Booking.exists({
+          tableId: booking.tableId, _id: { $ne: booking._id }, status: 'CONFIRMED',
+        }).session(session);
+        await Table.findByIdAndUpdate(booking.tableId, {
+          status: occupied ? 'UNAVAILABLE' : reserved ? 'RESERVED' : 'AVAILABLE',
+        }, { session });
       }
-    } else if (status === 'CHECKED_IN') {
-      booking.checkedInAt = new Date();
-      if (booking.tableId) {
-        await Table.findByIdAndUpdate(booking.tableId, { status: 'UNAVAILABLE' });
-      }
-    } else if (status === 'COMPLETED') {
-      booking.completedAt = new Date();
-      if (booking.tableId) {
-        await Table.findOneAndUpdate(
-          { _id: booking.tableId, status: { $in: ['RESERVED', 'UNAVAILABLE'] } },
-          { status: 'AVAILABLE' }
-        );
-      }
-    }
-
-    booking.status = status;
-    await booking.save();
-
-    // Populate for response & realtime notification
+    });
     await booking.populate('tableId', 'name capacity location status');
-    await booking.populate('userId', 'fullName phone avatarUrl');
-
-    // Create Notification for customer
+    const type = {
+      CONFIRMED: 'BOOKING_CONFIRMED', REJECTED: 'BOOKING_REJECTED',
+      CANCELLED: 'BOOKING_CANCELLED', CHECKED_IN: 'BOOKING_CHECKED_IN', COMPLETED: 'BOOKING_COMPLETED',
+    }[booking.status];
     await Notification.create({
-      userId: booking.userId,
-      type: status === 'CONFIRMED' ? 'BOOKING_CONFIRMED' : 'BOOKING_CANCELLED',
-      title: `Booking #${booking.bookingCode} ${status === 'CONFIRMED' ? 'đã được xác nhận' : 'đã cập nhật trạng thái: ' + status}`,
-      message: `Lịch đặt bàn ngày ${booking.bookingDate} lúc ${booking.startTime} của bạn có trạng thái mới: ${status}${booking.tableId ? ` (Bàn: ${booking.tableId.name})` : ''}`,
-      referenceId: booking._id,
-    });
-
-    // Phát tín hiệu Realtime cho Merchant Dashboard và Khách hàng
+      userId: booking.userId, type, referenceId: booking._id,
+      title: 'Booking #' + booking.bookingCode + ': ' + booking.status,
+      message: 'Booking on ' + booking.bookingDate + ' at ' + booking.startTime + ': ' + booking.status,
+    }).catch((error) => console.error('Booking notification failed:', error.message));
     emitBookingUpdate(booking.businessId, booking, 'updated');
-
-    res.json({
-      success: true,
-      data: booking,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+    res.json({ success: true, data: booking });
+  } catch (error) { return operationError(res, error); }
 };
-
-// @desc    Staff Check-in customer booking
-// @route   POST /api/bookings/:id/checkin
-// @access  Private (Staff)
-export const checkInBooking = async (req, res) => {
-  try {
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đặt bàn' });
-    }
-
-    booking.status = 'CHECKED_IN';
-    booking.checkedInAt = new Date();
-    await booking.save();
-
-    if (booking.tableId) {
-      await Table.findByIdAndUpdate(booking.tableId, { status: 'UNAVAILABLE' });
-    }
-
-    res.json({
-      success: true,
-      message: 'Check-in thành công',
-      data: booking,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+export const checkInBooking = (req, res) => {
+  req.body = { ...req.body, status: 'CHECKED_IN' };
+  return updateBookingStatus(req, res);
 };

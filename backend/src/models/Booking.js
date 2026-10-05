@@ -106,5 +106,7 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
+bookingSchema.index({ tableId: 1, bookingDate: 1, status: 1, startTime: 1 });
+
 export const Booking = mongoose.model('Booking', bookingSchema);
 export default Booking;

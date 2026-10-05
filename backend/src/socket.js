@@ -1,3 +1,5 @@
+import jwt from 'jsonwebtoken';
+import { User, Business } from './models/index.js';
 import { Server } from 'socket.io';
 
 let io = null;
@@ -12,15 +14,34 @@ export const initSocket = (httpServer) => {
     transports: ['websocket', 'polling'],
   });
 
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.replace(/^Bearer /, '');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fconnect_super_secret_jwt_key_2026');
+      const user = await User.findById(decoded.id).select('_id role status');
+      if (!user || user.status !== 'ACTIVE') return next(new Error('Unauthorized'));
+      socket.data.user = user;
+      next();
+    } catch { next(new Error('Unauthorized')); }
+  });
   io.on('connection', (socket) => {
+    socket.join('user:' + socket.data.user._id);
+
     console.log(`🔌 [Socket.IO] Client connected: ${socket.id}`);
 
     // Cho phép client join room của 1 quán ăn cụ thể
-    socket.on('join:business', (businessId) => {
-      if (businessId) {
-        const room = `business:${businessId}`;
-        socket.join(room);
-        console.log(`🔌 [Socket.IO] ${socket.id} joined room ${room}`);
+    socket.on('join:business', async (businessId, ack) => {
+      try {
+        const user = socket.data.user;
+        const allowed = user.role === 'ADMIN' || await Business.exists({ _id: businessId, ownerId: user._id });
+        if (!allowed) {
+          if (typeof ack === 'function') ack({ success: false, message: 'Forbidden' });
+          return;
+        }
+        await socket.join('business:' + businessId);
+        if (typeof ack === 'function') ack({ success: true });
+      } catch {
+        if (typeof ack === 'function') ack({ success: false, message: 'Invalid business' });
       }
     });
 
@@ -66,7 +87,8 @@ export const emitBookingUpdate = (businessId, booking, type = 'created') => {
   const eventName = type === 'created' ? 'booking:created' : 'booking:statusUpdated';
 
   io.to(`business:${bId}`).emit(eventName, booking);
-  io.emit(eventName, { businessId: bId, booking });
+  const userId = booking.userId?._id || booking.userId;
+  if (userId) io.to('user:' + userId).emit(eventName, { businessId: bId, booking });
   console.log(`⚡ [Socket.IO] Emitted ${eventName} for business ${bId}`);
 };
 
