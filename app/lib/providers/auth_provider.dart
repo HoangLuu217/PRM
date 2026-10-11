@@ -18,6 +18,7 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   bool get isAuthenticated => _token != null && _user != null;
+  bool get isLoggedIn => isAuthenticated;
   String get userRole => _user?.role.toUpperCase().trim() ?? 'USER';
 
   bool get isOwner {

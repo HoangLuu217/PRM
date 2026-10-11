@@ -23,6 +23,7 @@ class RestaurantModel {
   final String? distanceText;
   final String? openTime;
   final String? closeTime;
+  final String? branchId;
   final bool isBookingEnabled;
   final double? _latitude;
   final double? _longitude;
@@ -56,6 +57,7 @@ class RestaurantModel {
     this.distanceText,
     this.openTime,
     this.closeTime,
+    this.branchId,
     this.isBookingEnabled = true,
     double? latitude,
     double? longitude,
@@ -169,6 +171,7 @@ class RestaurantModel {
       distanceText: json['distanceText']?.toString(),
       openTime: json['openTime']?.toString() ?? '07:00',
       closeTime: json['closeTime']?.toString() ?? '22:30',
+      branchId: targetBranch is Map ? (targetBranch['_id'] ?? targetBranch['id'])?.toString() : json['branchId']?.toString(),
       isBookingEnabled: json['isBookingEnabled'] != false,
       latitude: lat,
       longitude: lng,

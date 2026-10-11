@@ -17,7 +17,7 @@ const generateBookingCode = () => {
 // @access  Private (Customer)
 export const createBooking = async (req, res) => {
   try {
-    const {
+    let {
       businessId,
       branchId,
       tableId,
@@ -32,6 +32,12 @@ export const createBooking = async (req, res) => {
     if (!['USER', 'CUSTOMER'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Chỉ khách hàng mới có thể đặt bàn' });
     }
+
+    if (!branchId && businessId) {
+      const defaultBranch = await Branch.findOne({ businessId, status: 'ACTIVE' });
+      if (defaultBranch) branchId = defaultBranch._id;
+    }
+
     if (!businessId || !branchId || !bookingDate || !startTime) {
       return res.status(400).json({ success: false, message: 'Thiếu businessId, branchId, bookingDate hoặc startTime' });
     }
@@ -195,6 +201,8 @@ export const getBranchBookings = async (req, res) => {
     const bookings = await Booking.find(query)
       .populate('userId', 'fullName phone avatarUrl')
       .populate('tableId', 'name capacity location status')
+      .populate('branchId', 'name address phone')
+      .populate('businessId', 'name logoUrl')
       .populate('preOrderId')
       .sort({ bookingDate: 1, startTime: 1 });
 

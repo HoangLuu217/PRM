@@ -9,7 +9,9 @@ router.use(validateIds);
 
 router.get('/bookings', protect, businessOwnerAccountOnly, getBranchBookings);
 router.put('/bookings/:id', protect, branchOwnerOnly, updateBookingStatus);
+router.put('/bookings/:id/status', protect, branchOwnerOnly, updateBookingStatus);
 router.get('/orders', protect, businessOwnerAccountOnly, getBranchOrders);
 router.put('/orders/:id/status', protect, branchOwnerOnly, updateOrderStatus);
+router.put('/orders/:id', protect, branchOwnerOnly, updateOrderStatus);
 
 export default router;

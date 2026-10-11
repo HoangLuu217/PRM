@@ -8,9 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/restaurant_service.dart';
 import '../auth/login_screen.dart';
-import 'widgets/restaurant_modals.dart';
+import 'booking/booking_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final RestaurantModel restaurant;
@@ -29,7 +28,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   bool _isFavorite = false;
   bool _isLoadingMenu = true;
   List<Map<String, dynamic>> _menuItems = [];
-  final RestaurantService _restaurantService = RestaurantService();
 
   @override
   void initState() {
@@ -1032,7 +1030,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
               ),
               child: ElevatedButton.icon(
                 onPressed: () {
-                  RestaurantModals.showBooking(context, r, restaurantService: _restaurantService);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookingScreen(restaurant: r),
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.table_restaurant_rounded, size: 18),
                 label: const Text('Đặt bàn ngay', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),

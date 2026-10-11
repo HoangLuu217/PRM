@@ -192,6 +192,17 @@ export const branchOwnerOnly = async (req, res, next) => {
       branchId = model === Branch ? resource._id : resource.branchId;
     }
 
+    if (!branchId && req.user?._id) {
+      const userBiz = await Business.findOne({ ownerId: req.user._id });
+      if (userBiz) {
+        const userBranch = await Branch.findOne({ businessId: userBiz._id });
+        if (userBranch) {
+          branchId = userBranch._id;
+          if (req.body) req.body.branchId = userBranch._id;
+        }
+      }
+    }
+
     if (!branchId) {
       return res.status(400).json({ success: false, message: 'Thiếu branchId' });
     }
