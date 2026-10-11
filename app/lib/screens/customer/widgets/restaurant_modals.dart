@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../models/restaurant_model.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/restaurant_service.dart';
+import '../../auth/login_screen.dart';
+import '../booking/booking_screen.dart';
 import '../restaurant_detail_screen.dart';
 
 class RestaurantModals {
@@ -129,7 +132,31 @@ class RestaurantModals {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: () async {
-                      Navigator.pop(ctx);
+                      final token = await AuthService().getToken();
+                      if (token == null || token.isEmpty) {
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Vui lòng đăng nhập để thực hiện đặt bàn'),
+                            backgroundColor: const Color(0xFF0072FF),
+                            behavior: SnackBarBehavior.floating,
+                            action: SnackBarAction(
+                              label: 'Đăng nhập',
+                              textColor: Colors.white,
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (ctx.mounted) Navigator.pop(ctx);
                       final todayStr = DateTime.now().toIso8601String().substring(0, 10);
                       final res = await service.createBooking(
                         businessId: r.id,
@@ -166,7 +193,33 @@ class RestaurantModals {
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Xác nhận đặt bàn', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    child: const Text('Xác nhận đặt bàn nhanh', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Nút mở màn hình đặt bàn đầy đủ chọn bàn theo sơ đồ
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookingScreen(
+                            restaurant: r,
+                            initialGuests: guestCount,
+                            initialTime: selectedTime,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.table_restaurant_outlined, size: 16, color: Color(0xFF0072FF)),
+                    label: const Text(
+                      'Tùy chọn ngày, ghi chú & tự chọn bàn ăn',
+                      style: TextStyle(color: Color(0xFF0072FF), fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],

@@ -21,7 +21,7 @@ const generateOrderCode = () => {
 
 export const createOrder = async (req, res) => {
   try {
-    const {
+    let {
       businessId,
       branchId,
       bookingId,
@@ -35,6 +35,12 @@ export const createOrder = async (req, res) => {
     if (!['USER', 'CUSTOMER'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Chỉ khách hàng mới có thể đặt món' });
     }
+
+    if (!branchId && businessId) {
+      const defaultBranch = await Branch.findOne({ businessId, status: 'ACTIVE' });
+      if (defaultBranch) branchId = defaultBranch._id;
+    }
+
     if (!businessId || !branchId || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Cần có businessId, branchId và ít nhất một món' });
     }
@@ -243,6 +249,8 @@ export const getBranchOrders = async (req, res) => {
 
     const orders = await Order.find(query)
       .populate('userId', 'fullName phone')
+      .populate('branchId', 'name address phone')
+      .populate('bookingId', 'bookingCode bookingDate startTime')
       .populate('tableId', 'name location')
       .sort({ createdAt: -1 });
 
