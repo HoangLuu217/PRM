@@ -7,6 +7,18 @@ import '../models/user_model.dart';
 class AuthService {
   static const String _tokenKey = 'jwt_token';
 
+  // Helper tạo headers chuẩn kèm bypass cho localtunnel
+  Map<String, String> _headers([String? token]) {
+    final map = {
+      'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
+    };
+    if (token != null && token.isNotEmpty) {
+      map['Authorization'] = 'Bearer $token';
+    }
+    return map;
+  }
+
   // Save token locally
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -30,7 +42,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.login}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'password': password,
@@ -73,7 +85,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.sendEmailOtp}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'fullName': fullName?.trim() ?? '',
@@ -119,7 +131,7 @@ class AuthService {
 
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.register}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode(requestBody),
       );
 
@@ -164,10 +176,7 @@ class AuthService {
 
       final response = await http.get(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profile}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        headers: _headers(token),
       );
 
       if (response.statusCode == 200) {
@@ -194,10 +203,7 @@ class AuthService {
 
       final response = await http.put(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profile}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        headers: _headers(token),
         body: jsonEncode(updateData),
       );
 
@@ -235,7 +241,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}/auth/google'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'fullName': fullName,
@@ -280,7 +286,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.sendEmailOtp}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'type': 'RESET_PASSWORD',
@@ -309,7 +315,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.verifyEmailOtp}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'otp': otp.trim(),
@@ -339,7 +345,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.resetPassword}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'otp': otp.trim(),
