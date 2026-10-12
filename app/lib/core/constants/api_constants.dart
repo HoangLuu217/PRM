@@ -1,10 +1,9 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
-  // Lấy Base URL từ file .env (fallback về 10.0.2.2 cho Android Emulator)
-  static String get baseUrl => dotenv.isInitialized
-      ? (dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:5000/api')
-      : 'http://10.0.2.2:5000/api';
+  // Lấy Base URL duy nhất từ file .env
+  static String get baseUrl =>
+      dotenv.isInitialized ? (dotenv.env['API_BASE_URL'] ?? '') : '';
 
   static const String login = '/auth/login';
   static const String register = '/auth/register';
