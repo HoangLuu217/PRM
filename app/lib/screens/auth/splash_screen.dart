@@ -22,22 +22,28 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Chờ 1.5 giây để hiển thị splash screen mượt mà
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    if (!mounted) return;
+    debugPrint('[Splash] Started');
+    debugPrint('[Splash] Checking auth');
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
+
+    // Chạy kiểm tra auth song song với delay 1.2 giây để vừa đủ mượt mà không bị chờ lâu
+    await Future.wait([
+      authProvider.checkAuthStatus(),
+      Future.delayed(const Duration(milliseconds: 1200)),
+    ]);
 
     if (!mounted) return;
+
+    debugPrint('[Splash] Authenticated: ${authProvider.isAuthenticated}');
 
     if (authProvider.isAuthenticated) {
       final role = authProvider.userRole;
       final isMerchant = authProvider.isOwner ||
-          role.toUpperCase() == 'MERCHANT' ||
-          role.toUpperCase() == 'OWNER' ||
-          role.toUpperCase() == 'ADMIN';
+          role == 'MERCHANT' ||
+          role == 'OWNER' ||
+          role == 'BUSINESS_OWNER' ||
+          role == 'ADMIN';
 
       if (isMerchant) {
         Navigator.pushReplacement(

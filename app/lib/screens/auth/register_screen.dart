@@ -282,9 +282,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  child: _currentStep == 1
-                      ? _buildStep1Form(authProvider)
-                      : _buildStep2OtpForm(authProvider),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 460),
+                      child: _currentStep == 1
+                          ? _buildStep1Form(authProvider)
+                          : _buildStep2OtpForm(authProvider),
+                    ),
+                  ),
                 ),
               ),
             ),

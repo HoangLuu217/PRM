@@ -727,11 +727,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. User Hero Profile Card
-                      _buildUserHeroCard(user, isOwner),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. User Hero Profile Card
+                          _buildUserHeroCard(user, isOwner),
                       const SizedBox(height: 14),
 
                       // 2. Stats Row (Dynamic for Owner vs Customer)
@@ -789,6 +792,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
     );
   }
 

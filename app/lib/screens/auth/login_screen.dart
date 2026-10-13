@@ -53,7 +53,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       curve: Curves.easeOutCubic,
     ));
 
-    _animController.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _animController.forward();
+    });
 
     // Lắng nghe sự kiện đăng nhập khi hoàn tất OAuth Web Browser Flow
     if (SupabaseAuthService.isConfigured()) {
@@ -111,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final isMerchant = authProvider.isOwner ||
         role.toUpperCase() == 'MERCHANT' ||
         role.toUpperCase() == 'OWNER' ||
+        role.toUpperCase() == 'BUSINESS_OWNER' ||
         role.toUpperCase() == 'ADMIN';
 
     if (isMerchant) {
@@ -224,7 +227,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               'public/background.png',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
-                color: const Color(0xFF121212),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF0F172A),
+                      Color(0xFF1E293B),
+                      Color(0xFF0F172A),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -256,11 +269,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   opacity: _fadeAnim,
                   child: SlideTransition(
                     position: _slideAnim,
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Logo & Header Brand
                           _buildBrandHeader(),
@@ -418,11 +434,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           const SizedBox(height: 24),
 
                           // Footer: Chưa có tài khoản -> Đăng ký
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
-                                'Bạn chưa có tài khoản?',
+                                'Bạn chưa có tài khoản? ',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.75),
                                   fontSize: 14,
@@ -454,6 +471,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
             ),
           ),
+        ),
+      ),
         ],
       ),
     );
