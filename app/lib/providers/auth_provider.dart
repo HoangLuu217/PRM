@@ -26,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
     return r == 'MERCHANT' ||
         r == 'OWNER' ||
         r == 'ADMIN' ||
+        r == 'BUSINESS_OWNER' ||
         _user!.business != null ||
         _user!.fullName.toLowerCase().contains('chủ quán') ||
         _user!.fullName.toLowerCase().contains('owner');

@@ -177,7 +177,7 @@ class AuthService {
       final response = await http.get(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profile}'),
         headers: _headers(token),
-      );
+      ).timeout(const Duration(seconds: 1));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
