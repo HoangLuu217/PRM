@@ -122,6 +122,9 @@ class SupabaseAuthService {
         OAuthProvider.google,
         redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
         authScreenLaunchMode: LaunchMode.externalApplication,
+        queryParams: const {
+          'prompt': 'select_account',
+        },
       );
 
       return success;

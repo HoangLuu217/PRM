@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../core/constants/supabase_constants.dart';
 import '../../providers/auth_provider.dart';
@@ -24,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isGoogleLoggingIn = false;
   StreamSubscription<AuthState>? _supabaseAuthSubscription;
 
   late AnimationController _animController;
@@ -55,16 +55,43 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     _animController.forward();
 
-    // Lắng nghe sự kiện đăng nhập nếu dùng Supabase OAuth
+    // Lắng nghe sự kiện đăng nhập khi hoàn tất OAuth Web Browser Flow
     if (SupabaseAuthService.isConfigured()) {
       _supabaseAuthSubscription =
-          Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+          Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
         if (data.event == AuthChangeEvent.signedIn && mounted) {
-          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-          authProvider.checkAuthStatus().then((_) {
+          final session = data.session;
+          final supaUser = session?.user;
+          if (supaUser != null && supaUser.email != null && supaUser.email!.isNotEmpty) {
+            final metadata = supaUser.userMetadata ?? {};
+            final email = supaUser.email!;
+            final fullName = metadata['full_name'] ??
+                metadata['name'] ??
+                email.split('@')[0];
+            final avatarUrl = metadata['avatar_url'] ?? metadata['picture'];
+            final googleId = metadata['sub'] ?? supaUser.id;
+
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final success = await authProvider.googleLogin(
+              email: email,
+              fullName: fullName,
+              avatarUrl: avatarUrl,
+              googleId: googleId,
+            );
+
             if (!mounted) return;
-            _navigateByRole(authProvider.userRole);
-          });
+            if (success) {
+              _navigateByRole(authProvider.userRole);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(authProvider.errorMessage ?? 'Đăng nhập Google thất bại'),
+                  backgroundColor: const Color(0xFFE53935),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
         }
       });
     }
@@ -131,68 +158,56 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   void _handleGoogleLogin() async {
+    if (_isGoogleLoggingIn) return;
+
+    setState(() {
+      _isGoogleLoggingIn = true;
+    });
+
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: kIsWeb ? SupabaseConstants.googleWebClientId : null,
-        serverClientId: SupabaseConstants.googleWebClientId.isNotEmpty
-            ? SupabaseConstants.googleWebClientId
-            : null,
-        scopes: const ['email', 'profile'],
-      );
-
-      await googleSignIn.signOut();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
-      if (googleUser == null) return;
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
-      final String? accessToken = googleAuth.accessToken;
-
-      if (SupabaseAuthService.isConfigured() && idToken != null) {
-        try {
-          await Supabase.instance.client.auth.signInWithIdToken(
-            provider: OAuthProvider.google,
-            idToken: idToken,
-            accessToken: accessToken,
-          );
-        } catch (supaErr) {
-          debugPrint('[Supabase ID Token Auth]: $supaErr');
-        }
-      }
-
-      if (!mounted) return;
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.googleLogin(
-        email: googleUser.email,
-        fullName: googleUser.displayName ?? 'Google User',
-        avatarUrl: googleUser.photoUrl,
-        googleId: googleUser.id,
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        _navigateByRole(authProvider.userRole);
-      } else {
+      if (!SupabaseAuthService.isConfigured()) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authProvider.errorMessage ?? 'Đăng nhập Google thất bại'),
-            backgroundColor: const Color(0xFFE53935),
+          const SnackBar(
+            content: Text('Supabase chưa được cấu hình URL/AnonKey trong file .env'),
+            backgroundColor: Color(0xFFE53935),
             behavior: SnackBarBehavior.floating,
           ),
         );
+        setState(() {
+          _isGoogleLoggingIn = false;
+        });
+        return;
       }
+
+      // Đăng xuất phiên Supabase cũ nếu có để người dùng luôn được chọn tài khoản
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+
+      // Mở trình duyệt ngoài (Chrome / Browser) để đăng nhập Google OAuth Web Flow
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+        queryParams: const {
+          'prompt': 'select_account',
+        },
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lỗi đăng nhập Google: $e'),
+          content: Text('Lỗi mở trình duyệt đăng nhập Google: $e'),
           backgroundColor: const Color(0xFFE53935),
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoggingIn = false;
+        });
+      }
     }
   }
 
@@ -601,6 +616,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   // Widget Nút Google Sign-in Glassmorphism
   Widget _buildGoogleSignInButton(AuthProvider authProvider) {
+    final bool isBusy = authProvider.isLoading || _isGoogleLoggingIn;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
@@ -608,40 +625,49 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.2),
       ),
       child: OutlinedButton(
-        onPressed: authProvider.isLoading ? null : _handleGoogleLogin,
+        onPressed: isBusy ? null : _handleGoogleLogin,
         style: OutlinedButton.styleFrom(
           side: BorderSide.none,
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Google Icon Logo
-            Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+        child: isBusy && _isGoogleLoggingIn
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.2,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Google Icon Logo
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.g_mobiledata_rounded,
+                      color: Color(0xFF4285F4),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Đăng nhập với Google',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.g_mobiledata_rounded,
-                color: Color(0xFF4285F4),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Đăng nhập với Google',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

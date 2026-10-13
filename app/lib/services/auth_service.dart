@@ -250,9 +250,24 @@ class AuthService {
         }),
       );
 
-      final data = jsonDecode(response.body);
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        return {
+          'success': false,
+          'message': 'Máy chủ backend phản hồi lỗi (${response.statusCode}): ${response.reasonPhrase ?? 'Tunnel/Server Unavailable'}. Vui lòng kiểm tra API_BASE_URL trong file .env',
+        };
+      }
 
-      if (response.statusCode == 200 && data['success'] == true) {
+      final dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (jsonErr) {
+        return {
+          'success': false,
+          'message': 'Định dạng phản hồi không hợp lệ từ backend: $jsonErr. Vui lòng kiểm tra API_BASE_URL.',
+        };
+      }
+
+      if (data['success'] == true) {
         final token = data['token'] ?? data['data']?['token'];
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
@@ -276,7 +291,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Connection error: $e',
+        'message': 'Lỗi kết nối máy chủ backend: $e',
       };
     }
   }
