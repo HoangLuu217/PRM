@@ -38,25 +38,39 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Kiểm tra Supabase Auth trước nếu có
-      if (SupabaseAuthService.isConfigured()) {
-        final supabaseUser = _supabaseAuthService.getCurrentUser();
-        if (supabaseUser != null) {
-          _user = supabaseUser;
-          _token = SupabaseAuthService.client.auth.currentSession?.accessToken ?? 'supabase_session';
-          _isLoading = false;
-          notifyListeners();
-          return;
-        }
-      }
-
-      // 2. Kiểm tra token từ local storage (Backend JWT)
+      // 1. Kiểm tra token từ local storage (Backend JWT)
       _token = await _authService.getToken();
       if (_token != null) {
         _user = await _authService.getProfile();
-        if (_user == null) {
+        if (_user != null) {
+          _isLoading = false;
+          notifyListeners();
+          return;
+        } else {
           await _authService.removeToken();
           _token = null;
+        }
+      }
+
+      // 2. Nếu chưa có Backend token nhưng có phiên Supabase, tự động đồng bộ sang Backend
+      if (SupabaseAuthService.isConfigured()) {
+        final supabaseUser = _supabaseAuthService.getCurrentUser();
+        if (supabaseUser != null && supabaseUser.email.isNotEmpty) {
+          final supaRaw = SupabaseAuthService.client.auth.currentUser;
+          final metadata = supaRaw?.userMetadata ?? {};
+          final res = await _authService.googleLogin(
+            email: supabaseUser.email,
+            fullName: metadata['full_name'] ?? metadata['name'] ?? supabaseUser.fullName,
+            avatarUrl: metadata['avatar_url'] ?? metadata['picture'] ?? supabaseUser.avatarUrl,
+            googleId: metadata['sub'] ?? supabaseUser.id,
+          );
+          if (res['success'] == true) {
+            _token = res['token'];
+            _user = res['user'];
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
         }
       }
     } catch (e) {
