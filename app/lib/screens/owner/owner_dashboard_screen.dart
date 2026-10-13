@@ -3,9 +3,46 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import '../auth/profile_screen.dart';
+import 'widgets/merchant_onboarding_dialog.dart';
 
-class OwnerDashboardScreen extends StatelessWidget {
-  const OwnerDashboardScreen({super.key});
+class OwnerDashboardScreen extends StatefulWidget {
+  final bool showOnboardingImmediately;
+
+  const OwnerDashboardScreen({
+    super.key,
+    this.showOnboardingImmediately = false,
+  });
+
+  @override
+  State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
+}
+
+class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
+  bool _hasCheckedOnboarding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndPromptOnboarding();
+    });
+  }
+
+  void _checkAndPromptOnboarding() {
+    if (_hasCheckedOnboarding || !mounted) return;
+    _hasCheckedOnboarding = true;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    final hasBusiness = user?.business != null &&
+        (user?.business?['name']?.toString() ?? '').trim().isNotEmpty;
+
+    if (widget.showOnboardingImmediately || !hasBusiness) {
+      MerchantOnboardingDialog.show(context, onCompleted: () {
+        if (mounted) setState(() {});
+      });
+    }
+  }
 
   void _handleLogout(BuildContext context) async {
     final confirm = await showDialog<bool>(
@@ -40,11 +77,39 @@ class OwnerDashboardScreen extends StatelessWidget {
     );
   }
 
+  void _openOnboardingForm() {
+    MerchantOnboardingDialog.show(context, onCompleted: () {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final businessName = user?.business?['name']?.toString() ?? 'Nhà hàng FConnect Partner';
+    final biz = user?.business;
+    final hasBusiness = biz != null && (biz['name']?.toString() ?? '').trim().isNotEmpty;
+
+    final businessName = hasBusiness
+        ? (biz['name']?.toString() ?? 'Quán F&B Partner')
+        : 'Cơ sở F&B chưa hoàn thiện';
+
+    final categoryName = biz?['category']?.toString() ??
+        (biz?['categories'] is List && (biz!['categories'] as List).isNotEmpty
+            ? biz['categories'][0].toString()
+            : 'F&B');
+
+    final district = biz?['address']?['district']?.toString() ??
+        biz?['district']?.toString() ??
+        'Đà Nẵng';
+
+    final street = biz?['address']?['street']?.toString() ?? '';
+
+    final minPrice = biz?['priceRange']?['min'] ?? 20000;
+    final maxPrice = biz?['priceRange']?['max'] ?? 100000;
+    final priceText = '${(minPrice / 1000).toInt()}k – ${(maxPrice / 1000).toInt()}k';
+
+    final vibes = (biz?['vibes'] is List) ? List<String>.from(biz!['vibes']) : <String>[];
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -71,8 +136,13 @@ class OwnerDashboardScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF38BDF8)),
+            tooltip: 'Cập nhật thông tin quán',
+            onPressed: _openOnboardingForm,
+          ),
+          IconButton(
             icon: const Icon(Icons.account_circle_outlined, color: Colors.white),
-            tooltip: 'Hồ sơ nhà hàng',
+            tooltip: 'Hồ sơ tài khoản',
             onPressed: () {
               Navigator.push(
                 context,
@@ -98,19 +168,92 @@ class OwnerDashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Welcome Hero Banner
+                  // 1. Onboarding Prompt Banner (nếu chưa hoàn thiện hồ sơ)
+                  if (!hasBusiness)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(Icons.add_business_rounded, color: Colors.white, size: 28),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Hoàn thiện hồ sơ cơ sở F&B',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Điền thông tin quán để mở bán và đón khách đặt bàn trên FConnect ngay hôm nay!',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: _openOnboardingForm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF1D4ED8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            ),
+                            child: const Text('Nhập ngay', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // 2. Welcome Hero Banner
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFFEA580C), Color(0xFFC2410C), Color(0xFF9A3412)],
+                        colors: hasBusiness
+                            ? [const Color(0xFFEA580C), const Color(0xFFC2410C), const Color(0xFF9A3412)]
+                            : [const Color(0xFF334155), const Color(0xFF1E293B)],
                       ),
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFEA580C).withValues(alpha: 0.35),
+                          color: hasBusiness
+                              ? const Color(0xFFEA580C).withValues(alpha: 0.35)
+                              : Colors.black.withValues(alpha: 0.2),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -128,14 +271,18 @@ class OwnerDashboardScreen extends StatelessWidget {
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.verified_rounded, size: 14, color: Colors.white),
-                                  SizedBox(width: 5),
+                                  Icon(
+                                    hasBusiness ? Icons.verified_rounded : Icons.pending_actions_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 5),
                                   Text(
-                                    'ĐỐI TÁC CHÍNH THỨC',
-                                    style: TextStyle(
+                                    hasBusiness ? 'ĐỐI TÁC CHÍNH THỨC' : 'CHỜ HOÀN THIỆN HỒ SƠ',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700,
                                       fontSize: 11,
@@ -145,15 +292,18 @@ class OwnerDashboardScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF22C55E),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                '• Đang mở cửa',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                            InkWell(
+                              onTap: _openOnboardingForm,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: hasBusiness ? const Color(0xFF22C55E) : const Color(0xFFF59E0B),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  hasBusiness ? '• Đang mở cửa' : 'Chỉnh sửa hồ sơ',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                ),
                               ),
                             ),
                           ],
@@ -176,13 +326,27 @@ class OwnerDashboardScreen extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.85),
                           ),
                         ),
+                        if (hasBusiness) ...[
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              _buildHeroTag(Icons.category_rounded, categoryName),
+                              _buildHeroTag(Icons.location_on_rounded, street.isNotEmpty ? '$street, $district' : district),
+                              _buildHeroTag(Icons.payments_rounded, priceText),
+                              if (vibes.isNotEmpty)
+                                _buildHeroTag(Icons.eco_rounded, vibes.first),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // 2. Metrics KPI Grid
+                  // 3. Metrics KPI Grid
                   const Text(
                     'HOẠT ĐỘNG HÔM NAY',
                     style: TextStyle(
@@ -203,42 +367,42 @@ class OwnerDashboardScreen extends StatelessWidget {
                         crossAxisCount: isWide ? 4 : 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: isWide ? 1.35 : 1.25,
+                        childAspectRatio: isWide ? 1.5 : 1.35,
                         children: [
                           _buildKpiCard(
-                            title: 'Đặt bàn hôm nay',
+                            title: 'Đặt bàn mới',
                             value: '12',
-                            icon: Icons.calendar_today_rounded,
+                            icon: Icons.bookmark_added_rounded,
                             color: const Color(0xFF38BDF8),
                           ),
                           _buildKpiCard(
-                            title: 'Đơn gọi món',
-                            value: '25',
-                            icon: Icons.receipt_long_rounded,
-                            color: const Color(0xFF34D399),
+                            title: 'Bàn đang phục vụ',
+                            value: '8 / 15',
+                            icon: Icons.table_restaurant_rounded,
+                            color: const Color(0xFF4ADE80),
                           ),
                           _buildKpiCard(
-                            title: 'Bàn sẵn sàng',
-                            value: '8 / 12',
-                            icon: Icons.table_restaurant_rounded,
+                            title: 'Doanh thu ước tính',
+                            value: '4.8M',
+                            icon: Icons.attach_money_rounded,
                             color: const Color(0xFFFBBF24),
                           ),
                           _buildKpiCard(
-                            title: 'Đánh giá quán',
-                            value: '4.8 ★',
-                            icon: Icons.star_rounded,
-                            color: const Color(0xFFF472B6),
+                            title: 'Tin nhắn chờ',
+                            value: '3',
+                            icon: Icons.chat_bubble_outline_rounded,
+                            color: const Color(0xFFA78BFA),
                           ),
                         ],
                       );
                     },
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // 3. Quick Actions
+                  // 4. Quick Actions Management
                   const Text(
-                    'QUẢN TRỊ NGHIỆP VỤ',
+                    'QUẢN LÝ VẬN HÀNH',
                     style: TextStyle(
                       color: Color(0xFF94A3B8),
                       fontSize: 12,
@@ -247,6 +411,15 @@ class OwnerDashboardScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
+
+                  _buildActionTile(
+                    title: 'Hồ sơ Nhà hàng & Cài đặt Quán',
+                    subtitle: 'Cập nhật tên quán, mô hình kinh doanh, địa chỉ, định vị Google Maps',
+                    icon: Icons.storefront_rounded,
+                    accentColor: const Color(0xFFF97316),
+                    onTap: _openOnboardingForm,
+                  ),
+                  const SizedBox(height: 10),
 
                   _buildActionTile(
                     title: 'Quản lý Đặt bàn & Khách đến',
@@ -278,24 +451,10 @@ class OwnerDashboardScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 10),
-
-                  _buildActionTile(
-                    title: 'Hồ sơ Nhà hàng & Cài đặt',
-                    subtitle: 'Thông tin liên hệ, logo, ảnh bìa quán, mô hình kinh doanh',
-                    icon: Icons.badge_outlined,
-                    accentColor: const Color(0xFFF97316),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                      );
-                    },
-                  ),
 
                   const SizedBox(height: 30),
 
-                  // 4. Footer Note
+                  // 5. Footer Note
                   Center(
                     child: Text(
                       'FConnect PRM393 • Multi-Platform Flutter Architecture',
@@ -311,6 +470,27 @@ class OwnerDashboardScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeroTag(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white70),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

@@ -153,4 +153,81 @@ class RestaurantService {
       };
     }
   }
+
+  // 3. Khởi tạo / Hoàn thiện hồ sơ cơ sở F&B (Chủ quán Partner Onboarding)
+  Future<Map<String, dynamic>> onboardBusiness({
+    required String name,
+    required String category,
+    String? description,
+    required String city,
+    required String district,
+    required String street,
+    String? ward,
+    String? googleMapsUrl,
+    required int minPrice,
+    required int maxPrice,
+    List<String> vibes = const [],
+    List<String> purposes = const [],
+    String? phone,
+  }) async {
+    try {
+      final token = await _authService.getToken();
+      final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.onboardBusiness}');
+
+      final body = {
+        'name': name.trim(),
+        'category': category.trim(),
+        'categories': [category.trim()],
+        'description': description?.trim() ?? '',
+        'businessAddress': {
+          'street': street.trim(),
+          'ward': ward?.trim() ?? '',
+          'district': district.trim(),
+          'city': city.trim(),
+        },
+        if (googleMapsUrl != null && googleMapsUrl.trim().isNotEmpty)
+          'googleMapsUrl': googleMapsUrl.trim(),
+        'priceRange': {
+          'min': minPrice,
+          'max': maxPrice,
+        },
+        'vibes': vibes,
+        'purposes': purposes,
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      };
+
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Bypass-Tunnel-Reminder': 'true',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 12));
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Hoàn thiện hồ sơ quán thành công!',
+          'data': data['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Không thể lưu thông tin quán',
+        };
+      }
+    } catch (e) {
+      debugPrint('[OnboardBusiness Error]: $e');
+      return {
+        'success': false,
+        'message': 'Lỗi kết nối máy chủ khi lưu hồ sơ: $e',
+      };
+    }
+  }
 }
