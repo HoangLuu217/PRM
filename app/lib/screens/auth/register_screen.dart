@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../customer/customer_home_screen.dart';
+import '../owner/owner_dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int _currentStep = 1; // 1: Nhập thông tin, 2: Xác thực OTP
   bool _obscurePassword = true;
+  String _selectedRole = 'USER'; // 'USER' (Khách hàng) hoặc 'MERCHANT' (Chủ quán F&B)
 
   // Countdown timer cho gửi lại mã OTP
   Timer? _resendTimer;
@@ -168,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        role: 'USER',
+        role: _selectedRole,
         phone: _phoneController.text.trim(),
         otpCode: _otpController.text.trim(),
       );
@@ -178,11 +180,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white),
-                SizedBox(width: 10),
-                Expanded(child: Text('Đăng ký tài khoản thành công!')),
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _selectedRole == 'MERCHANT'
+                        ? 'Đăng ký tài khoản Đối tác F&B thành công!'
+                        : 'Đăng ký tài khoản thành công!',
+                  ),
+                ),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -191,11 +199,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-          (route) => false,
-        );
+        if (_selectedRole == 'MERCHANT') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const OwnerDashboardScreen(showOnboardingImmediately: true),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+            (route) => false,
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -350,6 +368,89 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Chọn vai trò tài khoản: Khách hàng vs Chủ quán F&B
+                Container(
+                  margin: const EdgeInsets.only(bottom: 18),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedRole = 'USER'),
+                          borderRadius: BorderRadius.circular(10),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            decoration: BoxDecoration(
+                              color: _selectedRole == 'USER' ? const Color(0xFF0072FF) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 16,
+                                  color: _selectedRole == 'USER' ? Colors.white : Colors.white60,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Khách hàng',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _selectedRole == 'USER' ? FontWeight.w700 : FontWeight.w500,
+                                    color: _selectedRole == 'USER' ? Colors.white : Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedRole = 'MERCHANT'),
+                          borderRadius: BorderRadius.circular(10),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            decoration: BoxDecoration(
+                              color: _selectedRole == 'MERCHANT' ? const Color(0xFFEA580C) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.storefront_rounded,
+                                  size: 16,
+                                  color: _selectedRole == 'MERCHANT' ? Colors.white : Colors.white60,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Chủ quán F&B',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _selectedRole == 'MERCHANT' ? FontWeight.w700 : FontWeight.w500,
+                                    color: _selectedRole == 'MERCHANT' ? Colors.white : Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Full Name Input
                 _buildTextField(
                   controller: _nameController,

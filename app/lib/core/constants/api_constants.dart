@@ -12,6 +12,7 @@ class ApiConstants {
   static const String verifyEmailOtp = '/auth/verify-email-otp';
   static const String resetPassword = '/auth/reset-password';
   static const String businesses = '/businesses';
+  static const String onboardBusiness = '/businesses/onboard';
   static const String bookings = '/bookings';
   static const String articles = '/articles';
 }
