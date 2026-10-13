@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -283,23 +284,32 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           const SizedBox(height: 28),
 
                           // Glassmorphism Card Container
-                          Container(
-                            padding: const EdgeInsets.all(24.0),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.16),
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 15),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(28),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 26.0, vertical: 28.0),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
+                                    color: const Color(0xFF38BDF8).withValues(alpha: 0.28),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.75),
+                                      blurRadius: 40,
+                                      offset: const Offset(0, 18),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFF0072FF).withValues(alpha: 0.20),
+                                      blurRadius: 32,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -430,8 +440,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               ],
                             ),
                           ),
+                        ),
+                      ),
 
-                          const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
                           // Footer: Chưa có tài khoản -> Đăng ký
                           Wrap(
@@ -559,24 +571,40 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 14.5,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
+        labelStyle: const TextStyle(
+          color: Color(0xFF94A3B8),
+          fontSize: 13.5,
+          fontWeight: FontWeight.w500,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: Color(0xFF38BDF8),
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+        hintStyle: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 13.5,
+        ),
         prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.06),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: const Color(0xFF1E293B),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          borderSide: const BorderSide(color: Color(0xFF334155), width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF00C6FF), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -586,7 +614,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFFF87171), width: 1.5),
         ),
-        errorStyle: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11),
+        errorStyle: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11.5, fontWeight: FontWeight.w500),
       ),
       validator: validator,
     );
@@ -639,9 +667,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.2),
+        border: Border.all(color: const Color(0xFF334155), width: 1.2),
       ),
       child: OutlinedButton(
         onPressed: isBusy ? null : _handleGoogleLogin,
