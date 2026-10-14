@@ -92,6 +92,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
             if (!mounted) return;
             if (success) {
+              if (pendingRole == 'MERCHANT') {
+                _selectedRole = 'MERCHANT';
+              }
               _navigateByRole(authProvider.userRole);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(

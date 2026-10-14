@@ -26,14 +26,17 @@ class AuthProvider extends ChangeNotifier {
     if (saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER') return true;
     if (_user == null) return false;
     final r = _user!.role.toUpperCase().trim();
+    final name = _user!.fullName.toLowerCase();
+    final email = _user!.email.toLowerCase();
     return r == 'MERCHANT' ||
         r == 'OWNER' ||
         r == 'ADMIN' ||
         r == 'BUSINESS_OWNER' ||
         _user!.business != null ||
-        _user!.fullName.toLowerCase().contains('chủ quán') ||
-        _user!.fullName.toLowerCase().contains('owner') ||
-        _user!.email.toLowerCase().contains('owner');
+        name.contains('chủ') ||
+        name.contains('owner') ||
+        email.contains('owner') ||
+        email.startsWith('chu');
   }
 
   // Check auth status on app start (Splash Screen)
@@ -51,6 +54,13 @@ class AuthProvider extends ChangeNotifier {
       if (_token != null) {
         _user = await _authService.getProfile();
         if (_user != null) {
+          if (pendingRole == 'MERCHANT' && _user!.role != 'MERCHANT') {
+            await _authService.clearPendingOAuthRole();
+            final updated = await _authService.updateProfile({'role': 'MERCHANT'});
+            if (updated['success'] == true && updated['user'] != null) {
+              _user = updated['user'];
+            }
+          }
           _savedRole = _user!.role;
           await _authService.saveRole(_savedRole!);
           _isLoading = false;

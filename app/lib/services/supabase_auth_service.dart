@@ -136,7 +136,7 @@ class SupabaseAuthService {
 
   // Lấy thông tin phiên người dùng hiện tại
   User? getCurrentUser() {
-    final supabaseUser = client.auth.currentUser;
+    final supabaseUser = client.auth.currentUser ?? client.auth.currentSession?.user;
     if (supabaseUser == null) return null;
 
     final metadata = supabaseUser.userMetadata ?? {};
