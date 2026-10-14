@@ -11,7 +11,6 @@ import '../../services/auth_service.dart';
 import '../../services/supabase_auth_service.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
-import '../../models/user_model.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -83,8 +82,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             final avatarUrl = metadata['avatar_url'] ?? metadata['picture'];
             final googleId = metadata['sub'] ?? supaUser.id;
 
-            final isOwnerEmail = User.isOwnerKeyword(email);
-            final effectiveRole = (kIsWeb && (pendingRole == 'MERCHANT' || isOwnerEmail)) ? 'MERCHANT' : null;
+            final effectiveRole = (kIsWeb && pendingRole == 'MERCHANT') ? 'MERCHANT' : null;
 
             final authProvider = Provider.of<AuthProvider>(context, listen: false);
             final success = await authProvider.googleLogin(
@@ -177,8 +175,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final email = _emailController.text.trim();
-      final effectiveRole = (kIsWeb && (User.isOwnerKeyword(email) || _selectedRole == 'MERCHANT'))
+      final effectiveRole = (kIsWeb && _selectedRole == 'MERCHANT')
           ? 'MERCHANT'
           : null;
 

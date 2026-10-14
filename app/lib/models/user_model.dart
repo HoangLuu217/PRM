@@ -68,18 +68,6 @@ class User {
             business!['name'].toString().trim().isNotEmpty);
   }
 
-  static bool isOwnerKeyword(String? email, [String? fullName]) {
-    final e = (email ?? '').toLowerCase().trim();
-    final n = (fullName ?? '').toLowerCase().trim();
-    return e.contains('owner') ||
-        e.startsWith('chu') ||
-        e.contains('merchant') ||
-        e.contains('admin') ||
-        e.contains('quanly') ||
-        n.contains('chủ') ||
-        n.contains('owner');
-  }
-
   User({
     required this.id,
     required this.fullName,
@@ -121,10 +109,6 @@ class User {
     }
 
     final fullNameVal = (map['fullName'] ?? map['full_name'] ?? map['name'] ?? '').toString();
-    final emailVal = (map['email'] ?? '').toString().toLowerCase().trim();
-    if (isOwnerKeyword(emailVal, fullNameVal)) {
-      roleVal = 'MERCHANT';
-    }
 
     return User(
       id: (map['_id'] ?? map['id'] ?? '').toString(),
