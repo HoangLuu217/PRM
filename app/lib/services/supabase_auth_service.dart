@@ -121,8 +121,7 @@ class SupabaseAuthService {
       final bool success = await client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: SupabaseConstants.authRedirectUrl,
-        authScreenLaunchMode:
-            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        authScreenLaunchMode: LaunchMode.externalApplication,
         queryParams: const {
           'prompt': 'select_account',
         },
