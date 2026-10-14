@@ -32,7 +32,8 @@ class AuthProvider extends ChangeNotifier {
         r == 'BUSINESS_OWNER' ||
         _user!.business != null ||
         _user!.fullName.toLowerCase().contains('chủ quán') ||
-        _user!.fullName.toLowerCase().contains('owner');
+        _user!.fullName.toLowerCase().contains('owner') ||
+        _user!.email.toLowerCase().contains('owner');
   }
 
   // Check auth status on app start (Splash Screen)
@@ -43,11 +44,15 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       _savedRole = await _authService.getSavedRole();
+      final pendingRole = await _authService.getPendingOAuthRole();
+
       // 1. Kiểm tra token từ local storage (Backend JWT)
       _token = await _authService.getToken();
       if (_token != null) {
         _user = await _authService.getProfile();
         if (_user != null) {
+          _savedRole = _user!.role;
+          await _authService.saveRole(_savedRole!);
           _isLoading = false;
           notifyListeners();
           return;
@@ -61,17 +66,26 @@ class AuthProvider extends ChangeNotifier {
       if (SupabaseAuthService.isConfigured()) {
         final supabaseUser = _supabaseAuthService.getCurrentUser();
         if (supabaseUser != null && supabaseUser.email.isNotEmpty) {
+          if (pendingRole != null) {
+            await _authService.clearPendingOAuthRole();
+          }
           final supaRaw = SupabaseAuthService.client.auth.currentUser;
           final metadata = supaRaw?.userMetadata ?? {};
+          final targetRole = pendingRole ?? _savedRole ?? metadata['role']?.toString();
           final res = await _authService.googleLogin(
             email: supabaseUser.email,
             fullName: metadata['full_name'] ?? metadata['name'] ?? supabaseUser.fullName,
             avatarUrl: metadata['avatar_url'] ?? metadata['picture'] ?? supabaseUser.avatarUrl,
             googleId: metadata['sub'] ?? supabaseUser.id,
+            role: targetRole,
           );
           if (res['success'] == true) {
             _token = res['token'];
             _user = res['user'];
+            _savedRole = _user?.role ?? targetRole;
+            if (_savedRole != null && _savedRole!.isNotEmpty) {
+              await _authService.saveRole(_savedRole!);
+            }
             _isLoading = false;
             notifyListeners();
             return;
@@ -94,12 +108,40 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    // Nếu cấu hình Supabase, ưu tiên đăng nhập qua Supabase
+    // 1. Luôn ưu tiên đăng nhập qua Node.js REST API backend (MongoDB)
+    final result = await _authService.login(email, password, role: role);
+
+    if (result['success'] == true) {
+      _token = result['token'];
+      _user = result['user'];
+      _savedRole = _user?.role ?? role;
+      if (_savedRole != null && _savedRole!.isNotEmpty) {
+        await _authService.saveRole(_savedRole!);
+      }
+      _errorMessage = null;
+      _isLoading = false;
+
+      // Đồng bộ phiên đăng nhập Supabase ngầm (nếu có cấu hình)
+      if (SupabaseAuthService.isConfigured()) {
+        try {
+          await _supabaseAuthService.signIn(email: email, password: password);
+        } catch (_) {}
+      }
+
+      notifyListeners();
+      return true;
+    }
+
+    // 2. Dự phòng: Đăng nhập qua Supabase nếu tài khoản chỉ có trên Supabase
     if (SupabaseAuthService.isConfigured()) {
       final supaResult = await _supabaseAuthService.signIn(email: email, password: password);
       if (supaResult['success'] == true) {
         _token = supaResult['token'];
         _user = supaResult['user'];
+        _savedRole = role ?? _user?.role;
+        if (_savedRole != null && _savedRole!.isNotEmpty) {
+          await _authService.saveRole(_savedRole!);
+        }
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
@@ -107,20 +149,10 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    final result = await _authService.login(email, password, role: role);
-
     _isLoading = false;
-    if (result['success'] == true) {
-      _token = result['token'];
-      _user = result['user'];
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } else {
-      _errorMessage = result['message'] ?? 'Login failed';
-      notifyListeners();
-      return false;
-    }
+    _errorMessage = result['message'] ?? 'Email hoặc mật khẩu không chính xác';
+    notifyListeners();
+    return false;
   }
 
   // Gửi mã OTP xác nhận đăng ký tài khoản
@@ -158,6 +190,44 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
+    // 1. Luôn ưu tiên đăng ký qua Node.js REST API backend (MongoDB)
+    final result = await _authService.register(
+      fullName: fullName,
+      email: email,
+      password: password,
+      role: role,
+      phone: phone,
+      otpCode: otpCode,
+    );
+
+    if (result['success'] == true) {
+      _token = result['token'];
+      _user = result['user'];
+      _savedRole = _user?.role ?? role;
+      if (_savedRole != null && _savedRole!.isNotEmpty) {
+        await _authService.saveRole(_savedRole!);
+      }
+      _errorMessage = null;
+      _isLoading = false;
+
+      // Đồng bộ tạo tài khoản trên Supabase (nếu có cấu hình)
+      if (SupabaseAuthService.isConfigured()) {
+        try {
+          await _supabaseAuthService.signUp(
+            email: email,
+            password: password,
+            fullName: fullName,
+            role: role,
+            phone: phone,
+          );
+        } catch (_) {}
+      }
+
+      notifyListeners();
+      return true;
+    }
+
+    // 2. Dự phòng: Đăng ký qua Supabase nếu backend lỗi
     if (SupabaseAuthService.isConfigured()) {
       final supaResult = await _supabaseAuthService.signUp(
         email: email,
@@ -170,6 +240,10 @@ class AuthProvider extends ChangeNotifier {
       if (supaResult['success'] == true) {
         _token = supaResult['token'];
         _user = supaResult['user'];
+        _savedRole = role;
+        if (_savedRole != null && _savedRole!.isNotEmpty) {
+          await _authService.saveRole(_savedRole!);
+        }
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
@@ -177,27 +251,10 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    final result = await _authService.register(
-      fullName: fullName,
-      email: email,
-      password: password,
-      role: role,
-      phone: phone,
-      otpCode: otpCode,
-    );
-
     _isLoading = false;
-    if (result['success'] == true) {
-      _token = result['token'];
-      _user = result['user'];
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } else {
-      _errorMessage = result['message'] ?? 'Registration failed';
-      notifyListeners();
-      return false;
-    }
+    _errorMessage = result['message'] ?? 'Registration failed';
+    notifyListeners();
+    return false;
   }
 
   // Update Profile action
@@ -259,6 +316,10 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       _token = result['token'];
       _user = result['user'];
+      _savedRole = _user?.role ?? role;
+      if (_savedRole != null && _savedRole!.isNotEmpty) {
+        await _authService.saveRole(_savedRole!);
+      }
       _errorMessage = null;
       notifyListeners();
       return true;

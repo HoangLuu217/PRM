@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../core/constants/supabase_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/auth_service.dart';
 import '../../services/supabase_auth_service.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
@@ -67,6 +68,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           final session = data.session;
           final supaUser = session?.user;
           if (supaUser != null && supaUser.email != null && supaUser.email!.isNotEmpty) {
+            final authService = AuthService();
+            final pendingRole = await authService.getPendingOAuthRole() ?? _selectedRole;
+            await authService.clearPendingOAuthRole();
+            if (!mounted) return;
+
             final metadata = supaUser.userMetadata ?? {};
             final email = supaUser.email!;
             final fullName = metadata['full_name'] ??
@@ -81,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               fullName: fullName,
               avatarUrl: avatarUrl,
               googleId: googleId,
-              role: _selectedRole,
+              role: pendingRole,
             );
 
             if (!mounted) return;
@@ -118,22 +124,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       userProvider.setUser(authProvider.user);
     }
 
+    final userRole = (authProvider.user?.role ?? role).toUpperCase().trim();
     final isMerchant = authProvider.isOwner ||
         _selectedRole == 'MERCHANT' ||
-        role.toUpperCase() == 'MERCHANT' ||
-        role.toUpperCase() == 'OWNER' ||
-        role.toUpperCase() == 'BUSINESS_OWNER' ||
-        role.toUpperCase() == 'ADMIN';
+        userRole == 'MERCHANT' ||
+        userRole == 'OWNER' ||
+        userRole == 'BUSINESS_OWNER' ||
+        userRole == 'ADMIN' ||
+        (authProvider.user?.business != null);
 
     if (isMerchant) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+        (route) => false,
       );
     } else {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+        (route) => false,
       );
     }
   }
@@ -196,6 +206,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       try {
         await Supabase.instance.client.auth.signOut();
       } catch (_) {}
+
+      // Lưu role được chọn trước khi chuyển hướng OAuth (Web reload làm mất State bộ nhớ)
+      final authService = AuthService();
+      await authService.savePendingOAuthRole(_selectedRole);
 
       // Mở quy trình đăng nhập Google OAuth (Mở tab/cửa sổ ngoài để không làm đứt phiên debug của tab chính)
       await Supabase.instance.client.auth.signInWithOAuth(
