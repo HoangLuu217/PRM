@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             final googleId = metadata['sub'] ?? supaUser.id;
 
             final isOwnerEmail = User.isOwnerKeyword(email);
-            final effectiveRole = (pendingRole == 'MERCHANT' || isOwnerEmail) ? 'MERCHANT' : null;
+            final effectiveRole = (kIsWeb && (pendingRole == 'MERCHANT' || isOwnerEmail)) ? 'MERCHANT' : null;
 
             final authProvider = Provider.of<AuthProvider>(context, listen: false);
             final success = await authProvider.googleLogin(
@@ -130,16 +130,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       userProvider.setUser(authProvider.user);
     }
 
-    final isMerchant = authProvider.isOwner;
-
-    if (isMerchant) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
-        (route) => false,
-      );
-    } else {
-      if (kIsWeb) {
+    // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
+    if (kIsWeb) {
+      final isMerchant = authProvider.isOwner;
+      if (isMerchant) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+          (route) => false,
+        );
+      } else {
         // Cổng Web FConnect là cổng dành riêng cho Chủ quán F&B.
         // Chặn tài khoản khách hàng đăng nhập nhầm vào cổng này.
         authProvider.logout();
@@ -163,20 +163,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             duration: const Duration(seconds: 5),
           ),
         );
-        return;
       }
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-        (route) => false,
-      );
+      return;
     }
+
+    // Trên Mobile App: Luôn luôn chuyển tới Giao diện Khách hàng (CustomerHomeScreen)
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+      (route) => false,
+    );
   }
 
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim();
-      final effectiveRole = (User.isOwnerKeyword(email) || _selectedRole == 'MERCHANT')
+      final effectiveRole = (kIsWeb && (User.isOwnerKeyword(email) || _selectedRole == 'MERCHANT'))
           ? 'MERCHANT'
           : null;
 

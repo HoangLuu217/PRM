@@ -178,8 +178,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           userProvider.setUser(authProvider.user);
         }
 
-        final userRole = (authProvider.user?.role ?? _selectedRole).toUpperCase().trim();
-        if (userRole == 'MERCHANT') {
+        // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
+        if (kIsWeb && authProvider.isOwner) {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
@@ -188,6 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             (route) => false,
           );
         } else {
+          // Trên Mobile App: Luôn điều hướng vào giao diện Khách hàng (CustomerHomeScreen)
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
