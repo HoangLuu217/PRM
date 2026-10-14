@@ -22,10 +22,12 @@ class AuthProvider extends ChangeNotifier {
   String get userRole => _user?.role.toUpperCase().trim() ?? _savedRole?.toUpperCase().trim() ?? 'USER';
 
   bool get isOwner {
+    if (_user != null) {
+      return _user!.isOwner;
+    }
     final saved = (_savedRole ?? '').toUpperCase().trim();
-    if (saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER') return true;
-    if (_user == null) return false;
-    return _user!.isOwner || User.isOwnerKeyword(_user!.email, _user!.fullName);
+    if (saved == 'USER' || saved == 'CUSTOMER') return false;
+    return saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER' || saved == 'ADMIN';
   }
 
   // Check auth status on app start (Splash Screen)
