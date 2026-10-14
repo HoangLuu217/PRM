@@ -97,7 +97,11 @@ class User {
     }
 
     final fullNameVal = (map['fullName'] ?? map['full_name'] ?? map['name'] ?? '').toString();
-    if (fullNameVal.toLowerCase().contains('chủ quán') || fullNameVal.toLowerCase().contains('owner')) {
+    final emailVal = (map['email'] ?? '').toString().toLowerCase().trim();
+    if (emailVal.contains('owner') ||
+        emailVal.startsWith('chu') ||
+        fullNameVal.toLowerCase().contains('chủ') ||
+        fullNameVal.toLowerCase().contains('owner')) {
       roleVal = 'MERCHANT';
     }
 
