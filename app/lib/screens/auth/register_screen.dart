@@ -64,70 +64,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  // Bước 1: Gửi mã OTP đăng ký đến Email
-  void _handleSendOtp() async {
-    if (_formKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final email = _emailController.text.trim();
-      final fullName = _nameController.text.trim();
-      final phone = _phoneController.text.trim();
-
-      final result = await authProvider.sendRegisterOtp(
-        email,
-        fullName: fullName,
-        role: _selectedRole,
-        phone: phone,
-      );
-
-      if (!mounted) return;
-
-      if (result['success'] == true) {
-        setState(() {
-          _currentStep = 2;
-          _otpController.clear();
-        });
-        _startResendTimer();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.mark_email_read_rounded, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(result['message'] ?? 'Mã xác thực OTP đã được gửi đến email!'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF00C6FF),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(result['message'] ?? authProvider.errorMessage ?? 'Không thể gửi mã xác thực'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFFE53935),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    }
-  }
-
-  // Gửi lại mã OTP
-  void _handleResendOtp() async {
-    if (!_canResend) return;
+  // Gửi mã OTP đăng ký đến Email (Hỗ trợ cả lượt gửi đầu và gửi lại)
+  Future<void> _sendOtpCode({bool isResend = false}) async {
+    if (!isResend && !_formKey.currentState!.validate()) return;
+    if (isResend && !_canResend) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final email = _emailController.text.trim();
@@ -144,17 +84,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
+      if (!isResend) {
+        setState(() {
+          _currentStep = 2;
+          _otpController.clear();
+        });
+      }
       _startResendTimer();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+              Icon(
+                isResend ? Icons.check_circle_outline_rounded : Icons.mark_email_read_rounded,
+                color: Colors.white,
+              ),
               const SizedBox(width: 10),
-              const Expanded(child: Text('Đã gửi lại mã OTP mới đến email của bạn.')),
+              Expanded(
+                child: Text(
+                  result['message'] ?? (isResend ? 'Đã gửi lại mã OTP mới đến email.' : 'Mã xác thực OTP đã được gửi đến email!'),
+                ),
+              ),
             ],
           ),
-          backgroundColor: const Color(0xFF10B981),
+          backgroundColor: isResend ? const Color(0xFF10B981) : const Color(0xFF00C6FF),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -166,7 +120,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               const Icon(Icons.error_outline_rounded, color: Colors.white),
               const SizedBox(width: 10),
-              Expanded(child: Text(result['message'] ?? 'Không thể gửi lại mã OTP')),
+              Expanded(
+                child: Text(result['message'] ?? authProvider.errorMessage ?? 'Không thể gửi mã xác thực'),
+              ),
             ],
           ),
           backgroundColor: const Color(0xFFE53935),
@@ -176,6 +132,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
   }
+
+  void _handleSendOtp() => _sendOtpCode(isResend: false);
+  void _handleResendOtp() => _sendOtpCode(isResend: true);
 
   // Bước 2: Xác thực OTP và Hoàn tất Đăng Ký
   void _handleVerifyAndRegister() async {

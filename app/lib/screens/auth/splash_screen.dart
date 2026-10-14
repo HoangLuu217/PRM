@@ -44,23 +44,7 @@ class _SplashScreenState extends State<SplashScreen> {
         userProvider.setUser(authProvider.user);
       }
 
-      final role = (authProvider.user?.role ?? authProvider.userRole).toUpperCase().trim();
-      final email = (authProvider.user?.email ?? '').toLowerCase().trim();
-      final name = (authProvider.user?.fullName ?? '').toLowerCase().trim();
-
-      final isMerchant = authProvider.isOwner ||
-          role == 'MERCHANT' ||
-          role == 'OWNER' ||
-          role == 'BUSINESS_OWNER' ||
-          role == 'ADMIN' ||
-          (authProvider.user?.business != null) ||
-          email.contains('owner') ||
-          email.startsWith('chu') ||
-          email.contains('merchant') ||
-          email.contains('admin') ||
-          email.contains('quanly') ||
-          name.contains('chủ') ||
-          name.contains('owner');
+      final isMerchant = authProvider.isOwner;
 
       if (isMerchant) {
         Navigator.pushReplacement(

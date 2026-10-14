@@ -25,21 +25,7 @@ class AuthProvider extends ChangeNotifier {
     final saved = (_savedRole ?? '').toUpperCase().trim();
     if (saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER') return true;
     if (_user == null) return false;
-    final r = _user!.role.toUpperCase().trim();
-    final name = _user!.fullName.toLowerCase();
-    final email = _user!.email.toLowerCase();
-    return r == 'MERCHANT' ||
-        r == 'OWNER' ||
-        r == 'ADMIN' ||
-        r == 'BUSINESS_OWNER' ||
-        _user!.business != null ||
-        name.contains('chủ') ||
-        name.contains('owner') ||
-        email.contains('owner') ||
-        email.startsWith('chu') ||
-        email.contains('merchant') ||
-        email.contains('admin') ||
-        email.contains('quanly');
+    return _user!.isOwner || User.isOwnerKeyword(_user!.email, _user!.fullName);
   }
 
   // Check auth status on app start (Splash Screen)
