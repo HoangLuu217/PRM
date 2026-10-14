@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -188,12 +187,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         await Supabase.instance.client.auth.signOut();
       } catch (_) {}
 
-      // Mở quy trình đăng nhập Google OAuth (Web điều hướng trực tiếp, Mobile mở trình duyệt ngoài)
+      // Mở quy trình đăng nhập Google OAuth (Mở tab/cửa sổ ngoài để không làm đứt phiên debug của tab chính)
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: SupabaseConstants.authRedirectUrl,
-        authScreenLaunchMode:
-            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        authScreenLaunchMode: LaunchMode.externalApplication,
         queryParams: const {
           'prompt': 'select_account',
         },
