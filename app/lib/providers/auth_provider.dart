@@ -169,13 +169,23 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Gửi mã OTP xác nhận đăng ký tài khoản
-  Future<Map<String, dynamic>> sendRegisterOtp(String email, {String? fullName}) async {
+  Future<Map<String, dynamic>> sendRegisterOtp(
+    String email, {
+    String? fullName,
+    String? role,
+    String? phone,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final result = await _authService.sendRegisterOtp(email, fullName: fullName);
+      final result = await _authService.sendRegisterOtp(
+        email,
+        fullName: fullName,
+        role: role,
+        phone: phone,
+      );
       _isLoading = false;
       if (result['success'] != true) {
         _errorMessage = result['message'];
@@ -240,8 +250,12 @@ class AuthProvider extends ChangeNotifier {
       return true;
     }
 
-    // 2. Dự phòng: Đăng ký qua Supabase nếu backend lỗi
-    if (SupabaseAuthService.isConfigured()) {
+    // 2. Dự phòng: Chỉ đăng ký qua Supabase NẾU LỖI MẠNG (backend Node.js không phản hồi)
+    // Tuyệt đối không fallback nếu backend đã trả về lỗi (tài khoản đã tồn tại, OTP không đúng,...)
+    final isNetworkError = result['isNetworkError'] == true ||
+        (result['message'] != null && result['message'].toString().contains('Connection error'));
+
+    if (isNetworkError && SupabaseAuthService.isConfigured()) {
       final supaResult = await _supabaseAuthService.signUp(
         email: email,
         password: password,

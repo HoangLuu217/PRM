@@ -70,8 +70,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final email = _emailController.text.trim();
       final fullName = _nameController.text.trim();
+      final phone = _phoneController.text.trim();
 
-      final result = await authProvider.sendRegisterOtp(email, fullName: fullName);
+      final result = await authProvider.sendRegisterOtp(
+        email,
+        fullName: fullName,
+        role: _selectedRole,
+        phone: phone,
+      );
 
       if (!mounted) return;
 
@@ -126,8 +132,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final email = _emailController.text.trim();
     final fullName = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
 
-    final result = await authProvider.sendRegisterOtp(email, fullName: fullName);
+    final result = await authProvider.sendRegisterOtp(
+      email,
+      fullName: fullName,
+      role: _selectedRole,
+      phone: phone,
+    );
 
     if (!mounted) return;
 
@@ -207,7 +219,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           userProvider.setUser(authProvider.user);
         }
 
-        if (kIsWeb || _selectedRole == 'MERCHANT') {
+        final userRole = (authProvider.user?.role ?? _selectedRole).toUpperCase().trim();
+        if (userRole == 'MERCHANT') {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(

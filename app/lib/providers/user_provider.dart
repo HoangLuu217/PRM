@@ -18,6 +18,11 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearUser() {
+    _user = null;
+    notifyListeners();
+  }
+
   Future<void> fetchProfile() async {
     _isLoading = true;
     _errorMessage = null;

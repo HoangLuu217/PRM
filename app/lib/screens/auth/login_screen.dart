@@ -157,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final userName = (authProvider.user?.fullName ?? '').toLowerCase().trim();
 
     final isMerchant = authProvider.isOwner ||
-        _selectedRole == 'MERCHANT' ||
         userRole == 'MERCHANT' ||
         userRole == 'OWNER' ||
         userRole == 'BUSINESS_OWNER' ||
@@ -178,6 +177,32 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         (route) => false,
       );
     } else {
+      if (kIsWeb) {
+        // Cổng Web FConnect là cổng dành riêng cho Chủ quán F&B.
+        // Chặn tài khoản khách hàng đăng nhập nhầm vào cổng này.
+        authProvider.logout();
+        userProvider.clearUser();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.white),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Tài khoản này là Khách hàng (USER). Cổng web này chỉ dành riêng cho Chủ quán F&B. Vui lòng đăng nhập tài khoản Chủ quán hoặc sử dụng ứng dụng di động FConnect.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFE53935),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
