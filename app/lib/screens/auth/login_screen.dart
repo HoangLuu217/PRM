@@ -381,7 +381,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  (kIsWeb || _selectedRole == 'MERCHANT') ? 'Cổng Quản Trị Quán F&B' : 'Đăng Nhập',
+                                  kIsWeb
+                                      ? 'Đăng Nhập Quản Trị'
+                                      : (_selectedRole == 'MERCHANT' ? 'Cổng Quản Trị Quán F&B' : 'Đăng Nhập'),
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
@@ -391,19 +393,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  (kIsWeb || _selectedRole == 'MERCHANT')
-                                      ? 'Dành riêng cho Chủ Quán & Quản trị viên cơ sở F&B'
-                                      : 'Chào mừng bạn trở lại với FConnect F&B',
+                                  kIsWeb
+                                      ? 'Hệ thống quản lý dành cho Đối tác & Chủ quán F&B'
+                                      : (_selectedRole == 'MERCHANT'
+                                          ? 'Dành riêng cho Chủ Quán & Quản trị viên cơ sở F&B'
+                                          : 'Chào mừng bạn trở lại với FConnect F&B'),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-
-                                // Role Selector Toggle
-                                _buildRoleSelector(),
-                                const SizedBox(height: 20),
+                                if (!kIsWeb) ...[
+                                  const SizedBox(height: 20),
+                                  _buildRoleSelector(),
+                                  const SizedBox(height: 20),
+                                ] else ...[
+                                  const SizedBox(height: 24),
+                                ],
 
                                 // Email Input Field
                                 _buildTextField(
@@ -693,43 +699,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  // Widget Bộ chọn Vai trò: Khách hàng vs Chủ quán F&B
+  // Widget Bộ chọn Vai trò: Khách hàng vs Chủ quán F&B (Chỉ dùng cho Mobile)
   Widget _buildRoleSelector() {
-    if (kIsWeb) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFFEA580C).withValues(alpha: 0.22),
-              const Color(0xFFF97316).withValues(alpha: 0.12),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: const Color(0xFFEA580C).withValues(alpha: 0.55),
-            width: 1.2,
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.storefront_rounded, color: Color(0xFFFB923C), size: 19),
-            SizedBox(width: 8),
-            Text(
-              'Cổng Dành Riêng Cho Chủ Quán & Đối Tác F&B',
-              style: TextStyle(
-                color: Color(0xFFFB923C),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     final isMerchant = _selectedRole == 'MERCHANT';
     return Container(
       padding: const EdgeInsets.all(4),
@@ -886,7 +857,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      isMerchant ? 'Đăng Nhập Cổng Chủ Quán' : 'Đăng Nhập',
+                      kIsWeb
+                          ? 'Đăng Nhập'
+                          : (_selectedRole == 'MERCHANT' ? 'Đăng Nhập Cổng Chủ Quán' : 'Đăng Nhập'),
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -948,7 +921,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   const SizedBox(width: 10),
                   Flexible(
                     child: Text(
-                      isMerchant ? 'Đăng nhập Google (Chủ Quán)' : 'Đăng nhập với Google',
+                      kIsWeb
+                          ? 'Đăng nhập với Google'
+                          : (_selectedRole == 'MERCHANT' ? 'Đăng nhập Google (Chủ Quán)' : 'Đăng nhập với Google'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13.5,
