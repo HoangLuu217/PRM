@@ -123,6 +123,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   void _navigateByRole(String role) {
+    if (!mounted) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     if (authProvider.user != null) {
@@ -241,11 +242,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       final authService = AuthService();
       await authService.savePendingOAuthRole(effectiveRole);
 
-      // Mở quy trình đăng nhập Google OAuth (Mở tab/cửa sổ ngoài để không làm đứt phiên debug của tab chính)
+      // Mở quy trình đăng nhập Google OAuth qua Custom Tabs / in-app browser
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: SupabaseConstants.authRedirectUrl,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+        authScreenLaunchMode: LaunchMode.platformDefault,
         queryParams: const {
           'prompt': 'select_account',
         },
