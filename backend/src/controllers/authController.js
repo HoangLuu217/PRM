@@ -9,18 +9,50 @@ import { verifyRecaptchaToken } from '../services/recaptchaService.js';
 // @access  Public
 export const sendEmailOtp = async (req, res) => {
   try {
-    const { email, fullName, type = 'REGISTER', recaptchaToken, isResend } = req.body;
+    const { email, fullName, role, phone, type = 'REGISTER', recaptchaToken, isResend } = req.body;
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp địa chỉ email hợp lệ' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const cleanPhone = phone ? phone.trim() : '';
+    const requestedRole = (req.body.accountType === 'MERCHANT' || role === 'MERCHANT') ? 'MERCHANT' : 'USER';
 
     if (type === 'REGISTER') {
       const userExists = await User.findOne({ email: cleanEmail });
       if (userExists) {
-        return res.status(400).json({ success: false, message: 'Email này đã được đăng ký tài khoản' });
+        const existingRoleLabel = userExists.role === 'MERCHANT' ? 'Chủ quán (MERCHANT)' : 'Khách hàng (USER)';
+        
+        if (userExists.role === 'USER' && requestedRole === 'MERCHANT') {
+          return res.status(400).json({
+            success: false,
+            message: 'Email này đã tồn tại với vai trò Khách hàng (USER). Không thể đăng ký mới tài khoản Chủ quán bằng email này. Vui lòng Đăng nhập vào tài khoản Khách hàng để đăng ký mở quán tại mục Hồ sơ đối tác.',
+          });
+        }
+
+        if (userExists.role === 'MERCHANT' && requestedRole === 'USER') {
+          return res.status(400).json({
+            success: false,
+            message: 'Email này đã tồn tại với vai trò Chủ quán F&B (MERCHANT). Không thể đăng ký mới vai trò Khách hàng bằng email này. Vui lòng Đăng nhập vào hệ thống.',
+          });
+        }
+
+        return res.status(400).json({
+          success: false,
+          message: `Email này đã được đăng ký tài khoản với vai trò ${existingRoleLabel}. Vui lòng đăng nhập hoặc chọn Quên mật khẩu.`,
+        });
+      }
+
+      if (cleanPhone) {
+        const phoneExists = await User.findOne({ phone: cleanPhone });
+        if (phoneExists) {
+          const phoneRoleLabel = phoneExists.role === 'MERCHANT' ? 'Chủ quán (MERCHANT)' : 'Khách hàng (USER)';
+          return res.status(400).json({
+            success: false,
+            message: `Số điện thoại "${cleanPhone}" đã được đăng ký cho tài khoản ${phoneRoleLabel}. Vui lòng sử dụng số điện thoại khác hoặc đăng nhập.`,
+          });
+        }
       }
 
       // Bắt buộc xác minh reCAPTCHA cho lượt gửi OTP đăng ký đầu tiên (không áp dụng khi bấm gửi lại)
@@ -177,10 +209,38 @@ export const registerUser = async (req, res) => {
 
     const userRole = accountType === 'MERCHANT' || role === 'MERCHANT' ? 'MERCHANT' : 'USER';
     const cleanEmail = email ? email.toLowerCase().trim() : '';
+    const cleanPhone = phone ? phone.trim() : '';
 
     const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
-      return res.status(400).json({ success: false, message: 'Email đã được sử dụng' });
+      const existingRoleLabel = userExists.role === 'MERCHANT' ? 'Chủ quán (MERCHANT)' : 'Khách hàng (USER)';
+      if (userExists.role === 'USER' && userRole === 'MERCHANT') {
+        return res.status(400).json({
+          success: false,
+          message: 'Email này đã tồn tại với vai trò Khách hàng (USER). Không thể đăng ký mới tài khoản Chủ quán. Vui lòng Đăng nhập vào tài khoản Khách hàng để đăng ký mở quán tại mục Hồ sơ đối tác.',
+        });
+      }
+      if (userExists.role === 'MERCHANT' && userRole === 'USER') {
+        return res.status(400).json({
+          success: false,
+          message: 'Email này đã tồn tại với vai trò Chủ quán F&B (MERCHANT). Không thể đăng ký mới vai trò Khách hàng. Vui lòng Đăng nhập trực tiếp.',
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Email này đã được đăng ký tài khoản với vai trò ${existingRoleLabel}. Vui lòng đăng nhập để tiếp tục.`,
+      });
+    }
+
+    if (cleanPhone) {
+      const phoneExists = await User.findOne({ phone: cleanPhone });
+      if (phoneExists) {
+        const phoneRoleLabel = phoneExists.role === 'MERCHANT' ? 'Chủ quán (MERCHANT)' : 'Khách hàng (USER)';
+        return res.status(400).json({
+          success: false,
+          message: `Số điện thoại "${cleanPhone}" đã được đăng ký cho tài khoản ${phoneRoleLabel}. Vui lòng sử dụng số điện thoại khác hoặc đăng nhập.`,
+        });
+      }
     }
 
     // Verify OTP if provided

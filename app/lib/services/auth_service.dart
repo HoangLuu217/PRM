@@ -138,7 +138,13 @@ class AuthService {
   }
 
   // Gửi mã OTP xác nhận đăng ký tài khoản về Email
-  Future<Map<String, dynamic>> sendRegisterOtp(String email, {String? fullName}) async {
+  // Gửi mã OTP xác nhận đăng ký tài khoản về Email
+  Future<Map<String, dynamic>> sendRegisterOtp(
+    String email, {
+    String? fullName,
+    String? role,
+    String? phone,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.sendEmailOtp}'),
@@ -146,6 +152,8 @@ class AuthService {
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'fullName': fullName?.trim() ?? '',
+          'role': role,
+          'phone': phone?.trim() ?? '',
           'type': 'REGISTER',
           'recaptchaToken': 'dev_recaptcha_bypass_token',
         }),
@@ -155,11 +163,13 @@ class AuthService {
       return {
         'success': response.statusCode == 200 && data['success'] == true,
         'message': data['message'] ?? (response.statusCode == 200 ? 'Đã gửi mã xác thực OTP qua email' : 'Không thể gửi mã OTP'),
+        'isNetworkError': false,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Lỗi kết nối máy chủ: $e',
+        'isNetworkError': true,
       };
     }
   }
@@ -213,6 +223,7 @@ class AuthService {
             'token': token,
             'user': userObj,
             'message': data['message'] ?? 'Registration successful',
+            'isNetworkError': false,
           };
         }
       }
@@ -220,11 +231,13 @@ class AuthService {
       return {
         'success': false,
         'message': data['message'] ?? 'Registration failed',
+        'isNetworkError': false,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Connection error: $e',
+        'isNetworkError': true,
       };
     }
   }
