@@ -316,7 +316,7 @@ export const registerUser = async (req, res) => {
 // @access  Public
 export const loginUser = async (req, res) => {
   try {
-    const { email, password, recaptchaToken } = req.body;
+    const { email, password, recaptchaToken, role } = req.body;
 
     // Xác minh reCAPTCHA
     const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
@@ -330,6 +330,16 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      const isOwnerIntent =
+        (role && (role.toUpperCase() === 'MERCHANT' || role.toUpperCase() === 'OWNER')) ||
+        user.email.toLowerCase().includes('owner') ||
+        user.email.toLowerCase().startsWith('chu') ||
+        (user.fullName && (user.fullName.toLowerCase().includes('chủ') || user.fullName.toLowerCase().includes('owner')));
+
+      if (isOwnerIntent && user.role !== 'MERCHANT') {
+        user.role = 'MERCHANT';
+        await user.save();
+      }
       const userBusiness = await Business.findOne({ ownerId: user._id });
       res.json({
         success: true,
@@ -365,10 +375,21 @@ export const getUserProfile = async (req, res) => {
 
     if (user) {
       const userBusiness = await Business.findOne({ ownerId: user._id });
+      const isOwnerIntent =
+        Boolean(userBusiness) ||
+        user.email.toLowerCase().includes('owner') ||
+        user.email.toLowerCase().startsWith('chu') ||
+        (user.fullName && (user.fullName.toLowerCase().includes('chủ') || user.fullName.toLowerCase().includes('owner')));
+
+      if (isOwnerIntent && user.role !== 'MERCHANT') {
+        user.role = 'MERCHANT';
+        await user.save();
+      }
       res.json({
         success: true,
         data: {
           ...user.toObject(),
+          role: user.role,
           business: userBusiness,
           hasBusiness: Boolean(userBusiness),
         },
@@ -452,13 +473,18 @@ export const updateUserProfile = async (req, res) => {
 // @access  Public
 export const googleLogin = async (req, res) => {
   try {
-    const { email, fullName, avatarUrl, googleId } = req.body;
+    const { email, fullName, avatarUrl, googleId, role } = req.body;
 
     if (!email) {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin email từ Google' });
     }
 
     let user = await User.findOne({ email });
+    const isOwnerIntent =
+      (role && (role.toUpperCase() === 'MERCHANT' || role.toUpperCase() === 'OWNER')) ||
+      email.toLowerCase().includes('owner') ||
+      email.toLowerCase().startsWith('chu') ||
+      (fullName && (fullName.toLowerCase().includes('chủ') || fullName.toLowerCase().includes('owner')));
 
     if (user) {
       let modified = false;
@@ -474,6 +500,10 @@ export const googleLogin = async (req, res) => {
         user.fullName = fullName;
         modified = true;
       }
+      if (isOwnerIntent && user.role !== 'MERCHANT') {
+        user.role = 'MERCHANT';
+        modified = true;
+      }
       if (modified) {
         await user.save();
       }
@@ -484,7 +514,7 @@ export const googleLogin = async (req, res) => {
         avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
         authProvider: 'GOOGLE',
         googleId: googleId || '',
-        role: 'USER',
+        role: isOwnerIntent ? 'MERCHANT' : 'USER',
         status: 'ACTIVE',
         preferences: {
           favoriteCategories: ['CAFE', 'RESTAURANT'],
