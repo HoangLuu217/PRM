@@ -330,17 +330,21 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      const userBusiness = await Business.findOne({ ownerId: user._id });
       const isOwnerIntent =
+        Boolean(userBusiness) ||
         (role && (role.toUpperCase() === 'MERCHANT' || role.toUpperCase() === 'OWNER')) ||
         user.email.toLowerCase().includes('owner') ||
         user.email.toLowerCase().startsWith('chu') ||
+        user.email.toLowerCase().includes('merchant') ||
+        user.email.toLowerCase().includes('admin') ||
+        user.email.toLowerCase().includes('quanly') ||
         (user.fullName && (user.fullName.toLowerCase().includes('chủ') || user.fullName.toLowerCase().includes('owner')));
 
       if (isOwnerIntent && user.role !== 'MERCHANT') {
         user.role = 'MERCHANT';
         await user.save();
       }
-      const userBusiness = await Business.findOne({ ownerId: user._id });
       res.json({
         success: true,
         data: {
@@ -379,6 +383,9 @@ export const getUserProfile = async (req, res) => {
         Boolean(userBusiness) ||
         user.email.toLowerCase().includes('owner') ||
         user.email.toLowerCase().startsWith('chu') ||
+        user.email.toLowerCase().includes('merchant') ||
+        user.email.toLowerCase().includes('admin') ||
+        user.email.toLowerCase().includes('quanly') ||
         (user.fullName && (user.fullName.toLowerCase().includes('chủ') || user.fullName.toLowerCase().includes('owner')));
 
       if (isOwnerIntent && user.role !== 'MERCHANT') {
@@ -484,6 +491,9 @@ export const googleLogin = async (req, res) => {
       (role && (role.toUpperCase() === 'MERCHANT' || role.toUpperCase() === 'OWNER')) ||
       email.toLowerCase().includes('owner') ||
       email.toLowerCase().startsWith('chu') ||
+      email.toLowerCase().includes('merchant') ||
+      email.toLowerCase().includes('admin') ||
+      email.toLowerCase().includes('quanly') ||
       (fullName && (fullName.toLowerCase().includes('chủ') || fullName.toLowerCase().includes('owner')));
 
     if (user) {
@@ -500,7 +510,8 @@ export const googleLogin = async (req, res) => {
         user.fullName = fullName;
         modified = true;
       }
-      if (isOwnerIntent && user.role !== 'MERCHANT') {
+      const userBusiness = await Business.findOne({ ownerId: user._id });
+      if ((isOwnerIntent || userBusiness) && user.role !== 'MERCHANT') {
         user.role = 'MERCHANT';
         modified = true;
       }
