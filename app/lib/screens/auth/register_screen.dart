@@ -389,7 +389,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Title
                 Text(
-                  (kIsWeb || _selectedRole == 'MERCHANT') ? 'Đăng Ký Đối Tác Quán F&B' : 'Tạo Tài Khoản Mới',
+                  kIsWeb
+                      ? 'Đăng Ký Tài Khoản Đối Tác'
+                      : (_selectedRole == 'MERCHANT' ? 'Đăng Ký Đối Tác Quán F&B' : 'Tạo Tài Khoản Mới'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 26,
@@ -400,9 +402,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  (kIsWeb || _selectedRole == 'MERCHANT')
+                  kIsWeb
                       ? 'Gia nhập mạng lưới FConnect để phát triển thương hiệu quán của bạn'
-                      : 'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao',
+                      : (_selectedRole == 'MERCHANT'
+                          ? 'Gia nhập mạng lưới FConnect để phát triển thương hiệu quán của bạn'
+                          : 'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
@@ -411,42 +415,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Chọn vai trò tài khoản: Khách hàng vs Chủ quán F&B
-                if (kIsWeb)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 18),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFEA580C).withValues(alpha: 0.22),
-                          const Color(0xFFF97316).withValues(alpha: 0.12),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFFEA580C).withValues(alpha: 0.55),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.storefront_rounded, color: Color(0xFFFB923C), size: 19),
-                        SizedBox(width: 8),
-                        Text(
-                          'Cổng Đăng Ký Dành Riêng Cho Chủ Quán & Đối Tác F&B',
-                          style: TextStyle(
-                            color: Color(0xFFFB923C),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
+                // Chọn vai trò tài khoản: Khách hàng vs Chủ quán F&B (Chỉ dành cho Mobile)
+                if (!kIsWeb)
                   Container(
                     margin: const EdgeInsets.only(bottom: 18),
                     padding: const EdgeInsets.all(5),
