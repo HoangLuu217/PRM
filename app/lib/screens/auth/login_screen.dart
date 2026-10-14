@@ -28,29 +28,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isGoogleLoggingIn = false;
-  String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER'; // Trên Web mặc định là Cổng Chủ Quán (MERCHANT)
+  final String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER';
   StreamSubscription<AuthState>? _supabaseAuthSubscription;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
-  void _onEmailChanged() {
-    final email = _emailController.text.trim();
-    if (kIsWeb || User.isOwnerKeyword(email)) {
-      if (_selectedRole != 'MERCHANT' && mounted) {
-        setState(() => _selectedRole = 'MERCHANT');
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    if (kIsWeb) {
-      _selectedRole = 'MERCHANT';
-    }
-    _emailController.addListener(_onEmailChanged);
 
     // Hiệu ứng Animation mở đầu mượt mà
     _animController = AnimationController(
@@ -110,9 +97,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
             if (!mounted) return;
             if (success) {
-              if (effectiveRole == 'MERCHANT') {
-                _selectedRole = 'MERCHANT';
-              }
               _navigateByRole(authProvider.userRole);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
-    _emailController.removeListener(_onEmailChanged);
     _animController.dispose();
     _supabaseAuthSubscription?.cancel();
     _emailController.dispose();
@@ -384,9 +367,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  kIsWeb
-                                      ? 'Đăng Nhập Quản Trị'
-                                      : (_selectedRole == 'MERCHANT' ? 'Cổng Quản Trị Quán F&B' : 'Đăng Nhập'),
+                                  kIsWeb ? 'Đăng Nhập Quản Trị' : 'Đăng Nhập',
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
@@ -398,21 +379,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 Text(
                                   kIsWeb
                                       ? 'Hệ thống quản lý dành cho Đối tác & Chủ quán F&B'
-                                      : (_selectedRole == 'MERCHANT'
-                                          ? 'Dành riêng cho Chủ Quán & Quản trị viên cơ sở F&B'
-                                          : 'Chào mừng bạn trở lại với FConnect F&B'),
+                                      : 'Chào mừng bạn trở lại với FConnect',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
-                                if (!kIsWeb) ...[
-                                  const SizedBox(height: 20),
-                                  _buildRoleSelector(),
-                                  const SizedBox(height: 20),
-                                ] else ...[
-                                  const SizedBox(height: 24),
-                                ],
+                                const SizedBox(height: 24),
 
                                 // Email Input Field
                                 _buildTextField(
@@ -702,118 +675,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  // Widget Bộ chọn Vai trò: Khách hàng vs Chủ quán F&B (Chỉ dùng cho Mobile)
-  Widget _buildRoleSelector() {
-    final isMerchant = _selectedRole == 'MERCHANT';
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isMerchant ? const Color(0xFFEA580C).withValues(alpha: 0.4) : const Color(0xFF334155),
-          width: 1.2,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Tab 1: Khách hàng
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _selectedRole = 'USER'),
-              borderRadius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: !isMerchant ? const Color(0xFF2563EB) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: !isMerchant
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.person_rounded,
-                      size: 17,
-                      color: !isMerchant ? Colors.white : const Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Khách hàng',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: !isMerchant ? Colors.white : const Color(0xFF94A3B8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Tab 2: Chủ quán F&B
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _selectedRole = 'MERCHANT'),
-              borderRadius: BorderRadius.circular(12),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isMerchant ? const Color(0xFFEA580C) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: isMerchant
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFFEA580C).withValues(alpha: 0.5),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.storefront_rounded,
-                      size: 17,
-                      color: isMerchant ? Colors.white : const Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Chủ quán F&B',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isMerchant ? Colors.white : const Color(0xFF94A3B8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget Nút Login Gradient Electric Cyan / Royal Blue hoặc Sunset Orange cho Chủ Quán
+  // Widget Nút Login Gradient (Electric Blue cho Khách hàng trên Mobile, Sunset Orange trên Web Chủ Quán)
   Widget _buildGradientLoginButton(AuthProvider authProvider) {
-    final isMerchant = kIsWeb || _selectedRole == 'MERCHANT';
+    const isMerchant = kIsWeb;
 
     return Container(
       decoration: BoxDecoration(
@@ -860,9 +724,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      kIsWeb
-                          ? 'Đăng Nhập'
-                          : (_selectedRole == 'MERCHANT' ? 'Đăng Nhập Cổng Chủ Quán' : 'Đăng Nhập'),
+                      kIsWeb ? 'Đăng Nhập Quản Trị' : 'Đăng Nhập',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -877,7 +739,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // Widget Nút Google Sign-in Glassmorphism
   Widget _buildGoogleSignInButton(AuthProvider authProvider) {
     final bool isBusy = authProvider.isLoading || _isGoogleLoggingIn;
-    final isMerchant = kIsWeb || _selectedRole == 'MERCHANT';
+    const isMerchant = kIsWeb;
 
     return Container(
       decoration: BoxDecoration(
@@ -922,12 +784,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Flexible(
+                  const Flexible(
                     child: Text(
-                      kIsWeb
-                          ? 'Đăng nhập với Google'
-                          : (_selectedRole == 'MERCHANT' ? 'Đăng nhập Google (Chủ Quán)' : 'Đăng nhập với Google'),
-                      style: const TextStyle(
+                      'Đăng nhập với Google',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,

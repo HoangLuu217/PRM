@@ -25,17 +25,9 @@ void main() {
     expect(find.text('FConnect'), findsWidgets);
     expect(find.text('Đăng Nhập'), findsWidgets);
     expect(find.byType(TextFormField), findsNWidgets(2));
-    expect(find.text('Khách hàng'), findsOneWidget);
-    expect(find.text('Chủ quán F&B'), findsOneWidget);
     expect(find.text('Đăng nhập với Google'), findsOneWidget);
     expect(find.text('Đăng ký ngay'), findsOneWidget);
-
-    // Click chọn vai trò 'Chủ quán F&B'
-    await tester.tap(find.text('Chủ quán F&B'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Cổng Quản Trị Quán F&B'), findsOneWidget);
-    expect(find.text('Đăng Nhập Cổng Chủ Quán'), findsOneWidget);
-    expect(find.text('Đăng nhập Google (Chủ Quán)'), findsOneWidget);
+    // Ứng dụng di động dành riêng cho Khách hàng, không hiển thị nút chọn vai trò Chủ quán
+    expect(find.text('Chủ quán F&B'), findsNothing);
   });
 }
