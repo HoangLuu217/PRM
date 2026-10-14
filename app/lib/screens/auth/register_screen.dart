@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -179,14 +180,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
 
         // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
-        if (kIsWeb && authProvider.isOwner) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const OwnerDashboardScreen(showOnboardingImmediately: true),
-            ),
-            (route) => false,
-          );
+        if (kIsWeb) {
+          if (authProvider.isOwner) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const OwnerDashboardScreen(showOnboardingImmediately: true),
+              ),
+              (route) => false,
+            );
+          } else {
+            await authProvider.logout();
+            userProvider.clearUser();
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          }
         } else {
           // Trên Mobile App: Luôn điều hướng vào giao diện Khách hàng (CustomerHomeScreen)
           Navigator.pushAndRemoveUntil(

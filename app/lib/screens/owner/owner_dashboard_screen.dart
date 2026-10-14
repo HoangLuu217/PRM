@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
@@ -42,12 +43,22 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final hasBusiness = user?.business != null &&
         (user?.business?['name']?.toString() ?? '').trim().isNotEmpty;
 
-    // Nếu tài khoản là Khách hàng (USER) và không sở hữu cơ sở F&B, tự động chuyển về Giao diện Khách hàng!
+    // Nếu tài khoản là Khách hàng (USER) và không sở hữu cơ sở F&B:
+    // Trên Web: Đăng xuất và đưa về LoginScreen (cổng web chỉ dành cho Chủ quán)
+    // Trên Mobile: Chuyển sang Giao diện Khách hàng (CustomerHomeScreen)
     if (!authProvider.isOwner && !hasBusiness) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-      );
+      if (kIsWeb) {
+        authProvider.logout();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+        );
+      }
       return;
     }
 

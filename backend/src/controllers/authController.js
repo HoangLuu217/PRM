@@ -4,26 +4,11 @@ import { sendVerificationOtpEmail } from '../services/emailService.js';
 import googleMapsService from '../services/googleMapsService.js';
 import { verifyRecaptchaToken } from '../services/recaptchaService.js';
 
-// Helper kiểm tra từ khóa định danh tài khoản Chủ quán F&B
-export const isOwnerKeywordMatch = (email = '', fullName = '') => {
-  const e = (email || '').toLowerCase().trim();
-  const n = (fullName || '').toLowerCase().trim();
-  return (
-    e.includes('owner') ||
-    e.startsWith('chu') ||
-    e.includes('merchant') ||
-    e.includes('admin') ||
-    e.includes('quanly') ||
-    n.includes('chủ') ||
-    n.includes('owner')
-  );
-};
-
-// Helper đồng bộ vai trò MERCHANT nếu người dùng đã sở hữu Business hoặc khớp tiêu chuẩn Chủ quán
+// Helper đồng bộ vai trò MERCHANT nếu người dùng đã sở hữu Business thực tế
 export const syncMerchantRole = async (user, userBusiness) => {
   if (!user) return false;
-  const isOwner = Boolean(userBusiness) || isOwnerKeywordMatch(user.email, user.fullName);
-  if (isOwner && user.role !== 'MERCHANT') {
+  const hasValidBusiness = Boolean(userBusiness && userBusiness.name);
+  if (hasValidBusiness && user.role !== 'MERCHANT') {
     user.role = 'MERCHANT';
     await user.save();
     return true;
@@ -396,9 +381,13 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      if (user.status === 'SUSPENDED') {
+        return res.status(403).json({ success: false, message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.' });
+      }
       const userBusiness = await Business.findOne({ ownerId: user._id });
       await syncMerchantRole(user, userBusiness);
       res.json({
@@ -530,7 +519,8 @@ export const googleLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin email từ Google' });
     }
 
-    let user = await User.findOne({ email });
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: cleanEmail });
     if (user) {
       let modified = false;
       if (!user.googleId && googleId) {
@@ -551,10 +541,10 @@ export const googleLogin = async (req, res) => {
       const userBusiness = await Business.findOne({ ownerId: user._id });
       await syncMerchantRole(user, userBusiness);
     } else {
-      const isOwner = isOwnerKeywordMatch(email, fullName) || role === 'MERCHANT';
+      const isOwner = role === 'MERCHANT';
       user = await User.create({
-        fullName: fullName || email.split('@')[0],
-        email: email.toLowerCase(),
+        fullName: fullName || cleanEmail.split('@')[0],
+        email: cleanEmail,
         avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
         authProvider: 'GOOGLE',
         googleId: googleId || '',

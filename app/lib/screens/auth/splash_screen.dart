@@ -46,11 +46,21 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
-      if (kIsWeb && authProvider.isOwner) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
-        );
+      if (kIsWeb) {
+        if (authProvider.isOwner) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+          );
+        } else {
+          await authProvider.logout();
+          userProvider.clearUser();
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
       } else {
         // Trên Mobile: Luôn vào giao diện Khách hàng (CustomerHomeScreen)
         Navigator.pushReplacement(
