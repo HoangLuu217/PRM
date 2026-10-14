@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -44,14 +45,14 @@ class _SplashScreenState extends State<SplashScreen> {
         userProvider.setUser(authProvider.user);
       }
 
-      final isMerchant = authProvider.isOwner;
-
-      if (isMerchant) {
+      // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
+      if (kIsWeb && authProvider.isOwner) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
         );
       } else {
+        // Trên Mobile: Luôn vào giao diện Khách hàng (CustomerHomeScreen)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
