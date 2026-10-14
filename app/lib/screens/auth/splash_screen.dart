@@ -38,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
     debugPrint('[Splash] Authenticated: ${authProvider.isAuthenticated}');
 
     if (authProvider.isAuthenticated) {
-      final role = authProvider.userRole;
+      final role = authProvider.userRole.toUpperCase();
       final isMerchant = authProvider.isOwner ||
           role == 'MERCHANT' ||
           role == 'OWNER' ||

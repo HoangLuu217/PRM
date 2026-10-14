@@ -6,6 +6,7 @@ import '../models/user_model.dart';
 
 class AuthService {
   static const String _tokenKey = 'jwt_token';
+  static const String _roleKey = 'user_role';
 
   // Helper tạo headers chuẩn kèm bypass cho localtunnel
   Map<String, String> _headers([String? token]) {
@@ -19,10 +20,23 @@ class AuthService {
     return map;
   }
 
-  // Save token locally
-  Future<void> saveToken(String token) async {
+  // Save token & role locally
+  Future<void> saveToken(String token, [String? role]) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    if (role != null && role.isNotEmpty) {
+      await prefs.setString(_roleKey, role);
+    }
+  }
+
+  Future<void> saveRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_roleKey, role);
+  }
+
+  Future<String?> getSavedRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_roleKey);
   }
 
   // Get token locally
@@ -35,10 +49,11 @@ class AuthService {
   Future<void> removeToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_roleKey);
   }
 
   // Login API
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {String? role}) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.login}'),
@@ -46,6 +61,7 @@ class AuthService {
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'password': password,
+          if (role != null && role.isNotEmpty) 'role': role,
         }),
       );
 
@@ -56,14 +72,15 @@ class AuthService {
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
 
+        final userObj = userData != null ? User.fromJson(userData) : null;
         if (token != null) {
-          await saveToken(token);
+          await saveToken(token, userObj?.role);
         }
 
         return {
           'success': true,
           'token': token,
-          'user': userData != null ? User.fromJson(userData) : null,
+          'user': userObj,
           'message': data['message'] ?? 'Login successful',
         };
       } else {
@@ -143,14 +160,15 @@ class AuthService {
           final rawData = data['data'] is Map ? data['data'] : null;
           final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
 
+          final userObj = userData != null ? User.fromJson(userData) : null;
           if (token != null) {
-            await saveToken(token);
+            await saveToken(token, userObj?.role);
           }
 
           return {
             'success': true,
             'token': token,
-            'user': userData != null ? User.fromJson(userData) : null,
+            'user': userObj,
             'message': data['message'] ?? 'Registration successful',
           };
         }
@@ -177,14 +195,18 @@ class AuthService {
       final response = await http.get(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profile}'),
         headers: _headers(token),
-      ).timeout(const Duration(seconds: 1));
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
         if (userData != null) {
-          return User.fromJson(userData);
+          final user = User.fromJson(userData);
+          if (user.role.isNotEmpty) {
+            await saveRole(user.role);
+          }
+          return user;
         }
       }
       return null;
@@ -237,6 +259,7 @@ class AuthService {
     required String fullName,
     String? avatarUrl,
     String? googleId,
+    String? role,
   }) async {
     try {
       final response = await http.post(
@@ -247,6 +270,7 @@ class AuthService {
           'fullName': fullName,
           'avatarUrl': avatarUrl ?? '',
           'googleId': googleId ?? '',
+          if (role != null && role.isNotEmpty) 'role': role,
         }),
       );
 
@@ -272,14 +296,15 @@ class AuthService {
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
 
+        final userObj = userData != null ? User.fromJson(userData) : null;
         if (token != null) {
-          await saveToken(token);
+          await saveToken(token, userObj?.role);
         }
 
         return {
           'success': true,
           'token': token,
-          'user': userData != null ? User.fromJson(userData) : null,
+          'user': userObj,
           'message': data['message'] ?? 'Google login successful',
         };
       } else {
