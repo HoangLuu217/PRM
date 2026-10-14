@@ -380,9 +380,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 8),
-              Text(
-                _getTabTitle(_selectedTab),
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              Expanded(
+                child: Text(
+                  _getTabTitle(_selectedTab),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

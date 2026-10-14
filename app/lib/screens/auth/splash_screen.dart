@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
@@ -38,6 +39,11 @@ class _SplashScreenState extends State<SplashScreen> {
     debugPrint('[Splash] Authenticated: ${authProvider.isAuthenticated}');
 
     if (authProvider.isAuthenticated) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (authProvider.user != null) {
+        userProvider.setUser(authProvider.user);
+      }
+
       final role = authProvider.userRole.toUpperCase();
       final isMerchant = authProvider.isOwner ||
           role == 'MERCHANT' ||

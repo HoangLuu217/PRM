@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 class AuthService {
   static const String _tokenKey = 'jwt_token';
   static const String _roleKey = 'user_role';
+  static const String _userKey = 'cached_user_profile';
 
   // Helper tạo headers chuẩn kèm bypass cho localtunnel
   Map<String, String> _headers([String? token]) {
@@ -39,6 +40,23 @@ class AuthService {
     return prefs.getString(_roleKey);
   }
 
+  Future<void> saveUser(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+  }
+
+  Future<User?> getCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userStr = prefs.getString(_userKey);
+      if (userStr != null && userStr.isNotEmpty) {
+        final map = jsonDecode(userStr);
+        return User.fromJson(map);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // Get token locally
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,6 +68,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_roleKey);
+    await prefs.remove(_userKey);
   }
 
   // Login API
@@ -75,6 +94,9 @@ class AuthService {
         final userObj = userData != null ? User.fromJson(userData) : null;
         if (token != null) {
           await saveToken(token, userObj?.role);
+        }
+        if (userObj != null) {
+          await saveUser(userObj);
         }
 
         return {
@@ -164,6 +186,9 @@ class AuthService {
           if (token != null) {
             await saveToken(token, userObj?.role);
           }
+          if (userObj != null) {
+            await saveUser(userObj);
+          }
 
           return {
             'success': true,
@@ -206,12 +231,17 @@ class AuthService {
           if (user.role.isNotEmpty) {
             await saveRole(user.role);
           }
+          await saveUser(user);
           return user;
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        await removeToken();
+        return null;
       }
-      return null;
+      return await getCachedUser();
     } catch (e) {
-      return null;
+      // Khi mất mạng hoặc timeout, lấy thông tin user đã lưu trong bộ nhớ cục bộ
+      return await getCachedUser();
     }
   }
 
@@ -234,9 +264,13 @@ class AuthService {
       if (response.statusCode == 200 && data['success'] == true) {
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
+        final userObj = userData != null ? User.fromJson(userData) : null;
+        if (userObj != null) {
+          await saveUser(userObj);
+        }
         return {
           'success': true,
-          'user': userData != null ? User.fromJson(userData) : null,
+          'user': userObj,
           'message': data['message'] ?? 'Profile updated successfully',
         };
       } else {
@@ -299,6 +333,9 @@ class AuthService {
         final userObj = userData != null ? User.fromJson(userData) : null;
         if (token != null) {
           await saveToken(token, userObj?.role);
+        }
+        if (userObj != null) {
+          await saveUser(userObj);
         }
 
         return {
