@@ -120,8 +120,9 @@ class SupabaseAuthService {
 
       final bool success = await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+        redirectTo: SupabaseConstants.authRedirectUrl,
+        authScreenLaunchMode:
+            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
         queryParams: const {
           'prompt': 'select_account',
         },
@@ -163,7 +164,7 @@ class SupabaseAuthService {
       }
       await client.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
-        redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
+        redirectTo: SupabaseConstants.authRedirectUrl,
       );
       return {
         'success': true,
