@@ -56,6 +56,24 @@ class User {
   final UserPreferences preferences;
   final Map<String, dynamic>? business;
 
+  bool get isOwner =>
+      role == 'MERCHANT' ||
+      role == 'OWNER' ||
+      role == 'ADMIN' ||
+      business != null;
+
+  static bool isOwnerKeyword(String? email, [String? fullName]) {
+    final e = (email ?? '').toLowerCase().trim();
+    final n = (fullName ?? '').toLowerCase().trim();
+    return e.contains('owner') ||
+        e.startsWith('chu') ||
+        e.contains('merchant') ||
+        e.contains('admin') ||
+        e.contains('quanly') ||
+        n.contains('chủ') ||
+        n.contains('owner');
+  }
+
   User({
     required this.id,
     required this.fullName,
@@ -98,13 +116,7 @@ class User {
 
     final fullNameVal = (map['fullName'] ?? map['full_name'] ?? map['name'] ?? '').toString();
     final emailVal = (map['email'] ?? '').toString().toLowerCase().trim();
-    if (emailVal.contains('owner') ||
-        emailVal.startsWith('chu') ||
-        emailVal.contains('merchant') ||
-        emailVal.contains('admin') ||
-        emailVal.contains('quanly') ||
-        fullNameVal.toLowerCase().contains('chủ') ||
-        fullNameVal.toLowerCase().contains('owner')) {
+    if (isOwnerKeyword(emailVal, fullNameVal)) {
       roleVal = 'MERCHANT';
     }
 

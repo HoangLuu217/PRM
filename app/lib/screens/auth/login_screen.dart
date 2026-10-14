@@ -11,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../services/supabase_auth_service.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
+import '../../models/user_model.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -35,13 +36,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   late Animation<Offset> _slideAnim;
 
   void _onEmailChanged() {
-    final email = _emailController.text.trim().toLowerCase();
-    if (kIsWeb ||
-        email.contains('owner') ||
-        email.startsWith('chu') ||
-        email.contains('merchant') ||
-        email.contains('admin') ||
-        email.contains('quanly')) {
+    final email = _emailController.text.trim();
+    if (kIsWeb || User.isOwnerKeyword(email)) {
       if (_selectedRole != 'MERCHANT' && mounted) {
         setState(() => _selectedRole = 'MERCHANT');
       }
@@ -100,9 +96,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             final avatarUrl = metadata['avatar_url'] ?? metadata['picture'];
             final googleId = metadata['sub'] ?? supaUser.id;
 
-            final isOwnerEmail = email.toLowerCase().contains('owner') ||
-                email.toLowerCase().startsWith('chu') ||
-                email.toLowerCase().contains('merchant');
+            final isOwnerEmail = User.isOwnerKeyword(email);
             final effectiveRole = (pendingRole == 'MERCHANT' || isOwnerEmail) ? 'MERCHANT' : null;
 
             final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -152,23 +146,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       userProvider.setUser(authProvider.user);
     }
 
-    final userRole = (authProvider.user?.role ?? role).toUpperCase().trim();
-    final userEmail = (authProvider.user?.email ?? _emailController.text).toLowerCase().trim();
-    final userName = (authProvider.user?.fullName ?? '').toLowerCase().trim();
-
-    final isMerchant = authProvider.isOwner ||
-        userRole == 'MERCHANT' ||
-        userRole == 'OWNER' ||
-        userRole == 'BUSINESS_OWNER' ||
-        userRole == 'ADMIN' ||
-        (authProvider.user?.business != null) ||
-        userEmail.contains('owner') ||
-        userEmail.startsWith('chu') ||
-        userEmail.contains('merchant') ||
-        userEmail.contains('admin') ||
-        userEmail.contains('quanly') ||
-        userName.contains('chủ') ||
-        userName.contains('owner');
+    final isMerchant = authProvider.isOwner;
 
     if (isMerchant) {
       Navigator.pushAndRemoveUntil(
@@ -213,15 +191,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final email = _emailController.text.trim().toLowerCase();
-      final isOwnerEmail = email.contains('owner') ||
-          email.startsWith('chu') ||
-          email.contains('merchant') ||
-          email.contains('admin') ||
-          email.contains('quanly');
-      final effectiveRole = isOwnerEmail
+      final email = _emailController.text.trim();
+      final effectiveRole = (User.isOwnerKeyword(email) || _selectedRole == 'MERCHANT')
           ? 'MERCHANT'
-          : (_selectedRole == 'MERCHANT' ? 'MERCHANT' : null);
+          : null;
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.login(
