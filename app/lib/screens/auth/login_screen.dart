@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -26,16 +27,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isGoogleLoggingIn = false;
-  String _selectedRole = 'USER'; // 'USER' (Khách hàng) hoặc 'MERCHANT' (Chủ quán F&B)
+  String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER'; // Trên Web mặc định là Cổng Chủ Quán (MERCHANT)
   StreamSubscription<AuthState>? _supabaseAuthSubscription;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
+  void _onEmailChanged() {
+    final email = _emailController.text.trim().toLowerCase();
+    if (kIsWeb ||
+        email.contains('owner') ||
+        email.startsWith('chu') ||
+        email.contains('merchant') ||
+        email.contains('admin') ||
+        email.contains('quanly')) {
+      if (_selectedRole != 'MERCHANT' && mounted) {
+        setState(() => _selectedRole = 'MERCHANT');
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      _selectedRole = 'MERCHANT';
+    }
+    _emailController.addListener(_onEmailChanged);
 
     // Hiệu ứng Animation mở đầu mượt mà
     _animController = AnimationController(
@@ -69,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           final supaUser = session?.user;
           if (supaUser != null && supaUser.email != null && supaUser.email!.isNotEmpty) {
             final authService = AuthService();
-            final pendingRole = await authService.getPendingOAuthRole() ?? _selectedRole;
+            final pendingRole = await authService.getPendingOAuthRole() ?? (kIsWeb ? 'MERCHANT' : _selectedRole);
             await authService.clearPendingOAuthRole();
             if (!mounted) return;
 
@@ -81,18 +100,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             final avatarUrl = metadata['avatar_url'] ?? metadata['picture'];
             final googleId = metadata['sub'] ?? supaUser.id;
 
+            final effectiveRole = (kIsWeb || pendingRole == 'MERCHANT') ? 'MERCHANT' : pendingRole;
+
             final authProvider = Provider.of<AuthProvider>(context, listen: false);
             final success = await authProvider.googleLogin(
               email: email,
               fullName: fullName,
               avatarUrl: avatarUrl,
               googleId: googleId,
-              role: pendingRole,
+              role: effectiveRole,
             );
 
             if (!mounted) return;
             if (success) {
-              if (pendingRole == 'MERCHANT') {
+              if (effectiveRole == 'MERCHANT') {
                 _selectedRole = 'MERCHANT';
               }
               _navigateByRole(authProvider.userRole);
@@ -113,6 +134,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _emailController.removeListener(_onEmailChanged);
     _animController.dispose();
     _supabaseAuthSubscription?.cancel();
     _emailController.dispose();
@@ -128,13 +150,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
 
     final userRole = (authProvider.user?.role ?? role).toUpperCase().trim();
-    final isMerchant = authProvider.isOwner ||
+    final userEmail = (authProvider.user?.email ?? _emailController.text).toLowerCase().trim();
+    final userName = (authProvider.user?.fullName ?? '').toLowerCase().trim();
+
+    final isMerchant = kIsWeb ||
+        authProvider.isOwner ||
         _selectedRole == 'MERCHANT' ||
         userRole == 'MERCHANT' ||
         userRole == 'OWNER' ||
         userRole == 'BUSINESS_OWNER' ||
         userRole == 'ADMIN' ||
-        (authProvider.user?.business != null);
+        (authProvider.user?.business != null) ||
+        userEmail.contains('owner') ||
+        userEmail.startsWith('chu') ||
+        userEmail.contains('merchant') ||
+        userName.contains('chủ') ||
+        userName.contains('owner');
 
     if (isMerchant) {
       Navigator.pushAndRemoveUntil(
@@ -153,11 +184,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
+      final email = _emailController.text.trim().toLowerCase();
+      final effectiveRole = (kIsWeb ||
+              _selectedRole == 'MERCHANT' ||
+              email.contains('owner') ||
+              email.startsWith('chu') ||
+              email.contains('merchant'))
+          ? 'MERCHANT'
+          : _selectedRole;
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.login(
         _emailController.text,
         _passwordController.text,
-        role: _selectedRole,
+        role: effectiveRole,
       );
 
       if (!mounted) return;
@@ -211,8 +251,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       } catch (_) {}
 
       // Lưu role được chọn trước khi chuyển hướng OAuth (Web reload làm mất State bộ nhớ)
+      final effectiveRole = (kIsWeb || _selectedRole == 'MERCHANT') ? 'MERCHANT' : 'USER';
       final authService = AuthService();
-      await authService.savePendingOAuthRole(_selectedRole);
+      await authService.savePendingOAuthRole(effectiveRole);
 
       // Mở quy trình đăng nhập Google OAuth (Mở tab/cửa sổ ngoài để không làm đứt phiên debug của tab chính)
       await Supabase.instance.client.auth.signInWithOAuth(
@@ -340,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  _selectedRole == 'MERCHANT' ? 'Cổng Quản Trị Quán F&B' : 'Đăng Nhập',
+                                  (kIsWeb || _selectedRole == 'MERCHANT') ? 'Cổng Quản Trị Quán F&B' : 'Đăng Nhập',
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
@@ -350,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  _selectedRole == 'MERCHANT'
+                                  (kIsWeb || _selectedRole == 'MERCHANT')
                                       ? 'Dành riêng cho Chủ Quán & Quản trị viên cơ sở F&B'
                                       : 'Chào mừng bạn trở lại với FConnect F&B',
                                   style: TextStyle(
@@ -654,6 +695,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   // Widget Bộ chọn Vai trò: Khách hàng vs Chủ quán F&B
   Widget _buildRoleSelector() {
+    if (kIsWeb) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFEA580C).withValues(alpha: 0.22),
+              const Color(0xFFF97316).withValues(alpha: 0.12),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFEA580C).withValues(alpha: 0.55),
+            width: 1.2,
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.storefront_rounded, color: Color(0xFFFB923C), size: 19),
+            SizedBox(width: 8),
+            Text(
+              'Cổng Dành Riêng Cho Chủ Quán & Đối Tác F&B',
+              style: TextStyle(
+                color: Color(0xFFFB923C),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final isMerchant = _selectedRole == 'MERCHANT';
     return Container(
       padding: const EdgeInsets.all(4),
@@ -763,7 +839,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   // Widget Nút Login Gradient Electric Cyan / Royal Blue hoặc Sunset Orange cho Chủ Quán
   Widget _buildGradientLoginButton(AuthProvider authProvider) {
-    final isMerchant = _selectedRole == 'MERCHANT';
+    final isMerchant = kIsWeb || _selectedRole == 'MERCHANT';
 
     return Container(
       decoration: BoxDecoration(
@@ -825,7 +901,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // Widget Nút Google Sign-in Glassmorphism
   Widget _buildGoogleSignInButton(AuthProvider authProvider) {
     final bool isBusy = authProvider.isLoading || _isGoogleLoggingIn;
-    final isMerchant = _selectedRole == 'MERCHANT';
+    final isMerchant = kIsWeb || _selectedRole == 'MERCHANT';
 
     return Container(
       decoration: BoxDecoration(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -25,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int _currentStep = 1; // 1: Nhập thông tin, 2: Xác thực OTP
   bool _obscurePassword = true;
-  String _selectedRole = 'USER'; // 'USER' (Khách hàng) hoặc 'MERCHANT' (Chủ quán F&B)
+  String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER'; // 'USER' (Khách hàng) hoặc 'MERCHANT' (Chủ quán F&B)
 
   // Countdown timer cho gửi lại mã OTP
   Timer? _resendTimer;
@@ -206,7 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           userProvider.setUser(authProvider.user);
         }
 
-        if (_selectedRole == 'MERCHANT') {
+        if (kIsWeb || _selectedRole == 'MERCHANT') {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
@@ -387,10 +388,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 14),
 
                 // Title
-                const Text(
-                  'Tạo Tài Khoản Mới',
+                Text(
+                  (kIsWeb || _selectedRole == 'MERCHANT') ? 'Đăng Ký Đối Tác Quán F&B' : 'Tạo Tài Khoản Mới',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -398,10 +399,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao',
+                Text(
+                  (kIsWeb || _selectedRole == 'MERCHANT')
+                      ? 'Gia nhập mạng lưới FConnect để phát triển thương hiệu quán của bạn'
+                      : 'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 13.5,
                   ),
@@ -409,20 +412,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 20),
 
                 // Chọn vai trò tài khoản: Khách hàng vs Chủ quán F&B
-                Container(
-                  margin: const EdgeInsets.only(bottom: 18),
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF334155), width: 1.2),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedRole = 'USER'),
-                          borderRadius: BorderRadius.circular(12),
+                if (kIsWeb)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 18),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFFEA580C).withValues(alpha: 0.22),
+                          const Color(0xFFF97316).withValues(alpha: 0.12),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFEA580C).withValues(alpha: 0.55),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.storefront_rounded, color: Color(0xFFFB923C), size: 19),
+                        SizedBox(width: 8),
+                        Text(
+                          'Cổng Đăng Ký Dành Riêng Cho Chủ Quán & Đối Tác F&B',
+                          style: TextStyle(
+                            color: Color(0xFFFB923C),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 18),
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF334155), width: 1.2),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _selectedRole = 'USER'),
+                            borderRadius: BorderRadius.circular(12),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(vertical: 11),

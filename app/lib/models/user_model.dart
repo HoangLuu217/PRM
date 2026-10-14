@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class UserPreferences {
   final List<String> favoriteCategories;
   final List<String> preferredAreas;
@@ -98,8 +100,12 @@ class User {
 
     final fullNameVal = (map['fullName'] ?? map['full_name'] ?? map['name'] ?? '').toString();
     final emailVal = (map['email'] ?? '').toString().toLowerCase().trim();
-    if (emailVal.contains('owner') ||
+    if (kIsWeb ||
+        emailVal.contains('owner') ||
         emailVal.startsWith('chu') ||
+        emailVal.contains('merchant') ||
+        emailVal.contains('admin') ||
+        emailVal.contains('quanly') ||
         fullNameVal.toLowerCase().contains('chủ') ||
         fullNameVal.toLowerCase().contains('owner')) {
       roleVal = 'MERCHANT';

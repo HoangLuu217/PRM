@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -45,12 +46,20 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       final role = (authProvider.user?.role ?? authProvider.userRole).toUpperCase().trim();
-      final isMerchant = authProvider.isOwner ||
+      final email = (authProvider.user?.email ?? '').toLowerCase().trim();
+      final name = (authProvider.user?.fullName ?? '').toLowerCase().trim();
+
+      final isMerchant = kIsWeb ||
+          authProvider.isOwner ||
           role == 'MERCHANT' ||
           role == 'OWNER' ||
           role == 'BUSINESS_OWNER' ||
           role == 'ADMIN' ||
-          (authProvider.user?.business != null);
+          (authProvider.user?.business != null) ||
+          email.contains('owner') ||
+          email.startsWith('chu') ||
+          name.contains('chủ') ||
+          name.contains('owner');
 
       if (isMerchant) {
         Navigator.pushReplacement(
