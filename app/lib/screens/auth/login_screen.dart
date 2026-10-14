@@ -188,11 +188,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         await Supabase.instance.client.auth.signOut();
       } catch (_) {}
 
-      // Mở trình duyệt ngoài (Chrome / Browser) để đăng nhập Google OAuth Web Flow
+      // Mở quy trình đăng nhập Google OAuth (Web điều hướng trực tiếp, Mobile mở trình duyệt ngoài)
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+        redirectTo: SupabaseConstants.authRedirectUrl,
+        authScreenLaunchMode:
+            kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
         queryParams: const {
           'prompt': 'select_account',
         },
