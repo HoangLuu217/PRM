@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           final supaUser = session?.user;
           if (supaUser != null && supaUser.email != null && supaUser.email!.isNotEmpty) {
             final authService = AuthService();
-            final pendingRole = await authService.getPendingOAuthRole() ?? (kIsWeb ? 'MERCHANT' : _selectedRole);
+            final pendingRole = await authService.getPendingOAuthRole();
             await authService.clearPendingOAuthRole();
             if (!mounted) return;
 
@@ -100,7 +100,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             final avatarUrl = metadata['avatar_url'] ?? metadata['picture'];
             final googleId = metadata['sub'] ?? supaUser.id;
 
-            final effectiveRole = (kIsWeb || pendingRole == 'MERCHANT') ? 'MERCHANT' : pendingRole;
+            final isOwnerEmail = email.toLowerCase().contains('owner') ||
+                email.toLowerCase().startsWith('chu') ||
+                email.toLowerCase().contains('merchant');
+            final effectiveRole = (pendingRole == 'MERCHANT' || isOwnerEmail) ? 'MERCHANT' : null;
 
             final authProvider = Provider.of<AuthProvider>(context, listen: false);
             final success = await authProvider.googleLogin(
@@ -153,8 +156,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final userEmail = (authProvider.user?.email ?? _emailController.text).toLowerCase().trim();
     final userName = (authProvider.user?.fullName ?? '').toLowerCase().trim();
 
-    final isMerchant = kIsWeb ||
-        authProvider.isOwner ||
+    final isMerchant = authProvider.isOwner ||
         _selectedRole == 'MERCHANT' ||
         userRole == 'MERCHANT' ||
         userRole == 'OWNER' ||
@@ -164,6 +166,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         userEmail.contains('owner') ||
         userEmail.startsWith('chu') ||
         userEmail.contains('merchant') ||
+        userEmail.contains('admin') ||
+        userEmail.contains('quanly') ||
         userName.contains('chủ') ||
         userName.contains('owner');
 
@@ -185,13 +189,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim().toLowerCase();
-      final effectiveRole = (kIsWeb ||
-              _selectedRole == 'MERCHANT' ||
-              email.contains('owner') ||
-              email.startsWith('chu') ||
-              email.contains('merchant'))
+      final isOwnerEmail = email.contains('owner') ||
+          email.startsWith('chu') ||
+          email.contains('merchant') ||
+          email.contains('admin') ||
+          email.contains('quanly');
+      final effectiveRole = isOwnerEmail
           ? 'MERCHANT'
-          : _selectedRole;
+          : (_selectedRole == 'MERCHANT' ? 'MERCHANT' : null);
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.login(
@@ -251,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       } catch (_) {}
 
       // Lưu role được chọn trước khi chuyển hướng OAuth (Web reload làm mất State bộ nhớ)
-      final effectiveRole = (kIsWeb || _selectedRole == 'MERCHANT') ? 'MERCHANT' : 'USER';
+      final effectiveRole = _selectedRole == 'MERCHANT' ? 'MERCHANT' : 'USER';
       final authService = AuthService();
       await authService.savePendingOAuthRole(effectiveRole);
 

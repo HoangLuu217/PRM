@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -49,8 +48,7 @@ class _SplashScreenState extends State<SplashScreen> {
       final email = (authProvider.user?.email ?? '').toLowerCase().trim();
       final name = (authProvider.user?.fullName ?? '').toLowerCase().trim();
 
-      final isMerchant = kIsWeb ||
-          authProvider.isOwner ||
+      final isMerchant = authProvider.isOwner ||
           role == 'MERCHANT' ||
           role == 'OWNER' ||
           role == 'BUSINESS_OWNER' ||
@@ -58,6 +56,9 @@ class _SplashScreenState extends State<SplashScreen> {
           (authProvider.user?.business != null) ||
           email.contains('owner') ||
           email.startsWith('chu') ||
+          email.contains('merchant') ||
+          email.contains('admin') ||
+          email.contains('quanly') ||
           name.contains('chủ') ||
           name.contains('owner');
 

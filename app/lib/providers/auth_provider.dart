@@ -22,7 +22,6 @@ class AuthProvider extends ChangeNotifier {
   String get userRole => _user?.role.toUpperCase().trim() ?? _savedRole?.toUpperCase().trim() ?? 'USER';
 
   bool get isOwner {
-    if (kIsWeb) return true;
     final saved = (_savedRole ?? '').toUpperCase().trim();
     if (saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER') return true;
     if (_user == null) return false;
@@ -58,7 +57,7 @@ class AuthProvider extends ChangeNotifier {
       if (_token != null) {
         _user = await _authService.getProfile();
         if (_user != null) {
-          if ((kIsWeb || pendingRole == 'MERCHANT') && _user!.role != 'MERCHANT') {
+          if (pendingRole == 'MERCHANT' && _user!.role != 'MERCHANT') {
             await _authService.clearPendingOAuthRole();
             final updated = await _authService.updateProfile({'role': 'MERCHANT'});
             if (updated['success'] == true && updated['user'] != null) {
