@@ -8,6 +8,23 @@ class AuthService {
   static const String _tokenKey = 'jwt_token';
   static const String _roleKey = 'user_role';
   static const String _userKey = 'cached_user_profile';
+  static const String _pendingRoleKey = 'pending_oauth_role';
+
+  // Lưu và lấy role tạm thời khi chuẩn bị chuyển hướng Google OAuth
+  Future<void> savePendingOAuthRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pendingRoleKey, role);
+  }
+
+  Future<String?> getPendingOAuthRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_pendingRoleKey);
+  }
+
+  Future<void> clearPendingOAuthRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingRoleKey);
+  }
 
   // Helper tạo headers chuẩn kèm bypass cho localtunnel
   Map<String, String> _headers([String? token]) {
@@ -69,6 +86,7 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_roleKey);
     await prefs.remove(_userKey);
+    await prefs.remove(_pendingRoleKey);
   }
 
   // Login API

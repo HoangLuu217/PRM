@@ -44,12 +44,13 @@ class _SplashScreenState extends State<SplashScreen> {
         userProvider.setUser(authProvider.user);
       }
 
-      final role = authProvider.userRole.toUpperCase();
+      final role = (authProvider.user?.role ?? authProvider.userRole).toUpperCase().trim();
       final isMerchant = authProvider.isOwner ||
           role == 'MERCHANT' ||
           role == 'OWNER' ||
           role == 'BUSINESS_OWNER' ||
-          role == 'ADMIN';
+          role == 'ADMIN' ||
+          (authProvider.user?.business != null);
 
       if (isMerchant) {
         Navigator.pushReplacement(
