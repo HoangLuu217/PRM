@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prm_project/models/user_model.dart';
+import 'package:prm_project/providers/user_provider.dart';
 
 void main() {
   group('Member 1 - Authentication & Role Unit Tests', () {
@@ -94,6 +95,26 @@ void main() {
       expect(json['_id'], 'owner_001');
       expect(json['role'], 'BUSINESS_OWNER');
       expect(json['authProvider'], 'LOCAL');
+    });
+
+    test('UserProvider: setUser updates state and notifies correctly', () {
+      final userProvider = UserProvider();
+      expect(userProvider.user, isNull);
+      expect(userProvider.isLoading, isFalse);
+
+      final user = User(
+        id: 'u_1',
+        fullName: 'Nguyễn Văn Test',
+        email: 'test@fconnect.vn',
+        role: 'USER',
+        authProvider: 'LOCAL',
+        status: 'ACTIVE',
+      );
+
+      userProvider.setUser(user);
+      expect(userProvider.user, isNotNull);
+      expect(userProvider.user?.fullName, 'Nguyễn Văn Test');
+      expect(userProvider.user?.role, 'USER');
     });
   });
 }

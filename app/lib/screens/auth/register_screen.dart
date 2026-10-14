@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
 
@@ -199,6 +200,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
+
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (authProvider.user != null) {
+          userProvider.setUser(authProvider.user);
+        }
 
         if (_selectedRole == 'MERCHANT') {
           Navigator.pushAndRemoveUntil(

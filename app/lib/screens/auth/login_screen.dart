@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../core/constants/supabase_constants.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../services/supabase_auth_service.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
@@ -112,6 +113,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _navigateByRole(String role) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (authProvider.user != null) {
+      userProvider.setUser(authProvider.user);
+    }
+
     final isMerchant = authProvider.isOwner ||
         _selectedRole == 'MERCHANT' ||
         role.toUpperCase() == 'MERCHANT' ||

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
 
@@ -145,6 +146,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       if (success) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (authProvider.user != null) {
+          userProvider.setUser(authProvider.user);
+        }
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -707,10 +712,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E293B), size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E293B), size: 18),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Text(
           isOwner ? 'Merchant Profile' : 'Profile',
           style: const TextStyle(
