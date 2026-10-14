@@ -26,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int _currentStep = 1; // 1: Nhập thông tin, 2: Xác thực OTP
   bool _obscurePassword = true;
-  String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER'; // 'USER' (Khách hàng) hoặc 'MERCHANT' (Chủ quán F&B)
+  final String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER';
 
   // Countdown timer cho gửi lại mã OTP
   Timer? _resendTimer;
@@ -361,9 +361,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Title
                 Text(
-                  kIsWeb
-                      ? 'Đăng Ký Tài Khoản Đối Tác'
-                      : (_selectedRole == 'MERCHANT' ? 'Đăng Ký Đối Tác Quán F&B' : 'Tạo Tài Khoản Mới'),
+                  kIsWeb ? 'Đăng Ký Tài Khoản Đối Tác' : 'Tạo Tài Khoản Mới',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 26,
@@ -376,9 +374,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Text(
                   kIsWeb
                       ? 'Gia nhập mạng lưới FConnect để phát triển thương hiệu quán của bạn'
-                      : (_selectedRole == 'MERCHANT'
-                          ? 'Gia nhập mạng lưới FConnect để phát triển thương hiệu quán của bạn'
-                          : 'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao'),
+                      : 'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
@@ -386,108 +382,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Chọn vai trò tài khoản: Khách hàng vs Chủ quán F&B (Chỉ dành cho Mobile)
-                if (!kIsWeb)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 18),
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF334155), width: 1.2),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _selectedRole = 'USER'),
-                            borderRadius: BorderRadius.circular(12),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(vertical: 11),
-                            decoration: BoxDecoration(
-                              color: _selectedRole == 'USER' ? const Color(0xFF2563EB) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: _selectedRole == 'USER'
-                                  ? [
-                                      BoxShadow(
-                                        color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            alignment: Alignment.center,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.person_rounded,
-                                  size: 17,
-                                  color: _selectedRole == 'USER' ? Colors.white : const Color(0xFF94A3B8),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Khách hàng',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: _selectedRole == 'USER' ? Colors.white : const Color(0xFF94A3B8),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedRole = 'MERCHANT'),
-                          borderRadius: BorderRadius.circular(12),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(vertical: 11),
-                            decoration: BoxDecoration(
-                              color: _selectedRole == 'MERCHANT' ? const Color(0xFFEA580C) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: _selectedRole == 'MERCHANT'
-                                  ? [
-                                      BoxShadow(
-                                        color: const Color(0xFFEA580C).withValues(alpha: 0.5),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            alignment: Alignment.center,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.storefront_rounded,
-                                  size: 17,
-                                  color: _selectedRole == 'MERCHANT' ? Colors.white : const Color(0xFF94A3B8),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Chủ quán F&B',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: _selectedRole == 'MERCHANT' ? Colors.white : const Color(0xFF94A3B8),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 // Full Name Input
                 _buildTextField(
