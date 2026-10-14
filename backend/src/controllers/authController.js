@@ -331,9 +331,7 @@ export const loginUser = async (req, res) => {
 
     if (user && (await user.matchPassword(password))) {
       const userBusiness = await Business.findOne({ ownerId: user._id });
-      const isOwnerIntent =
-        Boolean(userBusiness) ||
-        (role && (role.toUpperCase() === 'MERCHANT' || role.toUpperCase() === 'OWNER')) ||
+      const hasOwnerKeyword =
         user.email.toLowerCase().includes('owner') ||
         user.email.toLowerCase().startsWith('chu') ||
         user.email.toLowerCase().includes('merchant') ||
@@ -341,7 +339,7 @@ export const loginUser = async (req, res) => {
         user.email.toLowerCase().includes('quanly') ||
         (user.fullName && (user.fullName.toLowerCase().includes('chủ') || user.fullName.toLowerCase().includes('owner')));
 
-      if (isOwnerIntent && user.role !== 'MERCHANT') {
+      if ((Boolean(userBusiness) || hasOwnerKeyword) && user.role !== 'MERCHANT') {
         user.role = 'MERCHANT';
         await user.save();
       }
@@ -487,8 +485,7 @@ export const googleLogin = async (req, res) => {
     }
 
     let user = await User.findOne({ email });
-    const isOwnerIntent =
-      (role && (role.toUpperCase() === 'MERCHANT' || role.toUpperCase() === 'OWNER')) ||
+    const hasOwnerKeyword =
       email.toLowerCase().includes('owner') ||
       email.toLowerCase().startsWith('chu') ||
       email.toLowerCase().includes('merchant') ||
@@ -511,7 +508,7 @@ export const googleLogin = async (req, res) => {
         modified = true;
       }
       const userBusiness = await Business.findOne({ ownerId: user._id });
-      if ((isOwnerIntent || userBusiness) && user.role !== 'MERCHANT') {
+      if ((hasOwnerKeyword || userBusiness) && user.role !== 'MERCHANT') {
         user.role = 'MERCHANT';
         modified = true;
       }
@@ -525,7 +522,7 @@ export const googleLogin = async (req, res) => {
         avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
         authProvider: 'GOOGLE',
         googleId: googleId || '',
-        role: isOwnerIntent ? 'MERCHANT' : 'USER',
+        role: (hasOwnerKeyword || role === 'MERCHANT') ? 'MERCHANT' : 'USER',
         status: 'ACTIVE',
         preferences: {
           favoriteCategories: ['CAFE', 'RESTAURANT'],

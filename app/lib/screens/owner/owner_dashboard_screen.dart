@@ -42,6 +42,15 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final hasBusiness = user?.business != null &&
         (user?.business?['name']?.toString() ?? '').trim().isNotEmpty;
 
+    // Nếu tài khoản là Khách hàng (USER) và không sở hữu cơ sở F&B, tự động chuyển về Giao diện Khách hàng!
+    if (!authProvider.isOwner && !hasBusiness) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+      );
+      return;
+    }
+
     if (widget.showOnboardingImmediately || !hasBusiness) {
       MerchantOnboardingDialog.show(context, onCompleted: () {
         if (mounted) setState(() {});
