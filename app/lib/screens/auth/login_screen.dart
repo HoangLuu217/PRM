@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isGoogleLoggingIn = false;
+  String _selectedRole = 'USER'; // 'USER' (Khách hàng) hoặc 'MERCHANT' (Chủ quán F&B)
   StreamSubscription<AuthState>? _supabaseAuthSubscription;
 
   late AnimationController _animController;
@@ -79,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               fullName: fullName,
               avatarUrl: avatarUrl,
               googleId: googleId,
+              role: _selectedRole,
             );
 
             if (!mounted) return;
@@ -111,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void _navigateByRole(String role) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isMerchant = authProvider.isOwner ||
+        _selectedRole == 'MERCHANT' ||
         role.toUpperCase() == 'MERCHANT' ||
         role.toUpperCase() == 'OWNER' ||
         role.toUpperCase() == 'BUSINESS_OWNER' ||
@@ -135,6 +138,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       final success = await authProvider.login(
         _emailController.text,
         _passwordController.text,
+        role: _selectedRole,
       );
 
       if (!mounted) return;
@@ -312,9 +316,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Text(
-                                  'Đăng Nhập',
-                                  style: TextStyle(
+                                Text(
+                                  _selectedRole == 'MERCHANT' ? 'Cổng Quản Trị Quán F&B' : 'Đăng Nhập',
+                                  style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
@@ -323,13 +327,19 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Chào mừng bạn trở lại với FConnect F&B',
+                                  _selectedRole == 'MERCHANT'
+                                      ? 'Dành riêng cho Chủ Quán & Quản trị viên cơ sở F&B'
+                                      : 'Chào mừng bạn trở lại với FConnect F&B',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 20),
+
+                                // Role Selector Toggle
+                                _buildRoleSelector(),
+                                const SizedBox(height: 20),
 
                                 // Email Input Field
                                 _buildTextField(
@@ -619,19 +629,132 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  // Widget Nút Login Gradient Electric Cyan / Royal Blue
+  // Widget Bộ chọn Vai trò: Khách hàng vs Chủ quán F&B
+  Widget _buildRoleSelector() {
+    final isMerchant = _selectedRole == 'MERCHANT';
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isMerchant ? const Color(0xFFEA580C).withValues(alpha: 0.4) : const Color(0xFF334155),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Tab 1: Khách hàng
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedRole = 'USER'),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: !isMerchant ? const Color(0xFF2563EB) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: !isMerchant
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.45),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.person_rounded,
+                      size: 17,
+                      color: !isMerchant ? Colors.white : const Color(0xFF94A3B8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Khách hàng',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: !isMerchant ? Colors.white : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Tab 2: Chủ quán F&B
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedRole = 'MERCHANT'),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isMerchant ? const Color(0xFFEA580C) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isMerchant
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFFEA580C).withValues(alpha: 0.5),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.storefront_rounded,
+                      size: 17,
+                      color: isMerchant ? Colors.white : const Color(0xFF94A3B8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Chủ quán F&B',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isMerchant ? Colors.white : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget Nút Login Gradient Electric Cyan / Royal Blue hoặc Sunset Orange cho Chủ Quán
   Widget _buildGradientLoginButton(AuthProvider authProvider) {
+    final isMerchant = _selectedRole == 'MERCHANT';
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color(0xFF00C6FF), Color(0xFF0072FF), Color(0xFF1D4ED8)],
+          colors: isMerchant
+              ? const [Color(0xFFEA580C), Color(0xFFF97316), Color(0xFFFB923C)]
+              : const [Color(0xFF00C6FF), Color(0xFF0072FF), Color(0xFF1D4ED8)],
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0072FF).withValues(alpha: 0.45),
+            color: (isMerchant ? const Color(0xFFEA580C) : const Color(0xFF0072FF)).withValues(alpha: 0.45),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -652,9 +775,25 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 width: 20,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
               )
-            : const Text(
-                'Đăng Nhập',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isMerchant ? Icons.storefront_rounded : Icons.login_rounded,
+                    size: 19,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      isMerchant ? 'Đăng Nhập Cổng Chủ Quán' : 'Đăng Nhập',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -663,12 +802,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // Widget Nút Google Sign-in Glassmorphism
   Widget _buildGoogleSignInButton(AuthProvider authProvider) {
     final bool isBusy = authProvider.isLoading || _isGoogleLoggingIn;
+    final isMerchant = _selectedRole == 'MERCHANT';
 
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF334155), width: 1.2),
+        border: Border.all(
+          color: isMerchant ? const Color(0xFFEA580C).withValues(alpha: 0.45) : const Color(0xFF334155),
+          width: 1.2,
+        ),
       ),
       child: OutlinedButton(
         onPressed: isBusy ? null : _handleGoogleLogin,
@@ -688,6 +831,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Google Icon Logo
                   Container(
@@ -703,13 +847,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Đăng nhập với Google',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
+                  Flexible(
+                    child: Text(
+                      isMerchant ? 'Đăng nhập Google (Chủ Quán)' : 'Đăng nhập với Google',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

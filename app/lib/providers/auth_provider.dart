@@ -9,6 +9,7 @@ class AuthProvider extends ChangeNotifier {
 
   User? _user;
   String? _token;
+  String? _savedRole;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -18,9 +19,11 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   bool get isAuthenticated => _token != null && _user != null;
-  String get userRole => _user?.role.toUpperCase().trim() ?? 'USER';
+  String get userRole => _user?.role.toUpperCase().trim() ?? _savedRole?.toUpperCase().trim() ?? 'USER';
 
   bool get isOwner {
+    final saved = (_savedRole ?? '').toUpperCase().trim();
+    if (saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER') return true;
     if (_user == null) return false;
     final r = _user!.role.toUpperCase().trim();
     return r == 'MERCHANT' ||
@@ -39,6 +42,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      _savedRole = await _authService.getSavedRole();
       // 1. Kiểm tra token từ local storage (Backend JWT)
       _token = await _authService.getToken();
       if (_token != null) {
@@ -85,7 +89,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Login action
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {String? role}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -103,7 +107,7 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    final result = await _authService.login(email, password);
+    final result = await _authService.login(email, password, role: role);
 
     _isLoading = false;
     if (result['success'] == true) {
@@ -226,6 +230,7 @@ class AuthProvider extends ChangeNotifier {
     await _authService.removeToken();
     _token = null;
     _user = null;
+    _savedRole = null;
     _isLoading = false;
     notifyListeners();
   }
@@ -236,6 +241,7 @@ class AuthProvider extends ChangeNotifier {
     required String fullName,
     String? avatarUrl,
     String? googleId,
+    String? role,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -246,6 +252,7 @@ class AuthProvider extends ChangeNotifier {
       fullName: fullName,
       avatarUrl: avatarUrl,
       googleId: googleId,
+      role: role,
     );
 
     _isLoading = false;
