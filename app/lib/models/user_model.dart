@@ -56,11 +56,17 @@ class User {
   final UserPreferences preferences;
   final Map<String, dynamic>? business;
 
-  bool get isOwner =>
-      role == 'MERCHANT' ||
-      role == 'OWNER' ||
-      role == 'ADMIN' ||
-      business != null;
+  bool get isOwner {
+    final r = role.toUpperCase().trim();
+    if (r == 'USER' || r == 'CUSTOMER') return false;
+    return r == 'MERCHANT' ||
+        r == 'OWNER' ||
+        r == 'ADMIN' ||
+        r == 'BUSINESS_OWNER' ||
+        (business != null &&
+            business!['name'] != null &&
+            business!['name'].toString().trim().isNotEmpty);
+  }
 
   static bool isOwnerKeyword(String? email, [String? fullName]) {
     final e = (email ?? '').toLowerCase().trim();
