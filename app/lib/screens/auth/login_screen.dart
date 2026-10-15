@@ -364,30 +364,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               children: [
                                 // Logo & Header Brand bên trong Form Card
                                 _buildBrandHeader(),
-                                const SizedBox(height: 20),
-
-                                Text(
-                                  kIsWeb ? 'Đăng Nhập Quản Trị' : 'Đăng Nhập',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  kIsWeb
-                                      ? 'Hệ thống quản lý dành cho Đối tác & Chủ quán F&B'
-                                      : 'Chào mừng bạn trở lại với FConnect',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.75),
-                                  ),
-                                ),
-                                const SizedBox(height: 22),
+                                const SizedBox(height: 24),
 
                                 // Email Input Field
                                 _buildTextField(
