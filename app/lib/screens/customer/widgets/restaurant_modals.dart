@@ -15,10 +15,8 @@ class RestaurantModals {
   }) {
     final service = restaurantService ?? RestaurantService();
     int guestCount = 2;
-    String selectedTime = '19:00';
-    final List<String> times = [
-      '11:30', '12:00', '12:30', '18:00', '18:30', '19:00', '19:30', '20:00'
-    ];
+    final List<String> times = BookingScreen.generateTimeSlots(r.openTime, r.closeTime);
+    String selectedTime = times.contains('19:00') ? '19:00' : (times.isNotEmpty ? times.first : '19:00');
 
     showModalBottomSheet(
       context: context,
@@ -99,30 +97,42 @@ class RestaurantModals {
                 // Khung giờ đặt
                 const Text('Khung giờ:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: times.map((t) {
-                    final isSel = selectedTime == t;
-                    return GestureDetector(
-                      onTap: () => setModalState(() => selectedTime = t),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSel ? const Color(0xFF0072FF) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          t,
-                          style: TextStyle(
-                            color: isSel ? Colors.white : const Color(0xFF334155),
-                            fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                            fontSize: 13,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: times.length,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: 2.2,
+                    ),
+                    itemBuilder: (ctx, idx) {
+                      final t = times[idx];
+                      final isSel = selectedTime == t;
+                      return GestureDetector(
+                        onTap: () => setModalState(() => selectedTime = t),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          decoration: BoxDecoration(
+                            color: isSel ? const Color(0xFF0072FF) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            t,
+                            style: TextStyle(
+                              color: isSel ? Colors.white : const Color(0xFF334155),
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 22),
 
@@ -165,6 +175,10 @@ class RestaurantModals {
                         guestCount: guestCount,
                       );
                       if (!context.mounted) return;
+                      String errorMsg = res['message'] ?? 'Đặt bàn thất bại';
+                      if (errorMsg.contains('Booking must be in the future')) {
+                        errorMsg = 'Khung giờ đặt bàn phải sau thời điểm hiện tại. Vui lòng chọn giờ khác!';
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           backgroundColor: res['success'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
@@ -179,7 +193,7 @@ class RestaurantModals {
                                 child: Text(
                                   res['success'] == true
                                       ? 'Đặt bàn thành công! Mã: ${res['bookingCode']} lúc $selectedTime tại ${r.name}'
-                                      : (res['message'] ?? 'Đặt bàn thất bại'),
+                                      : errorMsg,
                                 ),
                               ),
                             ],

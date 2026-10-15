@@ -5,8 +5,6 @@ import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../auth/login_screen.dart';
 import '../../auth/profile_screen.dart';
-import '../booking/my_bookings_screen.dart';
-import '../order/my_orders_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
 class HomeFeedTab extends StatelessWidget {
@@ -457,38 +455,6 @@ class HomeFeedTab extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-
-          // Nút xem Lịch đặt bàn & Đơn hàng của tôi
-          if (isLoggedIn) ...[
-            IconButton(
-              icon: const Icon(Icons.calendar_month_rounded, size: 21, color: Color(0xFF0072FF)),
-              tooltip: 'Lịch đặt bàn của tôi',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                );
-              },
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.receipt_long_rounded, size: 21, color: Color(0xFF10B981)),
-              tooltip: 'Đơn hàng của tôi',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-                );
-              },
-            ),
-            const SizedBox(width: 8),
-          ],
 
           // User Avatar / Nút Đăng nhập
           if (isLoggedIn)

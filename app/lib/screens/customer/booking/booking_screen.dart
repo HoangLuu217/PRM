@@ -22,6 +22,54 @@ class BookingScreen extends StatefulWidget {
     this.initialGuests = 2,
   });
 
+  static int parseTimeToMinutes(String timeStr, int defaultMinutes) {
+    try {
+      final s = timeStr.trim();
+      final match = RegExp(r'^(\d{1,2})[:hH](\d{2})?').firstMatch(s);
+      if (match != null) {
+        int hour = int.parse(match.group(1)!);
+        int minute = match.group(2) != null ? int.parse(match.group(2)!) : 0;
+        final lower = s.toLowerCase();
+        if (lower.contains('pm') && hour < 12) hour += 12;
+        if (lower.contains('am') && hour == 12) hour = 0;
+        return hour * 60 + minute;
+      }
+    } catch (_) {}
+    return defaultMinutes;
+  }
+
+  static List<String> generateTimeSlots(String? openTime, String? closeTime) {
+    final startMin = parseTimeToMinutes(openTime ?? '07:00', 7 * 60);
+    int endMin = parseTimeToMinutes(closeTime ?? '22:00', 22 * 60);
+
+    // Xử lý trường hợp quán mở qua đêm (ví dụ: mở 18:00, đóng 02:00 sáng hôm sau)
+    if (endMin <= startMin) {
+      endMin += 24 * 60;
+    }
+
+    final List<String> slots = [];
+    for (int m = startMin; m <= endMin; m += 30) {
+      final normalized = m % (24 * 60);
+      final hour = (normalized ~/ 60).toString().padLeft(2, '0');
+      final minute = (normalized % 60).toString().padLeft(2, '0');
+      final slot = '$hour:$minute';
+      if (!slots.contains(slot)) {
+        slots.add(slot);
+      }
+    }
+
+    if (slots.isEmpty) {
+      return [
+        '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+        '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+        '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+        '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+        '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'
+      ];
+    }
+    return slots;
+  }
+
   @override
   State<BookingScreen> createState() => _BookingScreenState();
 }
@@ -34,19 +82,30 @@ class _BookingScreenState extends State<BookingScreen> {
   final TextEditingController _noteController = TextEditingController();
   bool _isLoadingTables = false;
 
-  final List<String> _timeSlots = [
-    '10:30', '11:00', '11:30', '12:00', '12:30',
-    '13:00', '17:30', '18:00', '18:30', '19:00',
-    '19:30', '20:00', '20:30', '21:00'
-  ];
+  late List<String> _timeSlots;
 
   @override
   void initState() {
     super.initState();
+    _timeSlots = BookingScreen.generateTimeSlots(
+      widget.restaurant.openTime,
+      widget.restaurant.closeTime,
+    );
+
     _selectedDate = widget.initialDate != null
         ? (DateTime.tryParse(widget.initialDate!) ?? DateTime.now())
         : DateTime.now();
-    _selectedTime = widget.initialTime ?? '19:00';
+
+    if (widget.initialTime != null && _timeSlots.contains(widget.initialTime)) {
+      _selectedTime = widget.initialTime!;
+    } else if (_timeSlots.contains('19:00')) {
+      _selectedTime = '19:00';
+    } else if (_timeSlots.isNotEmpty) {
+      _selectedTime = _timeSlots.first;
+    } else {
+      _selectedTime = '19:00';
+    }
+
     _guestCount = widget.initialGuests;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -236,9 +295,13 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
       );
     } else {
+      String msg = res['message'] ?? 'Đặt bàn thất bại';
+      if (msg.contains('Booking must be in the future')) {
+        msg = 'Khung giờ đặt bàn phải sau thời điểm hiện tại. Vui lòng chọn khung giờ khác hoặc đổi ngày!';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(res['message'] ?? 'Đặt bàn thất bại'),
+          content: Text(msg),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -333,7 +396,7 @@ class _BookingScreenState extends State<BookingScreen> {
                             const Icon(Icons.access_time, size: 14, color: Color(0xFF10B981)),
                             const SizedBox(width: 4),
                             Text(
-                              '${widget.restaurant.openTime ?? "08:00"} - ${widget.restaurant.closeTime ?? "22:00"}',
+                              '${widget.restaurant.openTime ?? "07:00"} - ${widget.restaurant.closeTime ?? "22:00"}',
                               style: const TextStyle(fontSize: 12, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
                             ),
                           ],
@@ -391,32 +454,56 @@ class _BookingScreenState extends State<BookingScreen> {
             // Bước 2: Chọn khung giờ
             _buildSectionHeader('2. Chọn giờ dùng bữa', Icons.access_time_filled_rounded),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _timeSlots.map((time) {
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _timeSlots.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 2.2,
+              ),
+              itemBuilder: (context, index) {
+                final time = _timeSlots[index];
                 final isSel = _selectedTime == time;
-                return ChoiceChip(
-                  label: Text(time),
-                  selected: isSel,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _selectedTime = time);
-                      _loadAvailableTables();
-                    }
+                return InkWell(
+                  onTap: () {
+                    setState(() => _selectedTime = time);
+                    _loadAvailableTables();
                   },
-                  selectedColor: const Color(0xFF0072FF),
-                  backgroundColor: Colors.white,
-                  labelStyle: TextStyle(
-                    color: isSel ? Colors.white : const Color(0xFF334155),
-                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: isSel ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(10),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      color: isSel ? const Color(0xFF0072FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSel ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0),
+                        width: isSel ? 1.5 : 1,
+                      ),
+                      boxShadow: isSel
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF0072FF).withValues(alpha: 0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      time,
+                      style: TextStyle(
+                        color: isSel ? Colors.white : const Color(0xFF334155),
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
                   ),
                 );
-              }).toList(),
+              },
             ),
             const SizedBox(height: 20),
 
@@ -431,6 +518,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
+                      showCheckmark: false,
                       label: Text('$count người'),
                       selected: isSel,
                       onSelected: (selected) {
