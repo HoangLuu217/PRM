@@ -120,8 +120,11 @@ class SupabaseAuthService {
 
       final bool success = await client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+        redirectTo: SupabaseConstants.authRedirectUrl,
+        authScreenLaunchMode: LaunchMode.platformDefault,
+        queryParams: const {
+          'prompt': 'select_account',
+        },
       );
 
       return success;
@@ -133,7 +136,7 @@ class SupabaseAuthService {
 
   // Lấy thông tin phiên người dùng hiện tại
   User? getCurrentUser() {
-    final supabaseUser = client.auth.currentUser;
+    final supabaseUser = client.auth.currentUser ?? client.auth.currentSession?.user;
     if (supabaseUser == null) return null;
 
     final metadata = supabaseUser.userMetadata ?? {};
@@ -160,7 +163,7 @@ class SupabaseAuthService {
       }
       await client.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
-        redirectTo: kIsWeb ? null : SupabaseConstants.redirectUrl,
+        redirectTo: SupabaseConstants.authRedirectUrl,
       );
       return {
         'success': true,

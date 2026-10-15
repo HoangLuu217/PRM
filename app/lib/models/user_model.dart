@@ -56,6 +56,18 @@ class User {
   final UserPreferences preferences;
   final Map<String, dynamic>? business;
 
+  bool get isOwner {
+    final r = role.toUpperCase().trim();
+    if (r == 'USER' || r == 'CUSTOMER') return false;
+    return r == 'MERCHANT' ||
+        r == 'OWNER' ||
+        r == 'ADMIN' ||
+        r == 'BUSINESS_OWNER' ||
+        (business != null &&
+            business!['name'] != null &&
+            business!['name'].toString().trim().isNotEmpty);
+  }
+
   User({
     required this.id,
     required this.fullName,
@@ -97,9 +109,6 @@ class User {
     }
 
     final fullNameVal = (map['fullName'] ?? map['full_name'] ?? map['name'] ?? '').toString();
-    if (fullNameVal.toLowerCase().contains('chủ quán') || fullNameVal.toLowerCase().contains('owner')) {
-      roleVal = 'MERCHANT';
-    }
 
     return User(
       id: (map['_id'] ?? map['id'] ?? '').toString(),

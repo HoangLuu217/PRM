@@ -4,8 +4,10 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/order_provider.dart';
+import '../../providers/user_provider.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/order/my_orders_screen.dart';
+import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -150,6 +152,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       if (success) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (authProvider.user != null) {
+          userProvider.setUser(authProvider.user);
+        }
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -719,7 +725,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               )
             : null,
         title: Text(
-          isOwner ? 'Merchant Profile' : 'Profile',
+          isOwner ? 'Hồ sơ Quán F&B' : 'Hồ sơ cá nhân',
           style: const TextStyle(
             color: Color(0xFF0F172A),
             fontWeight: FontWeight.w700,
@@ -735,11 +741,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. User Hero Profile Card
-                      _buildUserHeroCard(user, isOwner),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. User Hero Profile Card
+                          _buildUserHeroCard(user, isOwner),
                       const SizedBox(height: 14),
 
                       // 2. Stats Row (Dynamic for Owner vs Customer)
@@ -797,6 +806,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
     );
   }
 
@@ -874,7 +885,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Subtitle (Business Name or Email)
           Text(
-            isOwner ? '$businessName • ${user.email}' : user.email,
+            isOwner && businessName.isNotEmpty ? '$businessName • ${user.email}' : user.email,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 12.5,
@@ -884,36 +895,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 14),
 
-          // Edit Profile Pill Button
-          InkWell(
-            onTap: () => _openEditProfileModal(user, isOwner),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-              decoration: BoxDecoration(
-                color: isOwner ? const Color(0xFFFFF7ED) : const Color(0xFFEFF6FF),
+          // Edit Profile Pill Button & Role Navigation to Owner Portal
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              InkWell(
+                onTap: () => _openEditProfileModal(user, isOwner),
                 borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.edit_outlined,
-                    size: 15,
-                    color: isOwner ? const Color(0xFFEA580C) : const Color(0xFF2563EB),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isOwner ? const Color(0xFFFFF7ED) : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isOwner ? 'Edit Business Profile' : 'Edit Profile',
-                    style: TextStyle(
-                      color: isOwner ? const Color(0xFFEA580C) : const Color(0xFF2563EB),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 15,
+                        color: isOwner ? const Color(0xFFEA580C) : const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isOwner ? 'Chỉnh sửa thông tin quán' : 'Chỉnh sửa hồ sơ',
+                        style: TextStyle(
+                          color: isOwner ? const Color(0xFFEA580C) : const Color(0xFF2563EB),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Nút Chuyển Giao Diện Chủ Quán F&B (Chỉ hiển thị với tài khoản Chủ quán F&B)
+              if (isOwner)
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEA580C).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEA580C).withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.storefront_rounded, size: 15, color: Color(0xFFEA580C)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Cổng Đối tác F&B (Owner)',
+                          style: TextStyle(
+                            color: Color(0xFFEA580C),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
         ],
       ),

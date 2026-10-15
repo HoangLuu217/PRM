@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../customer/customer_home_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
@@ -22,29 +24,45 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Chờ 1.5 giây để hiển thị splash screen mượt mà
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    if (!mounted) return;
+    debugPrint('[Splash] Started');
+    debugPrint('[Splash] Checking auth');
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
+
+    // Chạy kiểm tra auth song song với delay 1.2 giây để vừa đủ mượt mà không bị chờ lâu
+    await Future.wait([
+      authProvider.checkAuthStatus(),
+      Future.delayed(const Duration(milliseconds: 1200)),
+    ]);
 
     if (!mounted) return;
 
-    if (authProvider.isAuthenticated) {
-      final role = authProvider.userRole;
-      final isMerchant = authProvider.isOwner ||
-          role.toUpperCase() == 'MERCHANT' ||
-          role.toUpperCase() == 'OWNER' ||
-          role.toUpperCase() == 'ADMIN';
+    debugPrint('[Splash] Authenticated: ${authProvider.isAuthenticated}');
 
-      if (isMerchant) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
-        );
+    if (authProvider.isAuthenticated) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (authProvider.user != null) {
+        userProvider.setUser(authProvider.user);
+      }
+
+      // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
+      if (kIsWeb) {
+        if (authProvider.isOwner) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+          );
+        } else {
+          await authProvider.logout();
+          userProvider.clearUser();
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
       } else {
+        // Trên Mobile: Luôn vào giao diện Khách hàng (CustomerHomeScreen)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),

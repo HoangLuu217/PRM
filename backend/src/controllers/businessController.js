@@ -566,27 +566,46 @@ export const onboardBusiness = async (req, res) => {
 
     const selectedCategory = category || (categories && categories[0]) || 'RESTAURANT';
 
-    // Create Business
-    const business = await Business.create({
-      ownerId: req.user._id,
-      name: businessName,
-      slug,
-      description: description?.trim() || `Hệ thống quán ẩm thực ${businessName}`,
-      categories: [selectedCategory],
-      status: 'APPROVED',
-      logoUrl: logoUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80',
-      coverImageUrl: coverImageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
-      googleMapsUrl: googleMapsUrl ? googleMapsUrl.trim() : '',
-      priceRange: req.body.priceRange
-        ? {
-            min: Math.max(0, Number(req.body.priceRange.min) || 0),
-            max: Math.max(0, Number(req.body.priceRange.max) || 0),
-          }
-        : { min: 20000, max: 100000 },
-      vibes: Array.isArray(vibes) ? vibes.map((v) => String(v).trim()).filter(Boolean) : [],
-      purposes: Array.isArray(purposes) ? purposes.map((p) => String(p).trim()).filter(Boolean) : [],
-      features: Array.isArray(features) ? features.map((f) => String(f).trim()).filter(Boolean) : [],
-    });
+    let business = await Business.findOne({ ownerId: req.user._id });
+    if (business) {
+      business.name = businessName;
+      business.description = description?.trim() || business.description;
+      business.categories = [selectedCategory];
+      if (logoUrl) business.logoUrl = logoUrl;
+      if (coverImageUrl) business.coverImageUrl = coverImageUrl;
+      if (googleMapsUrl !== undefined) business.googleMapsUrl = googleMapsUrl.trim();
+      if (req.body.priceRange) {
+        business.priceRange = {
+          min: Math.max(0, Number(req.body.priceRange.min) || 0),
+          max: Math.max(0, Number(req.body.priceRange.max) || 0),
+        };
+      }
+      if (vibes) business.vibes = Array.isArray(vibes) ? vibes.map((v) => String(v).trim()).filter(Boolean) : [];
+      if (purposes) business.purposes = Array.isArray(purposes) ? purposes.map((p) => String(p).trim()).filter(Boolean) : [];
+      if (features) business.features = Array.isArray(features) ? features.map((f) => String(f).trim()).filter(Boolean) : [];
+      await business.save();
+    } else {
+      business = await Business.create({
+        ownerId: req.user._id,
+        name: businessName,
+        slug,
+        description: description?.trim() || `Hệ thống quán ẩm thực ${businessName}`,
+        categories: [selectedCategory],
+        status: 'APPROVED',
+        logoUrl: logoUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80',
+        coverImageUrl: coverImageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
+        googleMapsUrl: googleMapsUrl ? googleMapsUrl.trim() : '',
+        priceRange: req.body.priceRange
+          ? {
+              min: Math.max(0, Number(req.body.priceRange.min) || 0),
+              max: Math.max(0, Number(req.body.priceRange.max) || 0),
+            }
+          : { min: 20000, max: 100000 },
+        vibes: Array.isArray(vibes) ? vibes.map((v) => String(v).trim()).filter(Boolean) : [],
+        purposes: Array.isArray(purposes) ? purposes.map((p) => String(p).trim()).filter(Boolean) : [],
+        features: Array.isArray(features) ? features.map((f) => String(f).trim()).filter(Boolean) : [],
+      });
+    }
 
     let branchCoords = [108.2208, 16.0678];
     if (googleMapsUrl) {
@@ -600,24 +619,46 @@ export const onboardBusiness = async (req, res) => {
       }
     }
 
-    // Create primary Branch
-    const branch = await Branch.create({
-      businessId: business._id,
-      name: `${businessName} - Chi nhánh chính`,
-      address: {
-        street: businessAddress?.street?.trim() || 'Trụ sở chính',
-        ward: businessAddress?.ward?.trim() || '',
-        district: businessAddress?.district?.trim() || 'Hải Châu',
-        city: businessAddress?.city?.trim() || 'Thành phố Đà Nẵng',
-      },
-      location: {
-        type: 'Point',
-        coordinates: branchCoords,
-      },
-      phone: req.user.phone || '0908888888',
-      googleMapsUrl: googleMapsUrl ? googleMapsUrl.trim() : '',
-      status: 'ACTIVE',
-    });
+    // Create or update primary Branch
+    let branch = await Branch.findOne({ businessId: business._id });
+    if (branch) {
+      branch.name = `${businessName} - Chi nhánh chính`;
+      branch.address = {
+        street: businessAddress?.street?.trim() || branch.address?.street || 'Trụ sở chính',
+        ward: businessAddress?.ward?.trim() || branch.address?.ward || '',
+        district: businessAddress?.district?.trim() || branch.address?.district || 'Hải Châu',
+        city: businessAddress?.city?.trim() || branch.address?.city || 'Thành phố Đà Nẵng',
+      };
+      if (googleMapsUrl) {
+        branch.location = {
+          type: 'Point',
+          coordinates: branchCoords,
+        };
+        branch.googleMapsUrl = googleMapsUrl.trim();
+      }
+      if (req.body.phone) {
+        branch.phone = req.body.phone.trim();
+      }
+      await branch.save();
+    } else {
+      branch = await Branch.create({
+        businessId: business._id,
+        name: `${businessName} - Chi nhánh chính`,
+        address: {
+          street: businessAddress?.street?.trim() || 'Trụ sở chính',
+          ward: businessAddress?.ward?.trim() || '',
+          district: businessAddress?.district?.trim() || 'Hải Châu',
+          city: businessAddress?.city?.trim() || 'Thành phố Đà Nẵng',
+        },
+        location: {
+          type: 'Point',
+          coordinates: branchCoords,
+        },
+        phone: req.body.phone?.trim() || req.user.phone || '0908888888',
+        googleMapsUrl: googleMapsUrl ? googleMapsUrl.trim() : '',
+        status: 'ACTIVE',
+      });
+    }
 
     // Ensure user role is updated to MERCHANT if needed
     if (req.user.role !== 'MERCHANT' && req.user.role !== 'ADMIN') {

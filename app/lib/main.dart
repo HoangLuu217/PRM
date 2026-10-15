@@ -7,6 +7,7 @@ import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/table_provider.dart';
+import 'providers/user_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'services/supabase_auth_service.dart';
 
@@ -43,6 +44,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => TableProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
@@ -51,7 +53,12 @@ class MyApp extends StatelessWidget {
         title: 'FConnect F&B Platform',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2563EB),
+            primary: const Color(0xFF2563EB),
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
           useMaterial3: true,
         ),
         home: const SplashScreen(),
