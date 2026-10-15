@@ -1282,26 +1282,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   ],
                 ),
               ),
-              // Member 1 Tag
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.verified_user_rounded, color: Color(0xFF2563EB), size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      'Member 1 • Core Module',
-                      style: TextStyle(color: Color(0xFF2563EB), fontSize: 11.5, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -1456,17 +1436,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
-                                  const SizedBox(width: 4),
-                                  const Text(
-                                    '4.9 (120+ đánh giá)',
-                                    style: TextStyle(color: Color(0xFF475569), fontSize: 12.5, fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
                                   const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 15),
                                   const SizedBox(width: 4),
                                   Text(
@@ -1528,53 +1497,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         ),
         const SizedBox(height: 18),
 
-        // 3. Quick Highlight Metric Cards (4 KPI Cards)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 650;
-            return GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: isWide ? 4 : 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: isWide ? 1.9 : 1.6,
-              children: [
-                _buildKpiCard(
-                  'Chi nhánh chính',
-                  '$district, Đà Nẵng',
-                  Icons.store_mall_directory_rounded,
-                  const Color(0xFF2563EB),
-                  'Trụ sở phục vụ',
-                ),
-                _buildKpiCard(
-                  'Khoảng giá bình quân',
-                  priceText,
-                  Icons.payments_rounded,
-                  const Color(0xFF0284C7),
-                  'Mức giá đại chúng',
-                ),
-                _buildKpiCard(
-                  'Mô hình hoạt động',
-                  categoryName,
-                  Icons.restaurant_rounded,
-                  const Color(0xFF1D4ED8),
-                  'Phong cách F&B',
-                ),
-                _buildKpiCard(
-                  'Tình trạng hồ sơ',
-                  hasBusiness ? 'Đạt chuẩn 100%' : 'Chờ hoàn thiện',
-                  Icons.verified_rounded,
-                  const Color(0xFF10B981),
-                  'Xác thực đối tác',
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
-        // 4. Responsive 2-Column Body (Left: Operations & Maps, Right: Owner Account & Operational Settings)
+        // 3. Responsive 2-Column Body (Left: Space & Vibes, Right: Location, Contact & Owner Account)
         LayoutBuilder(
           builder: (context, constraints) {
             final isDesktopTwoCol = constraints.maxWidth >= 900;
@@ -1653,7 +1578,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.spa_rounded, color: Color(0xFF1D4ED8), size: 14),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(v, style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -1678,7 +1603,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.groups_rounded, color: Color(0xFF15803D), size: 15),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(p, style: const TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -1702,8 +1627,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+              ],
+            );
 
+            final rightColumn = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 // Card B: Địa chỉ & Vị trí Google Maps
                 Container(
                   padding: const EdgeInsets.all(22),
@@ -1730,7 +1659,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 22),
                               SizedBox(width: 8),
                               Text(
-                                'ĐỊA CHỈ & VỊ TRÍ GOOGLE MAPS',
+                                'ĐỊA CHỈ & LIÊN HỆ',
                                 style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                               ),
                             ],
@@ -1751,39 +1680,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildProfileDetailRow(Icons.place_rounded, 'Địa chỉ chi tiết:', addressFull),
+                      _buildProfileDetailRow(Icons.place_rounded, 'Địa chỉ quán:', addressFull),
                       _buildProfileDetailRow(Icons.phone_in_talk_rounded, 'Hotline đặt bàn:', phone),
-                      _buildProfileDetailRow(Icons.link_rounded, 'Đường dẫn Maps:', googleMapsUrl.isNotEmpty ? googleMapsUrl : 'Chưa liên kết URL Google Maps'),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.gps_fixed_rounded, color: Color(0xFF2563EB), size: 18),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Vị trí đã được đồng bộ với hệ thống bản đồ ẩm thực Food Map để thực khách tìm đường dễ dàng.',
-                                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildProfileDetailRow(Icons.payments_rounded, 'Khoảng giá:', priceText),
+                      if (googleMapsUrl.isNotEmpty)
+                        _buildProfileDetailRow(Icons.link_rounded, 'Google Maps:', googleMapsUrl),
                     ],
                   ),
                 ),
-              ],
-            );
+                const SizedBox(height: 18),
 
-            final rightColumn = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
                 // Card C: Tài khoản Chủ sở hữu & Bảo mật
                 Container(
                   padding: const EdgeInsets.all(22),
@@ -1864,7 +1770,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       _buildProfileDetailRow(Icons.badge_rounded, 'Họ và tên:', user?.fullName ?? 'Chưa cập nhật'),
                       _buildProfileDetailRow(Icons.email_rounded, 'Email đăng nhập:', user?.email ?? 'Chưa cập nhật'),
                       _buildProfileDetailRow(Icons.phone_rounded, 'Số điện thoại:', user?.phone?.isNotEmpty == true ? user!.phone! : 'Chưa thiết lập'),
-                      _buildProfileDetailRow(Icons.verified_user_rounded, 'Xác minh tài khoản:', 'Đã kích hoạt bảo mật 2 lớp'),
                       const SizedBox(height: 14),
 
                       // Account Action Buttons
@@ -1900,102 +1805,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-
-                // Card D: Cài Đặt Vận Hành & Hỗ Trợ Đối Tác
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFBFDBFE)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.08),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.tune_rounded, color: Color(0xFF2563EB), size: 22),
-                          SizedBox(width: 8),
-                          Text(
-                            'CÀI ĐẶT VẬN HÀNH & KẾT NỐI',
-                            style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Setting 1: Booking notification
-                      _buildSettingStatusTile(
-                        icon: Icons.notifications_active_rounded,
-                        title: 'Thông báo đặt bàn mới',
-                        subtitle: 'Tự động phát chuông thông báo khi có thực khách gửi yêu cầu đặt chỗ',
-                        statusLabel: 'Đang bật',
-                        statusColor: const Color(0xFF10B981),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Setting 2: Food Map display
-                      _buildSettingStatusTile(
-                        icon: Icons.travel_explore_rounded,
-                        title: 'Hiển thị trên Food Map',
-                        subtitle: 'Cho phép khách hàng tìm kiếm quán trên bản đồ vị trí FConnect',
-                        statusLabel: 'Công khai',
-                        statusColor: const Color(0xFF2563EB),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Setting 3: Realtime sync
-                      _buildSettingStatusTile(
-                        icon: Icons.sync_rounded,
-                        title: 'Đồng bộ hóa đơn & Bàn',
-                        subtitle: 'Cập nhật tình trạng bàn và đơn gọi món theo thời gian thực',
-                        statusLabel: 'Thời gian thực',
-                        statusColor: const Color(0xFFD97706),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Partner Support Box (White & Blue Tint)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFBFDBFE)),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.support_agent_rounded, color: Color(0xFF2563EB), size: 22),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Tổng đài Hỗ trợ Đối tác F&B: 1900 6868',
-                                    style: TextStyle(color: Color(0xFF1D4ED8), fontWeight: FontWeight.bold, fontSize: 12.5),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    'Hỗ trợ kỹ thuật 24/7 và giải đáp các vấn đề vận hành quán.',
-                                    style: TextStyle(color: Color(0xFF475569), fontSize: 11.5),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             );
 
@@ -2023,46 +1832,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     );
   }
 
-  Widget _buildKpiCard(String title, String value, IconData icon, Color color, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600)),
-              Icon(icon, color: color, size: 18),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(color: Color(0xFF0F172A), fontSize: 15, fontWeight: FontWeight.w800),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(subtitle, style: TextStyle(color: color.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAmenityBadge(IconData icon, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -2071,67 +1840,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         const SizedBox(width: 6),
         Text(label, style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5, fontWeight: FontWeight.w500)),
       ],
-    );
-  }
-
-  Widget _buildSettingStatusTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String statusLabel,
-    required Color statusColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: statusColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              statusLabel,
-              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
