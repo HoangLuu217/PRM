@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/profile_screen.dart';
+import 'product/owner_product_list_screen.dart';
 
 class OwnerDashboardScreen extends StatelessWidget {
   const OwnerDashboardScreen({super.key});
@@ -93,17 +94,34 @@ class OwnerDashboardScreen extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          MaterialPageRoute(builder: (_) => const OwnerProductListScreen()),
                         );
                       },
-                      icon: const Icon(Icons.person, color: Colors.white),
-                      label: const Text('Xem Hồ sơ & Cài đặt', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      icon: const Icon(Icons.restaurant_menu, color: Colors.white),
+                      label: const Text('Quản lý Thực đơn & Món ăn', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepOrange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 6,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.person, color: Colors.white70),
+                      label: const Text('Xem Hồ sơ & Cài đặt', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                     ),
                   ],
