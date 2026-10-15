@@ -2,28 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
-  // Lấy Base URL tự động thông minh theo môi trường (Android Emulator: 10.0.2.2, Web/Desktop: localhost)
+  // Lấy Base URL duy nhất từ file .env, tự động chuyển 10.0.2.2 thành localhost nếu chạy Web
   static String get baseUrl {
-    if (dotenv.isInitialized &&
-        dotenv.env['API_BASE_URL'] != null &&
-        dotenv.env['API_BASE_URL']!.trim().isNotEmpty) {
-      return dotenv.env['API_BASE_URL']!.trim();
+    final url = dotenv.isInitialized ? (dotenv.env['API_BASE_URL'] ?? '') : '';
+    if (kIsWeb && url.contains('10.0.2.2')) {
+      return url.replaceAll('10.0.2.2', 'localhost');
     }
-
-    if (kIsWeb) {
-      return 'http://localhost:5000/api';
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:5000/api';
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      default:
-        return 'http://localhost:5000/api';
-    }
+    return url;
   }
 
   static const String login = '/auth/login';
@@ -33,6 +18,7 @@ class ApiConstants {
   static const String verifyEmailOtp = '/auth/verify-email-otp';
   static const String resetPassword = '/auth/reset-password';
   static const String businesses = '/businesses';
+  static const String onboardBusiness = '/businesses/onboard';
   static const String bookings = '/bookings';
   static const String articles = '/articles';
 }
