@@ -168,9 +168,12 @@ class RestaurantModel {
       phone: phn ?? json['phone']?.toString(),
       aiMatchScore: aiScore,
       recommendationReason: json['recommendationReason']?.toString(),
-      distanceText: json['distanceText']?.toString(),
-      openTime: json['openTime']?.toString() ?? '07:00',
-      closeTime: json['closeTime']?.toString() ?? '22:30',
+      openTime: json['openTime']?.toString() ??
+          (targetBranch is Map ? (targetBranch['openTime']?.toString() ?? (targetBranch['openingHours'] is List && (targetBranch['openingHours'] as List).isNotEmpty ? targetBranch['openingHours'][0]['open']?.toString() : null)) : null) ??
+          '07:00',
+      closeTime: json['closeTime']?.toString() ??
+          (targetBranch is Map ? (targetBranch['closeTime']?.toString() ?? (targetBranch['openingHours'] is List && (targetBranch['openingHours'] as List).isNotEmpty ? targetBranch['openingHours'][0]['close']?.toString() : null)) : null) ??
+          '22:00',
       branchId: targetBranch is Map ? (targetBranch['_id'] ?? targetBranch['id'])?.toString() : json['branchId']?.toString(),
       isBookingEnabled: json['isBookingEnabled'] != false,
       latitude: lat,
