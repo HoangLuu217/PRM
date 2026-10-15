@@ -698,25 +698,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 width: 20,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
               )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isMerchant ? Icons.storefront_rounded : Icons.login_rounded,
-                    size: 19,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      kIsWeb ? 'Đăng Nhập Quản Trị' : 'Đăng Nhập',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+            : Text(
+                kIsWeb ? 'Đăng Nhập Quản Trị' : 'Đăng Nhập',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
       ),
     );
