@@ -747,17 +747,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Google Icon Logo
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.g_mobiledata_rounded,
-                      color: Color(0xFF4285F4),
-                      size: 20,
+                  // Google Logo từ public/google-logo.png
+                  Image.asset(
+                    'public/google-logo.png',
+                    width: 22,
+                    height: 22,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.g_mobiledata_rounded,
+                        color: Color(0xFF4285F4),
+                        size: 18,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
