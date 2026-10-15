@@ -47,7 +47,12 @@ class MyApp extends StatelessWidget {
         title: 'FConnect F&B Platform',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2563EB),
+            primary: const Color(0xFF2563EB),
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
           useMaterial3: true,
         ),
         home: const SplashScreen(),

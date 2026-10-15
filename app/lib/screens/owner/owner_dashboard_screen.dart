@@ -123,12 +123,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           width: 580,
           constraints: const BoxConstraints(maxHeight: 700),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.35), width: 1.5),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0072FF).withValues(alpha: 0.25),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.12),
                 blurRadius: 32,
                 offset: const Offset(0, 8),
               ),
@@ -141,29 +141,29 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border(bottom: BorderSide(color: Color(0xFF334155))),
+                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.remove_red_eye_rounded, color: Color(0xFF38BDF8), size: 18),
+                      child: const Icon(Icons.remove_red_eye_rounded, color: Color(0xFF2563EB), size: 18),
                     ),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
                         'Xem Trước Trang Quán (Customer Storefront View)',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
                       onPressed: () => Navigator.pop(ctx),
                       splashRadius: 18,
                     ),
@@ -196,8 +196,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Colors.black.withValues(alpha: 0.2),
-                                    const Color(0xFF0F172A).withValues(alpha: 0.9),
+                                    Colors.black.withValues(alpha: 0.1),
+                                    Colors.white.withValues(alpha: 0.95),
                                   ],
                                 ),
                               ),
@@ -230,13 +230,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFF0F172A),
-                                border: Border.all(color: const Color(0xFFFB923C), width: 2.5),
-                                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 10)],
+                                color: Colors.white,
+                                border: Border.all(color: const Color(0xFF2563EB), width: 2.5),
+                                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
                               ),
                               child: CircleAvatar(
                                 radius: 32,
-                                backgroundColor: const Color(0xFF1E293B),
+                                backgroundColor: const Color(0xFFEFF6FF),
                                 backgroundImage: NetworkImage(logoUrl),
                               ),
                             ),
@@ -256,21 +256,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 Expanded(
                                   child: Text(
                                     businessName,
-                                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                                    style: const TextStyle(color: Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.w800),
                                   ),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                    color: const Color(0xFFFEF3C7),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                    border: Border.all(color: const Color(0xFFFDE68A)),
                                   ),
                                   child: const Row(
                                     children: [
-                                      Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                                      Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 16),
                                       SizedBox(width: 4),
-                                      Text('4.9 (128)', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12, fontWeight: FontWeight.bold)),
+                                      Text('4.9 (128)', style: TextStyle(color: Color(0xFFD97706), fontSize: 12, fontWeight: FontWeight.bold)),
                                     ],
                                   ),
                                 ),
@@ -279,17 +279,17 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             const SizedBox(height: 6),
                             Text(
                               categoryName,
-                              style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w600),
+                              style: const TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 12),
                             Row(
                               children: [
-                                const Icon(Icons.location_on_outlined, color: Color(0xFF94A3B8), size: 16),
+                                const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 16),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     addressFull,
-                                    style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12.5),
+                                    style: const TextStyle(color: Color(0xFF475569), fontSize: 12.5),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -299,11 +299,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(Icons.payments_outlined, color: Color(0xFF94A3B8), size: 16),
+                                const Icon(Icons.payments_outlined, color: Color(0xFF64748B), size: 16),
                                 const SizedBox(width: 6),
                                 Text(
                                   priceText,
-                                  style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12.5, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(color: Color(0xFF475569), fontSize: 12.5, fontWeight: FontWeight.w600),
                                 ),
                               ],
                             ),
@@ -316,11 +316,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               children: vibes.map((v) => Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
+                                  color: const Color(0xFFEFF6FF),
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFF334155)),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
                                 ),
-                                child: Text(v, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5)),
+                                child: Text(v, style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 11.5, fontWeight: FontWeight.w500)),
                               )).toList(),
                             ),
                             const SizedBox(height: 20),
@@ -334,8 +334,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                     icon: const Icon(Icons.table_restaurant_rounded, size: 18),
                                     label: const Text('Đặt Bàn Ngay (Demo)'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0072FF),
-                                      disabledBackgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.6),
+                                      backgroundColor: const Color(0xFF2563EB),
+                                      disabledBackgroundColor: const Color(0xFF2563EB),
                                       disabledForegroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -349,9 +349,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                     icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
                                     label: const Text('Xem Menu Món'),
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFF38BDF8),
-                                      disabledForegroundColor: const Color(0xFF38BDF8),
-                                      side: const BorderSide(color: Color(0xFF38BDF8)),
+                                      foregroundColor: const Color(0xFF2563EB),
+                                      disabledForegroundColor: const Color(0xFF2563EB),
+                                      side: const BorderSide(color: Color(0xFF2563EB)),
                                       padding: const EdgeInsets.symmetric(vertical: 12),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
@@ -363,17 +363,18 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
+                                color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(Icons.info_outline_rounded, color: Color(0xFF38BDF8), size: 18),
+                                  Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 18),
                                   SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       'Đây là mô phỏng giao diện khách hàng nhìn thấy trên ứng dụng FConnect khi tìm kiếm hoặc ghé thăm trang của bạn.',
-                                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                                      style: TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
                                     ),
                                   ),
                                 ],
@@ -405,12 +406,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           width: 380,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFA855F7).withValues(alpha: 0.4), width: 1.5),
+            border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFA855F7).withValues(alpha: 0.25),
+                color: const Color(0xFF2563EB).withValues(alpha: 0.12),
                 blurRadius: 28,
                 offset: const Offset(0, 8),
               ),
@@ -424,13 +425,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.qr_code_2_rounded, color: Color(0xFFA855F7), size: 22),
+                      Icon(Icons.qr_code_2_rounded, color: Color(0xFF2563EB), size: 22),
                       SizedBox(width: 8),
-                      Text('Mã QR Bàn & Menu Số', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('Mã QR Bàn & Menu Số', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 16)),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -438,13 +439,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               const SizedBox(height: 16),
               Text(
                 businessName,
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                style: const TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w800),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
               const Text(
                 'Quét mã để xem thực đơn và gọi món trực tiếp',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -453,9 +454,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 12)],
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 12)],
                 ),
                 child: Column(
                   children: [
@@ -469,11 +471,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Icon(Icons.qr_code_rounded, size: 175, color: Colors.blueGrey.shade900),
+                          Icon(Icons.qr_code_rounded, size: 175, color: const Color(0xFF0F172A)),
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: const BoxDecoration(
-                              color: Color(0xFF0072FF),
+                              color: Color(0xFF2563EB),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.restaurant_rounded, color: Colors.white, size: 20),
@@ -484,7 +486,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'FConnect Smart Dining QR',
-                      style: TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -514,7 +516,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       icon: const Icon(Icons.download_rounded, size: 18),
                       label: const Text('Tải ảnh QR'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFA855F7),
+                        backgroundColor: const Color(0xFF2563EB),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 11),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -541,13 +543,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stfCtx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1C2541),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF3A506B))),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFFE2E8F0))),
           title: const Row(
             children: [
-              Icon(Icons.lock_reset_rounded, color: Color(0xFF38BDF8)),
+              Icon(Icons.lock_reset_rounded, color: Color(0xFF2563EB)),
               SizedBox(width: 8),
-              Text('Đổi Mật Khẩu Chủ Quán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Đổi Mật Khẩu Chủ Quán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
             ],
           ),
           content: Form(
@@ -558,12 +560,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 TextFormField(
                   controller: currentPassController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     labelText: 'Mật khẩu hiện tại',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3A506B))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
                   ),
                   validator: (v) => v == null || v.isEmpty ? 'Vui lòng nhập mật khẩu hiện tại' : null,
                 ),
@@ -571,12 +573,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 TextFormField(
                   controller: newPassController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     labelText: 'Mật khẩu mới (từ 6 ký tự)',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3A506B))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
                   ),
                   validator: (v) => v == null || v.length < 6 ? 'Mật khẩu phải từ 6 ký tự' : null,
                 ),
@@ -584,12 +586,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 TextFormField(
                   controller: confirmPassController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     labelText: 'Xác nhận mật khẩu mới',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3A506B))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
                   ),
                   validator: (v) => v != newPassController.text ? 'Mật khẩu xác nhận không khớp' : null,
                 ),
@@ -599,7 +601,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Hủy', style: TextStyle(color: Color(0xFF94A3B8))),
+              child: const Text('Hủy', style: TextStyle(color: Color(0xFF64748B))),
             ),
             ElevatedButton(
               onPressed: isSaving
@@ -627,7 +629,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0072FF),
+                backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -649,13 +651,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stfCtx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1C2541),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF3A506B))),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFFE2E8F0))),
           title: const Row(
             children: [
-              Icon(Icons.manage_accounts_rounded, color: Color(0xFF38BDF8)),
+              Icon(Icons.manage_accounts_rounded, color: Color(0xFF2563EB)),
               SizedBox(width: 8),
-              Text('Cập Nhật Hồ Sơ Chủ Quán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Cập Nhật Hồ Sơ Chủ Quán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
             ],
           ),
           content: Form(
@@ -665,24 +667,24 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               children: [
                 TextFormField(
                   controller: nameController,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     labelText: 'Họ và tên chủ sở hữu',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3A506B))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
                   ),
                   validator: (v) => v == null || v.trim().isEmpty ? 'Vui lòng nhập họ và tên' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: phoneController,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     labelText: 'Số điện thoại liên hệ',
-                    labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3A506B))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
                   ),
                   validator: (v) => v == null || v.trim().isEmpty ? 'Vui lòng nhập số điện thoại' : null,
                 ),
@@ -692,7 +694,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Hủy', style: TextStyle(color: Color(0xFF94A3B8))),
+              child: const Text('Hủy', style: TextStyle(color: Color(0xFF64748B))),
             ),
             ElevatedButton(
               onPressed: isSaving
@@ -728,7 +730,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0072FF),
+                backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -783,7 +785,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         final isDesktop = constraints.maxWidth >= 800;
 
         return Scaffold(
-          backgroundColor: const Color(0xFF0B132B),
+          backgroundColor: const Color(0xFFF8FAFC),
           body: isDesktop ? _buildDesktopLayout(user) : _buildMobileLayout(user),
           bottomNavigationBar: isDesktop ? null : _buildMobileBottomNav(),
         );
@@ -797,10 +799,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildDesktopLayout(User? user) {
     return Row(
       children: [
-        // Sidebar Cố Định Bên Trái
+        // Sidebar Cố Định Bên Trái (White + Blue)
         Container(
           width: 260,
-          color: const Color(0xFF1C2541),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(right: BorderSide(color: Color(0xFFE2E8F0))),
+          ),
           child: Column(
             children: [
               // Sidebar Header Brand
@@ -811,11 +816,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEA580C),
+                        color: const Color(0xFF2563EB),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFEA580C).withValues(alpha: 0.4),
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.35),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -830,7 +835,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         Text(
                           'FConnect',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF0F172A),
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
@@ -839,7 +844,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         Text(
                           'PARTNER PORTAL',
                           style: TextStyle(
-                            color: Color(0xFFFB923C),
+                            color: Color(0xFF2563EB),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.2,
@@ -850,7 +855,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   ],
                 ),
               ),
-              const Divider(color: Color(0xFF3A506B), height: 1),
+              const Divider(color: Color(0xFFE2E8F0), height: 1),
 
               // Navigation Links List
               Expanded(
@@ -868,7 +873,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       child: Text(
                         'PHÂN HỆ CỦA BẠN (MEMBER 1)',
                         style: TextStyle(
-                          color: Color(0xFF6FFFE9),
+                          color: Color(0xFF2563EB),
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
@@ -884,7 +889,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0xFF3A506B), width: 1)),
+                  border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
                 ),
                 child: Column(
                   children: [
@@ -893,8 +898,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       width: double.infinity,
                       child: TextButton.icon(
                         onPressed: () => _handleLogout(context),
-                        icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFF87171)),
-                        label: const Text('Đăng xuất', style: TextStyle(color: Color(0xFFF87171), fontSize: 13, fontWeight: FontWeight.w600)),
+                        icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFEF4444)),
+                        label: const Text('Đăng xuất', style: TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
@@ -908,13 +913,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         Expanded(
           child: Column(
             children: [
-              // Top Bar Desktop
+              // Top Bar Desktop (Clean White)
               Container(
                 height: 64,
                 padding: const EdgeInsets.symmetric(horizontal: 28),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1C2541),
-                  border: Border(bottom: BorderSide(color: Color(0xFF3A506B), width: 1)),
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -922,7 +927,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     Text(
                       _getTabTitle(_selectedTab),
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF0F172A),
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -933,15 +938,15 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                            color: const Color(0xFFEFF6FF),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFEA580C).withValues(alpha: 0.4)),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.verified_user_rounded, color: Color(0xFFFB923C), size: 14),
+                              Icon(Icons.verified_user_rounded, color: Color(0xFF2563EB), size: 14),
                               SizedBox(width: 6),
-                              Text('Chủ Quán F&B', style: TextStyle(color: Color(0xFFFB923C), fontSize: 12, fontWeight: FontWeight.bold)),
+                              Text('Chủ Quán F&B', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -949,7 +954,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         // Avatar
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: const Color(0xFF38BDF8),
+                          backgroundColor: const Color(0xFF2563EB),
                           child: Text(
                             (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
@@ -982,23 +987,30 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        color: isSelected
-            ? (highlight ? const Color(0xFFEA580C) : const Color(0xFF0072FF))
-            : Colors.transparent,
+        color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
       ),
       child: ListTile(
         dense: true,
         onTap: () => setState(() => _selectedTab = index),
         leading: Icon(
           icon,
-          color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+          color: isSelected ? Colors.white : const Color(0xFF64748B),
           size: 20,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+            color: isSelected ? Colors.white : const Color(0xFF334155),
             fontSize: 13.5,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -1006,13 +1018,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withValues(alpha: 0.25) : const Color(0xFF0B132B),
+            color: isSelected ? Colors.white.withValues(alpha: 0.22) : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             memberTag,
             style: TextStyle(
-              color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
               fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
@@ -1029,15 +1041,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Column(
       children: [
         AppBar(
-          backgroundColor: const Color(0xFF1C2541),
-          elevation: 0,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          shadowColor: Colors.black12,
+          foregroundColor: const Color(0xFF0F172A),
           title: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEA580C),
+                  color: const Color(0xFF2563EB),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 18),
@@ -1046,7 +1059,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               Expanded(
                 child: Text(
                   _getTabTitle(_selectedTab),
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 16),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1054,7 +1067,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Color(0xFFF87171)),
+              icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
               tooltip: 'Đăng xuất',
               onPressed: () => _handleLogout(context),
             ),
@@ -1074,8 +1087,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildMobileBottomNav() {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF1C2541),
-        border: Border(top: BorderSide(color: Color(0xFF3A506B), width: 1)),
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: BottomNavigationBar(
         currentIndex: _selectedTab > 4 ? 4 : _selectedTab,
@@ -1086,8 +1099,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             setState(() => _selectedTab = index);
           }
         },
-        backgroundColor: Colors.transparent,
-        selectedItemColor: const Color(0xFFFB923C),
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF2563EB),
         unselectedItemColor: const Color(0xFF94A3B8),
         selectedFontSize: 11,
         unselectedFontSize: 11,
@@ -1212,24 +1225,24 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Top Enterprise Banner
+        // 1. Top Enterprise Banner (Clean Light Blue)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFF131D36),
+            color: const Color(0xFFEFF6FF),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.25)),
+            border: Border.all(color: const Color(0xFFBFDBFE)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0072FF).withValues(alpha: 0.15),
+                  color: const Color(0xFFDBEAFE),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF0072FF).withValues(alpha: 0.3)),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
                 ),
-                child: const Icon(Icons.storefront_rounded, color: Color(0xFF38BDF8), size: 24),
+                child: const Icon(Icons.storefront_rounded, color: Color(0xFF2563EB), size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1240,22 +1253,22 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       children: [
                         const Text(
                           'Hồ Sơ Doanh Nghiệp F&B & Cài Đặt Vận Hành',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                          style: TextStyle(color: Color(0xFF1E3A8A), fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            color: const Color(0xFFECFDF5),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                            border: Border.all(color: const Color(0xFFA7F3D0)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 12),
+                              Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 12),
                               SizedBox(width: 4),
-                              Text('Verified Merchant', style: TextStyle(color: Color(0xFF10B981), fontSize: 10.5, fontWeight: FontWeight.bold)),
+                              Text('Verified Merchant', style: TextStyle(color: Color(0xFF059669), fontSize: 10.5, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -1264,7 +1277,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     const SizedBox(height: 3),
                     const Text(
                       'Quản lý thông tin định danh quán, không gian trải nghiệm và cấu hình tài khoản đối tác',
-                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                      style: TextStyle(color: Color(0xFF475569), fontSize: 12),
                     ),
                   ],
                 ),
@@ -1273,18 +1286,18 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF334155)),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified_user_rounded, color: Color(0xFF6FFFE9), size: 14),
+                    Icon(Icons.verified_user_rounded, color: Color(0xFF2563EB), size: 14),
                     SizedBox(width: 6),
                     Text(
                       'Member 1 • Core Module',
-                      style: TextStyle(color: Color(0xFF6FFFE9), fontSize: 11.5, fontWeight: FontWeight.w700),
+                      style: TextStyle(color: Color(0xFF2563EB), fontSize: 11.5, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -1298,14 +1311,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: const Color(0xFF1C2541),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF3A506B)),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x22000000),
+                color: Color(0x0A000000),
                 blurRadius: 18,
-                offset: Offset(0, 6),
+                offset: Offset(0, 4),
               ),
             ],
           ),
@@ -1330,8 +1343,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withValues(alpha: 0.15),
-                            const Color(0xFF1C2541).withValues(alpha: 0.95),
+                            Colors.black.withValues(alpha: 0.08),
+                            Colors.white.withValues(alpha: 0.95),
                           ],
                         ),
                       ),
@@ -1347,7 +1360,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF10B981),
                             borderRadius: BorderRadius.circular(20),
-                            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -1362,16 +1375,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A).withValues(alpha: 0.8),
+                            color: const Color(0xFFEFF6FF),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.bolt_rounded, color: Color(0xFFFBBF24), size: 15),
+                              Icon(Icons.bolt_rounded, color: Color(0xFF2563EB), size: 15),
                               SizedBox(width: 4),
-                              Text('Đặt bàn nhanh', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text('Đặt bàn nhanh', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -1394,13 +1407,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         padding: const EdgeInsets.all(3.5),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF1C2541),
-                          border: Border.all(color: const Color(0xFFEA580C), width: 2.5),
-                          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12)],
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xFF2563EB), width: 2.5),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
                         ),
                         child: CircleAvatar(
                           radius: 42,
-                          backgroundColor: const Color(0xFF0F172A),
+                          backgroundColor: const Color(0xFFEFF6FF),
                           backgroundImage: NetworkImage(logoUrl),
                         ),
                       ),
@@ -1418,7 +1431,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 child: Text(
                                   businessName,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: Color(0xFF0F172A),
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.2,
@@ -1427,7 +1440,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.verified_rounded, color: Color(0xFF38BDF8), size: 20),
+                              const Icon(Icons.verified_rounded, color: Color(0xFF2563EB), size: 20),
                             ],
                           ),
                           const SizedBox(height: 5),
@@ -1438,27 +1451,27 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             children: [
                               Text(
                                 categoryName,
-                                style: const TextStyle(color: Color(0xFFFB923C), fontSize: 13, fontWeight: FontWeight.w700),
+                                style: const TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w700),
                               ),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
                                   const SizedBox(width: 4),
-                                  Text(
+                                  const Text(
                                     '4.9 (120+ đánh giá)',
-                                    style: TextStyle(color: Colors.grey.shade300, fontSize: 12.5, fontWeight: FontWeight.w600),
+                                    style: TextStyle(color: Color(0xFF475569), fontSize: 12.5, fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               ),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.location_on_outlined, color: Color(0xFF94A3B8), size: 15),
+                                  const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 15),
                                   const SizedBox(width: 4),
                                   Text(
                                     '$district, $city',
-                                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
+                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
                                   ),
                                 ],
                               ),
@@ -1468,7 +1481,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       ),
                     ),
 
-                    // Quick Action Buttons
+                    // Quick Action Buttons (White & Blue)
                     Wrap(
                       spacing: 10,
                       runSpacing: 8,
@@ -1478,7 +1491,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           icon: const Icon(Icons.edit_note_rounded, size: 18),
                           label: const Text('Sửa thông tin'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEA580C),
+                            backgroundColor: const Color(0xFF2563EB),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1487,20 +1500,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _showStorefrontPreview(biz, user),
-                          icon: const Icon(Icons.remove_red_eye_rounded, size: 17, color: Color(0xFF38BDF8)),
-                          label: const Text('Xem trước', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.remove_red_eye_rounded, size: 17, color: Color(0xFF2563EB)),
+                          label: const Text('Xem trước', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
+                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _showQrCodeDialog(biz),
-                          icon: const Icon(Icons.qr_code_rounded, size: 17, color: Color(0xFFA855F7)),
-                          label: const Text('QR Menu bàn', style: TextStyle(color: Color(0xFFA855F7), fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.qr_code_rounded, size: 17, color: Color(0xFF2563EB)),
+                          label: const Text('QR Menu bàn', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFA855F7), width: 1.2),
+                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -1531,28 +1544,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   'Chi nhánh chính',
                   '$district, Đà Nẵng',
                   Icons.store_mall_directory_rounded,
-                  const Color(0xFF38BDF8),
+                  const Color(0xFF2563EB),
                   'Trụ sở phục vụ',
                 ),
                 _buildKpiCard(
                   'Khoảng giá bình quân',
                   priceText,
                   Icons.payments_rounded,
-                  const Color(0xFFFBBF24),
+                  const Color(0xFF0284C7),
                   'Mức giá đại chúng',
                 ),
                 _buildKpiCard(
                   'Mô hình hoạt động',
                   categoryName,
                   Icons.restaurant_rounded,
-                  const Color(0xFFFB923C),
+                  const Color(0xFF1D4ED8),
                   'Phong cách F&B',
                 ),
                 _buildKpiCard(
                   'Tình trạng hồ sơ',
                   hasBusiness ? 'Đạt chuẩn 100%' : 'Chờ hoàn thiện',
                   Icons.verified_rounded,
-                  const Color(0xFF34D399),
+                  const Color(0xFF10B981),
                   'Xác thực đối tác',
                 ),
               ],
@@ -1573,9 +1586,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2541),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF3A506B)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x06000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1585,17 +1605,17 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.palette_rounded, color: Color(0xFF38BDF8), size: 22),
+                              Icon(Icons.palette_rounded, color: Color(0xFF2563EB), size: 22),
                               SizedBox(width: 8),
                               Text(
                                 'KHÔNG GIAN, VIBE & TIỆN ÍCH',
-                                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                                style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                               ),
                             ],
                           ),
                           InkWell(
                             onTap: _openOnboardingForm,
-                            child: const Text('Chỉnh sửa', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                            child: const Text('Chỉnh sửa', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12.5, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -1605,19 +1625,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
-                          border: const Border(left: BorderSide(color: Color(0xFF38BDF8), width: 3.5)),
+                          border: const Border(left: BorderSide(color: Color(0xFF2563EB), width: 3.5)),
                         ),
                         child: Text(
                           description,
-                          style: const TextStyle(color: Color(0xFFE2E8F0), fontSize: 13.5, height: 1.45),
+                          style: const TextStyle(color: Color(0xFF334155), fontSize: 13.5, height: 1.45),
                         ),
                       ),
                       const SizedBox(height: 18),
 
                       // Vibes Pills
-                      const Text('Không gian & Vibe quán:', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const Text('Không gian & Vibe quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
@@ -1625,16 +1645,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         children: vibes.map((v) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
+                            color: const Color(0xFFEFF6FF),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.35)),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.spa_rounded, color: Color(0xFF38BDF8), size: 14),
+                              const Icon(Icons.spa_rounded, color: Color(0xFF1D4ED8), size: 14),
                               const SizedBox(width: 6),
-                              Text(v, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                              Text(v, style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
                         )).toList(),
@@ -1642,7 +1662,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       const SizedBox(height: 16),
 
                       // Purposes Pills
-                      const Text('Phù hợp cho mục đích:', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const Text('Phù hợp cho mục đích:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
@@ -1650,16 +1670,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         children: purposes.map((p) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
+                            color: const Color(0xFFF0FDF4),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFFB923C).withValues(alpha: 0.35)),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.groups_rounded, color: Color(0xFFFB923C), size: 15),
+                              const Icon(Icons.groups_rounded, color: Color(0xFF15803D), size: 15),
                               const SizedBox(width: 6),
-                              Text(p, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                              Text(p, style: const TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
                         )).toList(),
@@ -1667,7 +1687,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       const SizedBox(height: 16),
 
                       // Amenities Grid
-                      const Text('Tiện ích phục vụ tại quán:', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const Text('Tiện ích phục vụ tại quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 16,
@@ -1688,9 +1708,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2541),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF3A506B)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x06000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1700,11 +1727,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.map_rounded, color: Color(0xFF10B981), size: 22),
+                              Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 22),
                               SizedBox(width: 8),
                               Text(
                                 'ĐỊA CHỈ & VỊ TRÍ GOOGLE MAPS',
-                                style: TextStyle(color: Color(0xFF10B981), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                                style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                               ),
                             ],
                           ),
@@ -1714,7 +1741,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               icon: const Icon(Icons.open_in_new_rounded, size: 14),
                               label: const Text('Mở bản đồ'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF10B981),
+                                backgroundColor: const Color(0xFF2563EB),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1731,18 +1758,18 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF334155)),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.gps_fixed_rounded, color: Color(0xFF10B981), size: 18),
+                            Icon(Icons.gps_fixed_rounded, color: Color(0xFF2563EB), size: 18),
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Vị trí đã được đồng bộ với hệ thống bản đồ ẩm thực Food Map để thực khách tìm đường dễ dàng.',
-                                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                               ),
                             ),
                           ],
@@ -1761,9 +1788,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2541),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF3A506B)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x06000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1773,22 +1807,22 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.manage_accounts_rounded, color: Color(0xFF38BDF8), size: 22),
+                              Icon(Icons.manage_accounts_rounded, color: Color(0xFF2563EB), size: 22),
                               SizedBox(width: 8),
                               Text(
                                 'TÀI KHOẢN CHỦ SỞ HỮU',
-                                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                                style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                               ),
                             ],
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0072FF).withValues(alpha: 0.15),
+                              color: const Color(0xFFEFF6FF),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF0072FF).withValues(alpha: 0.4)),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
                             ),
-                            child: const Text('MERCHANT', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold)),
+                            child: const Text('MERCHANT', style: TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -1799,7 +1833,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         children: [
                           CircleAvatar(
                             radius: 26,
-                            backgroundColor: const Color(0xFF0072FF),
+                            backgroundColor: const Color(0xFF2563EB),
                             child: Text(
                               (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
                               style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
@@ -1812,12 +1846,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                               children: [
                                 Text(
                                   user?.fullName ?? 'Chủ Quán Đối Tác',
-                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   user?.email ?? 'chưa cập nhật email',
-                                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
+                                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
                                 ),
                               ],
                             ),
@@ -1825,7 +1859,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 18),
-                      const Divider(color: Color(0xFF3A506B)),
+                      const Divider(color: Color(0xFFE2E8F0)),
                       const SizedBox(height: 12),
                       _buildProfileDetailRow(Icons.badge_rounded, 'Họ và tên:', user?.fullName ?? 'Chưa cập nhật'),
                       _buildProfileDetailRow(Icons.email_rounded, 'Email đăng nhập:', user?.email ?? 'Chưa cập nhật'),
@@ -1839,10 +1873,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _showChangePasswordDialog,
-                              icon: const Icon(Icons.lock_reset_rounded, size: 16, color: Color(0xFF38BDF8)),
-                              label: const Text('Đổi mật khẩu', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                              icon: const Icon(Icons.lock_reset_rounded, size: 16, color: Color(0xFF2563EB)),
+                              label: const Text('Đổi mật khẩu', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12.5, fontWeight: FontWeight.bold)),
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
+                                side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -1852,10 +1886,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () => _showEditOwnerAccountDialog(user),
-                              icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.white),
-                              label: const Text('Sửa tài khoản', style: TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.bold)),
+                              icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF334155)),
+                              label: const Text('Sửa tài khoản', style: TextStyle(color: Color(0xFF334155), fontSize: 12.5, fontWeight: FontWeight.bold)),
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF475569), width: 1.2),
+                                side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -1872,14 +1906,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2541),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.35)),
-                    boxShadow: const [
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0x18000000),
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.08),
                         blurRadius: 16,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -1888,11 +1922,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.tune_rounded, color: Color(0xFF38BDF8), size: 22),
+                          Icon(Icons.tune_rounded, color: Color(0xFF2563EB), size: 22),
                           SizedBox(width: 8),
                           Text(
                             'CÀI ĐẶT VẬN HÀNH & KẾT NỐI',
-                            style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                            style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                           ),
                         ],
                       ),
@@ -1914,7 +1948,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         title: 'Hiển thị trên Food Map',
                         subtitle: 'Cho phép khách hàng tìm kiếm quán trên bản đồ vị trí FConnect',
                         statusLabel: 'Công khai',
-                        statusColor: const Color(0xFF38BDF8),
+                        statusColor: const Color(0xFF2563EB),
                       ),
                       const SizedBox(height: 12),
 
@@ -1924,21 +1958,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         title: 'Đồng bộ hóa đơn & Bàn',
                         subtitle: 'Cập nhật tình trạng bàn và đơn gọi món theo thời gian thực',
                         statusLabel: 'Thời gian thực',
-                        statusColor: const Color(0xFFFBBF24),
+                        statusColor: const Color(0xFFD97706),
                       ),
                       const SizedBox(height: 16),
 
-                      // Partner Support Box
+                      // Partner Support Box (White & Blue Tint)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF334155)),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.support_agent_rounded, color: Color(0xFF38BDF8), size: 22),
+                            Icon(Icons.support_agent_rounded, color: Color(0xFF2563EB), size: 22),
                             SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -1946,12 +1980,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 children: [
                                   Text(
                                     'Tổng đài Hỗ trợ Đối tác F&B: 1900 6868',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5),
+                                    style: TextStyle(color: Color(0xFF1D4ED8), fontWeight: FontWeight.bold, fontSize: 12.5),
                                   ),
                                   SizedBox(height: 2),
                                   Text(
                                     'Hỗ trợ kỹ thuật 24/7 và giải đáp các vấn đề vận hành quán.',
-                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                                    style: TextStyle(color: Color(0xFF475569), fontSize: 11.5),
                                   ),
                                 ],
                               ),
@@ -1993,9 +2027,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3A506B)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2004,19 +2045,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(title, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600)),
               Icon(icon, color: color, size: 18),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+            style: const TextStyle(color: Color(0xFF0F172A), fontSize: 15, fontWeight: FontWeight.w800),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
-          Text(subtitle, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(subtitle, style: TextStyle(color: color.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -2026,9 +2067,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: const Color(0xFF10B981), size: 16),
+        Icon(icon, color: const Color(0xFF2563EB), size: 16),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12.5, fontWeight: FontWeight.w500)),
+        Text(label, style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -2043,16 +2084,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: statusColor, size: 18),
@@ -2064,12 +2105,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -2080,9 +2121,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
             ),
             child: Text(
               statusLabel,
@@ -2100,14 +2141,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
+          Icon(icon, size: 18, color: const Color(0xFF64748B)),
           const SizedBox(width: 10),
           SizedBox(
             width: 140,
-            child: Text(label, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(value, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -2187,15 +2228,15 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C2541),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF3A506B)),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 18),
+                    Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 18),
                     SizedBox(width: 8),
-                    Text('Tìm kiếm món ăn trong thực đơn...', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                    Text('Tìm kiếm món ăn trong thực đơn...', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
                   ],
                 ),
               ),
@@ -2349,9 +2390,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3A506B)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2363,24 +2411,24 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             children: [
               Text(
                 moduleTitle,
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                style: const TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w800),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0072FF).withValues(alpha: 0.25),
+                  color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.5)),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
                 ),
                 child: Text(
                   memberTag,
-                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(description, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+          Text(description, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
         ],
       ),
     );
@@ -2390,9 +2438,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3A506B)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2401,11 +2456,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(title, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600)),
               Icon(icon, color: color, size: 18),
             ],
           ),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(value, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -2416,28 +2471,35 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF3A506B)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFF38BDF8), size: 20),
+            child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(title, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 3),
-                Text(subtitle, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                Text(subtitle, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
               ],
             ),
           ),
@@ -2452,14 +2514,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF1C2541),
+        color: isSelected ? const Color(0xFF2563EB) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF3A506B)),
+        border: Border.all(color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+          color: isSelected ? Colors.white : const Color(0xFF64748B),
           fontSize: 12.5,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
         ),
@@ -2477,30 +2539,37 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2541),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF3A506B), style: BorderStyle.solid),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(icon, size: 40, color: const Color(0xFF38BDF8).withValues(alpha: 0.6)),
+          Icon(icon, size: 40, color: const Color(0xFF2563EB).withValues(alpha: 0.7)),
           const SizedBox(height: 12),
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(title, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 6),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5, height: 1.4),
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5, height: 1.4),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 14),
             OutlinedButton(
               onPressed: onAction,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF38BDF8)),
+                side: const BorderSide(color: Color(0xFF2563EB)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(actionLabel, style: const TextStyle(color: Color(0xFF38BDF8))),
+              child: Text(actionLabel, style: const TextStyle(color: Color(0xFF2563EB))),
             ),
           ],
         ],
