@@ -1499,7 +1499,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
         const SizedBox(height: 18),
 
-        // 3. Responsive 2-Column Body (Left: Space & Vibes, Right: Location, Contact & Owner Account)
+        // 3. Responsive 2-Column Body (Left: Unified Restaurant Info & Space, Right: Owner Account)
         LayoutBuilder(
           builder: (context, constraints) {
             final isDesktopTwoCol = constraints.maxWidth >= 900;
@@ -1507,7 +1507,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             final leftColumn = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Card A: Vận hành, Không gian & Vibe
+                // Single Unified Component: THÔNG TIN & KHÔNG GIAN QUÁN (Địa chỉ, Liên hệ, Không gian & Tiện ích)
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
@@ -1525,29 +1525,128 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header Card
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.palette_rounded, color: Color(0xFF2563EB), size: 22),
+                              Icon(Icons.storefront_rounded, color: Color(0xFF2563EB), size: 22),
                               SizedBox(width: 8),
                               Text(
-                                'KHÔNG GIAN, VIBE & TIỆN ÍCH',
-                                style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                                'THÔNG TIN & KHÔNG GIAN QUÁN',
+                                style: TextStyle(
+                                  color: Color(0xFF2563EB),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             ],
                           ),
                           InkWell(
                             onTap: _openOnboardingForm,
-                            child: const Text('Chỉnh sửa', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF2563EB)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Chỉnh sửa',
+                                  style: TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 18),
+
+                      // Section 1: ĐỊA CHỈ & LIÊN HỆ
+                      const Row(
+                        children: [
+                          Icon(Icons.place_rounded, color: Color(0xFF2563EB), size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Địa chỉ & Liên hệ',
+                            style: TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildProfileDetailRow(Icons.location_on_outlined, 'Địa chỉ quán:', addressFull),
+                      _buildProfileDetailRow(Icons.phone_in_talk_rounded, 'Hotline đặt bàn:', phone),
+                      _buildProfileDetailRow(Icons.payments_outlined, 'Khoảng giá:', priceText),
+                      if (googleMapsUrl.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.map_outlined, size: 18, color: Color(0xFF64748B)),
+                              const SizedBox(width: 10),
+                              const SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'Bản đồ vị trí:',
+                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _launchGoogleMaps(googleMapsUrl),
+                                    icon: const Icon(Icons.open_in_new_rounded, size: 13),
+                                    label: const Text('Mở Google Maps'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2563EB),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 10),
+                      const Divider(color: Color(0xFFE2E8F0)),
                       const SizedBox(height: 14),
+
+                      // Section 2: KHÔNG GIAN, VIBE & TIỆN ÍCH
+                      const Row(
+                        children: [
+                          Icon(Icons.palette_rounded, color: Color(0xFF2563EB), size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Không gian, Vibe & Tiện ích',
+                            style: TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
 
                       // Description Box
                       Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
@@ -1559,7 +1658,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           style: const TextStyle(color: Color(0xFF334155), fontSize: 13.5, height: 1.45),
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
 
                       // Vibes Pills
                       const Text('Không gian & Vibe quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
@@ -1578,7 +1677,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.spa_rounded, color: Color(0xFF1D4ED8), size: 14),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Text(v, style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -1603,7 +1702,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.groups_rounded, color: Color(0xFF15803D), size: 15),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Text(p, style: const TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -1633,63 +1732,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             final rightColumn = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Card B: Địa chỉ & Vị trí Google Maps
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x06000000),
-                        blurRadius: 12,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 22),
-                              SizedBox(width: 8),
-                              Text(
-                                'ĐỊA CHỈ & LIÊN HỆ',
-                                style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
-                              ),
-                            ],
-                          ),
-                          if (googleMapsUrl.isNotEmpty)
-                            ElevatedButton.icon(
-                              onPressed: () => _launchGoogleMaps(googleMapsUrl),
-                              icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                              label: const Text('Mở bản đồ'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildProfileDetailRow(Icons.place_rounded, 'Địa chỉ quán:', addressFull),
-                      _buildProfileDetailRow(Icons.phone_in_talk_rounded, 'Hotline đặt bàn:', phone),
-                      _buildProfileDetailRow(Icons.payments_rounded, 'Khoảng giá:', priceText),
-                      if (googleMapsUrl.isNotEmpty)
-                        _buildProfileDetailRow(Icons.link_rounded, 'Google Maps:', googleMapsUrl),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-
                 // Card C: Tài khoản Chủ sở hữu & Bảo mật
                 Container(
                   padding: const EdgeInsets.all(22),
@@ -1812,7 +1854,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 6, child: leftColumn),
+                  Expanded(flex: 7, child: leftColumn),
                   const SizedBox(width: 20),
                   Expanded(flex: 5, child: rightColumn),
                 ],
