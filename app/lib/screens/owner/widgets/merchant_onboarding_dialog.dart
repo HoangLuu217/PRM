@@ -683,7 +683,7 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                               child: ElevatedButton(
                                 onPressed: _isSubmitting ? null : _handleSubmit,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0066FF),
+                                  backgroundColor: const Color(0xFF2563EB),
                                   foregroundColor: Colors.white,
                                   elevation: 2,
                                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -768,7 +768,7 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF0066FF), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
