@@ -336,7 +336,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           _buildBrandHeader(),
                           const SizedBox(height: 28),
 
-                          // Glassmorphism Card Container
+                          // Glassmorphism Card Container (White with reduced opacity)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(28),
                             child: BackdropFilter(
@@ -344,22 +344,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 26.0, vertical: 28.0),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                                  color: Colors.white.withValues(alpha: 0.10),
                                   borderRadius: BorderRadius.circular(28),
                                   border: Border.all(
-                                    color: const Color(0xFF38BDF8).withValues(alpha: 0.28),
-                                    width: 1.5,
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    width: 1.2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.75),
-                                      blurRadius: 40,
-                                      offset: const Offset(0, 18),
+                                      color: Colors.black.withValues(alpha: 0.35),
+                                      blurRadius: 36,
+                                      offset: const Offset(0, 16),
                                     ),
                                     BoxShadow(
-                                      color: const Color(0xFF0072FF).withValues(alpha: 0.20),
-                                      blurRadius: 32,
-                                      offset: const Offset(0, 4),
+                                      color: Colors.white.withValues(alpha: 0.05),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
@@ -634,8 +634,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
-        labelStyle: const TextStyle(
-          color: Color(0xFF94A3B8),
+        labelStyle: TextStyle(
+          color: Colors.white.withValues(alpha: 0.75),
           fontSize: 13.5,
           fontWeight: FontWeight.w500,
         ),
@@ -644,22 +644,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
-        hintStyle: const TextStyle(
-          color: Color(0xFF64748B),
+        hintStyle: TextStyle(
+          color: Colors.white.withValues(alpha: 0.35),
           fontSize: 13.5,
         ),
         prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: const Color(0xFF1E293B),
+        fillColor: Colors.white.withValues(alpha: 0.08),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF334155), width: 1.2),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 2.0),
+          borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -743,10 +743,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isMerchant ? const Color(0xFFEA580C).withValues(alpha: 0.45) : const Color(0xFF334155),
+          color: isMerchant ? const Color(0xFFEA580C).withValues(alpha: 0.45) : Colors.white.withValues(alpha: 0.20),
           width: 1.2,
         ),
       ),
