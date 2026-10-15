@@ -332,10 +332,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Logo & Header Brand
-                          _buildBrandHeader(),
-                          const SizedBox(height: 28),
-
                           // Glassmorphism Card Container (White with reduced opacity)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(28),
@@ -366,10 +362,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // Logo & Header Brand bên trong Form Card
+                                _buildBrandHeader(),
+                                const SizedBox(height: 20),
+
                                 Text(
                                   kIsWeb ? 'Đăng Nhập Quản Trị' : 'Đăng Nhập',
+                                  textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                    fontSize: 22,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                     letterSpacing: 0.5,
@@ -380,12 +381,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   kIsWeb
                                       ? 'Hệ thống quản lý dành cho Đối tác & Chủ quán F&B'
                                       : 'Chào mừng bạn trở lại với FConnect',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.7),
+                                    color: Colors.white.withValues(alpha: 0.75),
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 22),
 
                                 // Email Input Field
                                 _buildTextField(
@@ -548,10 +550,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // Widget Header Logo & Brand từ file public/logo.png
   Widget _buildBrandHeader() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 86,
-          height: 86,
+          width: 80,
+          height: 80,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -562,7 +565,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF00C6FF).withValues(alpha: 0.40),
+                color: const Color(0xFF00C6FF).withValues(alpha: 0.35),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -574,31 +577,37 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) => const Icon(
                 Icons.restaurant_menu_rounded,
-                size: 44,
+                size: 42,
                 color: Colors.white,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         const Text(
           'FConnect',
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 30,
+            fontSize: 28,
             fontWeight: FontWeight.w800,
             color: Colors.white,
             letterSpacing: 1.2,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.18),
+              width: 1,
+            ),
           ),
           child: const Text(
             'Nền tảng Ẩm thực & Đặt bàn Thông minh',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
               color: Color(0xFFE2E8F0),
