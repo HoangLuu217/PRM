@@ -4,23 +4,76 @@ import { sendVerificationOtpEmail } from '../services/emailService.js';
 import googleMapsService from '../services/googleMapsService.js';
 import { verifyRecaptchaToken } from '../services/recaptchaService.js';
 
+// Helper đồng bộ vai trò MERCHANT nếu người dùng đã sở hữu Business thực tế
+export const syncMerchantRole = async (user, userBusiness) => {
+  if (!user) return false;
+  const hasValidBusiness = Boolean(userBusiness && userBusiness.name);
+  if (hasValidBusiness && user.role !== 'MERCHANT') {
+    user.role = 'MERCHANT';
+    await user.save();
+    return true;
+  }
+  return false;
+};
+
+// Helper kiểm tra xung đột trùng lặp email và số điện thoại theo vai trò khi đăng ký
+export const checkRegistrationConflict = async (cleanEmail, cleanPhone, requestedRole) => {
+  if (cleanEmail) {
+    const userExists = await User.findOne({ email: cleanEmail });
+    if (userExists) {
+      const existingRoleLabel = userExists.role === 'MERCHANT' ? 'Chủ quán (MERCHANT)' : 'Khách hàng (USER)';
+      if (userExists.role === 'USER' && requestedRole === 'MERCHANT') {
+        return {
+          conflict: true,
+          message: 'Email này đã tồn tại với vai trò Khách hàng (USER). Không thể đăng ký mới tài khoản Chủ quán bằng email này. Vui lòng Đăng nhập vào tài khoản Khách hàng để đăng ký mở quán tại mục Hồ sơ đối tác.',
+        };
+      }
+      if (userExists.role === 'MERCHANT' && requestedRole === 'USER') {
+        return {
+          conflict: true,
+          message: 'Email này đã tồn tại với vai trò Chủ quán F&B (MERCHANT). Không thể đăng ký mới vai trò Khách hàng bằng email này. Vui lòng Đăng nhập vào hệ thống.',
+        };
+      }
+      return {
+        conflict: true,
+        message: `Email này đã được đăng ký tài khoản với vai trò ${existingRoleLabel}. Vui lòng đăng nhập hoặc chọn Quên mật khẩu.`,
+      };
+    }
+  }
+
+  if (cleanPhone) {
+    const phoneExists = await User.findOne({ phone: cleanPhone });
+    if (phoneExists) {
+      const phoneRoleLabel = phoneExists.role === 'MERCHANT' ? 'Chủ quán (MERCHANT)' : 'Khách hàng (USER)';
+      return {
+        conflict: true,
+        message: `Số điện thoại "${cleanPhone}" đã được đăng ký cho tài khoản ${phoneRoleLabel}. Vui lòng sử dụng số điện thoại khác hoặc đăng nhập.`,
+      };
+    }
+  }
+
+  return { conflict: false };
+};
+
 // @desc    Send 6-digit OTP code to Gmail
 // @route   POST /api/auth/send-email-otp
 // @access  Public
 export const sendEmailOtp = async (req, res) => {
   try {
-    const { email, fullName, type = 'REGISTER', recaptchaToken, isResend } = req.body;
+    const { email, fullName, role, phone, type = 'REGISTER', recaptchaToken, isResend } = req.body;
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp địa chỉ email hợp lệ' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const cleanPhone = phone ? phone.trim() : '';
+    const requestedRole = (req.body.accountType === 'MERCHANT' || role === 'MERCHANT') ? 'MERCHANT' : 'USER';
 
     if (type === 'REGISTER') {
-      const userExists = await User.findOne({ email: cleanEmail });
-      if (userExists) {
-        return res.status(400).json({ success: false, message: 'Email này đã được đăng ký tài khoản' });
+      const conflictCheck = await checkRegistrationConflict(cleanEmail, cleanPhone, requestedRole);
+      if (conflictCheck.conflict) {
+        return res.status(400).json({ success: false, message: conflictCheck.message });
       }
 
       // Bắt buộc xác minh reCAPTCHA cho lượt gửi OTP đăng ký đầu tiên (không áp dụng khi bấm gửi lại)
@@ -180,10 +233,11 @@ export const registerUser = async (req, res) => {
       ? requestedRole
       : ['USER', 'CUSTOMER'].includes(requestedRole) ? requestedRole : 'USER';
     const cleanEmail = email ? email.toLowerCase().trim() : '';
+    const cleanPhone = phone ? phone.trim() : '';
 
-    const userExists = await User.findOne({ email: cleanEmail });
-    if (userExists) {
-      return res.status(400).json({ success: false, message: 'Email đã được sử dụng' });
+    const conflictCheck = await checkRegistrationConflict(cleanEmail, cleanPhone, userRole);
+    if (conflictCheck.conflict) {
+      return res.status(400).json({ success: false, message: conflictCheck.message });
     }
 
     // Verify OTP if provided
@@ -321,7 +375,7 @@ export const registerUser = async (req, res) => {
 // @access  Public
 export const loginUser = async (req, res) => {
   try {
-    const { email, password, recaptchaToken } = req.body;
+    const { email, password, recaptchaToken, role } = req.body;
 
     // Xác minh reCAPTCHA
     const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
@@ -332,10 +386,15 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      if (user.status === 'SUSPENDED') {
+        return res.status(403).json({ success: false, message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.' });
+      }
       const userBusiness = await Business.findOne({ ownerId: user._id });
+      await syncMerchantRole(user, userBusiness);
       res.json({
         success: true,
         data: {
@@ -370,10 +429,12 @@ export const getUserProfile = async (req, res) => {
 
     if (user) {
       const userBusiness = await Business.findOne({ ownerId: user._id });
+      await syncMerchantRole(user, userBusiness);
       res.json({
         success: true,
         data: {
           ...user.toObject(),
+          role: user.role,
           business: userBusiness,
           hasBusiness: Boolean(userBusiness),
         },
@@ -457,14 +518,14 @@ export const updateUserProfile = async (req, res) => {
 // @access  Public
 export const googleLogin = async (req, res) => {
   try {
-    const { email, fullName, avatarUrl, googleId } = req.body;
+    const { email, fullName, avatarUrl, googleId, role } = req.body;
 
     if (!email) {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin email từ Google' });
     }
 
-    let user = await User.findOne({ email });
-
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: cleanEmail });
     if (user) {
       let modified = false;
       if (!user.googleId && googleId) {
@@ -482,14 +543,17 @@ export const googleLogin = async (req, res) => {
       if (modified) {
         await user.save();
       }
+      const userBusiness = await Business.findOne({ ownerId: user._id });
+      await syncMerchantRole(user, userBusiness);
     } else {
+      const isOwner = role === 'MERCHANT';
       user = await User.create({
-        fullName: fullName || email.split('@')[0],
-        email: email.toLowerCase(),
+        fullName: fullName || cleanEmail.split('@')[0],
+        email: cleanEmail,
         avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
         authProvider: 'GOOGLE',
         googleId: googleId || '',
-        role: 'USER',
+        role: isOwner ? 'MERCHANT' : 'USER',
         status: 'ACTIVE',
         preferences: {
           favoriteCategories: ['CAFE', 'RESTAURANT'],

@@ -254,10 +254,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: Column(
-                  children: [
-                    // Brand Header
-                    _buildBrandHeader(),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    child: Column(
+                      children: [
+                        // Brand Header
+                        _buildBrandHeader(),
                     const SizedBox(height: 20),
 
                     // Step Progress Indicator
@@ -316,7 +319,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
           ),
-        ],
+        ),
+      ),
+    ],
       ),
     );
   }

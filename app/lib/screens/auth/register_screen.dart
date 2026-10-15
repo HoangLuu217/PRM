@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../customer/customer_home_screen.dart';
+import '../owner/owner_dashboard_screen.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int _currentStep = 1; // 1: Nhập thông tin, 2: Xác thực OTP
   bool _obscurePassword = true;
+  final String _selectedRole = kIsWeb ? 'MERCHANT' : 'USER';
 
   // Countdown timer cho gửi lại mã OTP
   Timer? _resendTimer;
@@ -59,85 +65,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  // Bước 1: Gửi mã OTP đăng ký đến Email
-  void _handleSendOtp() async {
-    if (_formKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final email = _emailController.text.trim();
-      final fullName = _nameController.text.trim();
-
-      final result = await authProvider.sendRegisterOtp(email, fullName: fullName);
-
-      if (!mounted) return;
-
-      if (result['success'] == true) {
-        setState(() {
-          _currentStep = 2;
-          _otpController.clear();
-        });
-        _startResendTimer();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.mark_email_read_rounded, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(result['message'] ?? 'Mã xác thực OTP đã được gửi đến email!'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF00C6FF),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(result['message'] ?? authProvider.errorMessage ?? 'Không thể gửi mã xác thực'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFFE53935),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    }
-  }
-
-  // Gửi lại mã OTP
-  void _handleResendOtp() async {
-    if (!_canResend) return;
+  // Gửi mã OTP đăng ký đến Email (Hỗ trợ cả lượt gửi đầu và gửi lại)
+  Future<void> _sendOtpCode({bool isResend = false}) async {
+    if (!isResend && !_formKey.currentState!.validate()) return;
+    if (isResend && !_canResend) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final email = _emailController.text.trim();
     final fullName = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
 
-    final result = await authProvider.sendRegisterOtp(email, fullName: fullName);
+    final result = await authProvider.sendRegisterOtp(
+      email,
+      fullName: fullName,
+      role: _selectedRole,
+      phone: phone,
+    );
 
     if (!mounted) return;
 
     if (result['success'] == true) {
+      if (!isResend) {
+        setState(() {
+          _currentStep = 2;
+          _otpController.clear();
+        });
+      }
       _startResendTimer();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+              Icon(
+                isResend ? Icons.check_circle_outline_rounded : Icons.mark_email_read_rounded,
+                color: Colors.white,
+              ),
               const SizedBox(width: 10),
-              const Expanded(child: Text('Đã gửi lại mã OTP mới đến email của bạn.')),
+              Expanded(
+                child: Text(
+                  result['message'] ?? (isResend ? 'Đã gửi lại mã OTP mới đến email.' : 'Mã xác thực OTP đã được gửi đến email!'),
+                ),
+              ),
             ],
           ),
-          backgroundColor: const Color(0xFF10B981),
+          backgroundColor: isResend ? const Color(0xFF10B981) : const Color(0xFF00C6FF),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -149,7 +121,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               const Icon(Icons.error_outline_rounded, color: Colors.white),
               const SizedBox(width: 10),
-              Expanded(child: Text(result['message'] ?? 'Không thể gửi lại mã OTP')),
+              Expanded(
+                child: Text(result['message'] ?? authProvider.errorMessage ?? 'Không thể gửi mã xác thực'),
+              ),
             ],
           ),
           backgroundColor: const Color(0xFFE53935),
@@ -160,6 +134,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _handleSendOtp() => _sendOtpCode(isResend: false);
+  void _handleResendOtp() => _sendOtpCode(isResend: true);
+
   // Bước 2: Xác thực OTP và Hoàn tất Đăng Ký
   void _handleVerifyAndRegister() async {
     if (_otpFormKey.currentState!.validate()) {
@@ -168,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        role: 'USER',
+        role: _selectedRole,
         phone: _phoneController.text.trim(),
         otpCode: _otpController.text.trim(),
       );
@@ -178,11 +155,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white),
-                SizedBox(width: 10),
-                Expanded(child: Text('Đăng ký tài khoản thành công!')),
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _selectedRole == 'MERCHANT'
+                        ? 'Đăng ký tài khoản Đối tác F&B thành công!'
+                        : 'Đăng ký tài khoản thành công!',
+                  ),
+                ),
               ],
             ),
             backgroundColor: const Color(0xFF10B981),
@@ -191,11 +174,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-          (route) => false,
-        );
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (authProvider.user != null) {
+          userProvider.setUser(authProvider.user);
+        }
+
+        // Trên Web: Cổng đối tác F&B dành riêng cho Chủ quán (MERCHANT)
+        if (kIsWeb) {
+          if (authProvider.isOwner) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const OwnerDashboardScreen(showOnboardingImmediately: true),
+              ),
+              (route) => false,
+            );
+          } else {
+            await authProvider.logout();
+            userProvider.clearUser();
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          }
+        } else {
+          // Trên Mobile App: Luôn điều hướng vào giao diện Khách hàng (CustomerHomeScreen)
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+            (route) => false,
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -259,7 +270,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
 
-            // 2. Lớp phủ Gradient Tối nhẹ để background.png hiển thị rõ ràng và form nổi bật
+            // 2. Lớp phủ Gradient Tối làm nền background dịu lại để form nổi bật rõ ràng
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -267,9 +278,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.35),
-                      Colors.black.withValues(alpha: 0.60),
-                      Colors.black.withValues(alpha: 0.85),
+                      Colors.black.withValues(alpha: 0.65),
+                      Colors.black.withValues(alpha: 0.80),
+                      Colors.black.withValues(alpha: 0.92),
                     ],
                   ),
                 ),
@@ -282,9 +293,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                  child: _currentStep == 1
-                      ? _buildStep1Form(authProvider)
-                      : _buildStep2OtpForm(authProvider),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: _currentStep == 1
+                          ? _buildStep1Form(authProvider)
+                          : _buildStep2OtpForm(authProvider),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -298,53 +314,88 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildStep1Form(AuthProvider authProvider) {
     return Form(
       key: _formKey,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header Brand
-          const Text(
-            'Tạo Tài Khoản Mới',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Glass Container
-          Container(
-            padding: const EdgeInsets.all(24.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 26.0, vertical: 30.0),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(24),
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.16),
+                color: Colors.white.withValues(alpha: 0.22),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 30,
-                  offset: const Offset(0, 15),
+                  blurRadius: 36,
+                  offset: const Offset(0, 16),
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Header Brand Pill Tag
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0072FF).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.35)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restaurant_rounded, size: 14, color: Color(0xFF38BDF8)),
+                        SizedBox(width: 6),
+                        Text(
+                          'FCONNECT F&B',
+                          style: TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Title
+                Text(
+                  kIsWeb ? 'Đăng Ký Tài Khoản Đối Tác' : 'Tạo Tài Khoản Mới',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  kIsWeb
+                      ? 'Gia nhập mạng lưới FConnect để phát triển thương hiệu quán của bạn'
+                      : 'Tham gia FConnect để trải nghiệm ẩm thực đỉnh cao',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 13.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // Full Name Input
                 _buildTextField(
                   controller: _nameController,
@@ -379,7 +430,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Phone Number Input (Bắt buộc nhập, không cần xác thực OTP sđt)
+                // Phone Number Input
                 _buildTextField(
                   controller: _phoneController,
                   labelText: 'Số điện thoại',
@@ -412,7 +463,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _obscurePassword
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: const Color(0xFF94A3B8),
                       size: 20,
                     ),
                     onPressed: () {
@@ -428,9 +479,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
 
-                // Nút Tiếp Tục & Nhận Mã OTP Electric Cyan / Royal Blue
+                // Nút Tiếp Tục & Nhận Mã OTP
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
@@ -438,15 +489,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                       colors: [
-                        Color(0xFF00C6FF),
                         Color(0xFF0072FF),
-                        Color(0xFF1D4ED8),
+                        Color(0xFF00C6FF),
                       ],
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF0072FF).withValues(alpha: 0.45),
-                        blurRadius: 16,
+                        blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
                     ],
@@ -477,7 +527,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Text(
                                 'Tiếp Tục & Nhận Mã OTP',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 15.5,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
                                 ),
@@ -488,37 +538,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                   ),
                 ),
+                const SizedBox(height: 18),
+
+                // Footer: Đã có tài khoản -> Đăng nhập
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Bạn đã có tài khoản?',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Đăng nhập ngay',
+                        style: TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // Footer: Đã có tài khoản -> Đăng nhập
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Bạn đã có tài khoản?',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 14,
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Đăng nhập ngay',
-                  style: TextStyle(
-                    color: Color(0xFF38BDF8),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -529,93 +579,99 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return Form(
       key: _otpFormKey,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Icon biểu trưng
-          Container(
-            width: 72,
-            height: 72,
-            alignment: Alignment.center,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 26.0, vertical: 30.0),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF00C6FF).withValues(alpha: 0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.mark_email_read_rounded,
-              color: Colors.white,
-              size: 36,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Title
-          const Text(
-            'Xác Thực Email',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Subtitle
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              text: 'Mã xác thực gồm 6 chữ số đã được gửi đến:\n',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 13,
-                height: 1.4,
-              ),
-              children: [
-                TextSpan(
-                  text: email,
-                  style: const TextStyle(
-                    color: Color(0xFF38BDF8),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Glass Card Form OTP
-          Container(
-            padding: const EdgeInsets.all(24.0),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(24),
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.16),
+                color: Colors.white.withValues(alpha: 0.22),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 30,
-                  offset: const Offset(0, 15),
+                  blurRadius: 36,
+                  offset: const Offset(0, 16),
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Icon biểu trưng
+                Center(
+                  child: Container(
+                    width: 68,
+                    height: 68,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00C6FF).withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_rounded,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Title
+                const Text(
+                  'Xác Thực Email',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Subtitle
+                RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    text: 'Mã xác thực gồm 6 chữ số đã được gửi đến:\n',
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: email,
+                        style: const TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Ô nhập mã OTP 6 số
                 TextFormField(
                   controller: _otpController,
@@ -632,28 +688,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     counterText: '',
                     labelText: 'Mã OTP (6 chữ số)',
                     alignLabelWithHint: true,
-                    labelStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 14,
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 13.5,
+                      letterSpacing: 0,
+                    ),
+                    floatingLabelStyle: const TextStyle(
+                      color: Color(0xFF38BDF8),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0,
                     ),
                     hintText: '123456',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.25),
+                    hintStyle: const TextStyle(
+                      color: Color(0xFF64748B),
                       fontSize: 22,
                       letterSpacing: 12,
                     ),
                     prefixIcon: const Icon(Icons.pin_rounded, color: Color(0xFF38BDF8), size: 22),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.06),
+                    fillColor: Colors.white.withValues(alpha: 0.08),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF00C6FF), width: 1.5),
+                      borderSide: const BorderSide(color: Color(0xFF00C6FF), width: 2.0),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -663,7 +725,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(color: Color(0xFFF87171), width: 1.5),
                     ),
-                    errorStyle: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11),
+                    errorStyle: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11.5),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().length != 6) {
@@ -682,8 +744,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _canResend
                           ? 'Chưa nhận được mã?'
                           : 'Gửi lại mã sau ${_resendCountdown}s',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
                         fontSize: 13,
                       ),
                     ),
@@ -711,15 +773,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                       colors: [
-                        Color(0xFF00C6FF),
                         Color(0xFF0072FF),
-                        Color(0xFF1D4ED8),
+                        Color(0xFF00C6FF),
                       ],
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF0072FF).withValues(alpha: 0.45),
-                        blurRadius: 16,
+                        blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
                     ],
@@ -747,7 +808,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         : const Text(
                             'Xác Nhận & Hoàn Tất Đăng Ký',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15.5,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
                             ),
@@ -763,11 +824,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _currentStep = 1;
                     });
                   },
-                  icon: const Icon(Icons.edit_note_rounded, color: Colors.white70, size: 18),
+                  icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF94A3B8), size: 18),
                   label: const Text(
                     'Chỉnh sửa thông tin đăng ký',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Color(0xFF94A3B8),
                       fontSize: 13,
                     ),
                   ),
@@ -775,7 +836,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -794,24 +855,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 14.5,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
+        labelStyle: TextStyle(
+          color: Colors.white.withValues(alpha: 0.75),
+          fontSize: 13.5,
+          fontWeight: FontWeight.w500,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: Color(0xFF38BDF8),
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+        hintStyle: TextStyle(
+          color: Colors.white.withValues(alpha: 0.35),
+          fontSize: 13.5,
+        ),
         prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.06),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: Colors.white.withValues(alpha: 0.08),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF00C6FF), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -821,7 +898,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFFF87171), width: 1.5),
         ),
-        errorStyle: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11),
+        errorStyle: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11.5, fontWeight: FontWeight.w500),
       ),
       validator: validator,
     );

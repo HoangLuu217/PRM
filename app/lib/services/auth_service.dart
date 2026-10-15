@@ -6,11 +6,72 @@ import '../models/user_model.dart';
 
 class AuthService {
   static const String _tokenKey = 'jwt_token';
+  static const String _roleKey = 'user_role';
+  static const String _userKey = 'cached_user_profile';
+  static const String _pendingRoleKey = 'pending_oauth_role';
 
-  // Save token locally
-  Future<void> saveToken(String token) async {
+  // Lưu và lấy role tạm thời khi chuẩn bị chuyển hướng Google OAuth
+  Future<void> savePendingOAuthRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pendingRoleKey, role);
+  }
+
+  Future<String?> getPendingOAuthRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_pendingRoleKey);
+  }
+
+  Future<void> clearPendingOAuthRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingRoleKey);
+  }
+
+  // Helper tạo headers chuẩn kèm bypass cho localtunnel
+  Map<String, String> _headers([String? token]) {
+    final map = {
+      'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
+    };
+    if (token != null && token.isNotEmpty) {
+      map['Authorization'] = 'Bearer $token';
+    }
+    return map;
+  }
+
+  // Save token & role locally
+  Future<void> saveToken(String token, [String? role]) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    if (role != null && role.isNotEmpty) {
+      await prefs.setString(_roleKey, role);
+    }
+  }
+
+  Future<void> saveRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_roleKey, role);
+  }
+
+  Future<String?> getSavedRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_roleKey);
+  }
+
+  Future<void> saveUser(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+  }
+
+  Future<User?> getCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userStr = prefs.getString(_userKey);
+      if (userStr != null && userStr.isNotEmpty) {
+        final map = jsonDecode(userStr);
+        return User.fromJson(map);
+      }
+    } catch (_) {}
+    return null;
   }
 
   // Get token locally
@@ -23,17 +84,21 @@ class AuthService {
   Future<void> removeToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_roleKey);
+    await prefs.remove(_userKey);
+    await prefs.remove(_pendingRoleKey);
   }
 
   // Login API
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {String? role}) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.login}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'password': password,
+          if (role != null && role.isNotEmpty) 'role': role,
         }),
       );
 
@@ -44,14 +109,18 @@ class AuthService {
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
 
+        final userObj = userData != null ? User.fromJson(userData) : null;
         if (token != null) {
-          await saveToken(token);
+          await saveToken(token, userObj?.role);
+        }
+        if (userObj != null) {
+          await saveUser(userObj);
         }
 
         return {
           'success': true,
           'token': token,
-          'user': userData != null ? User.fromJson(userData) : null,
+          'user': userObj,
           'message': data['message'] ?? 'Login successful',
         };
       } else {
@@ -69,14 +138,22 @@ class AuthService {
   }
 
   // Gửi mã OTP xác nhận đăng ký tài khoản về Email
-  Future<Map<String, dynamic>> sendRegisterOtp(String email, {String? fullName}) async {
+  // Gửi mã OTP xác nhận đăng ký tài khoản về Email
+  Future<Map<String, dynamic>> sendRegisterOtp(
+    String email, {
+    String? fullName,
+    String? role,
+    String? phone,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.sendEmailOtp}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'fullName': fullName?.trim() ?? '',
+          'role': role,
+          'phone': phone?.trim() ?? '',
           'type': 'REGISTER',
           'recaptchaToken': 'dev_recaptcha_bypass_token',
         }),
@@ -86,11 +163,13 @@ class AuthService {
       return {
         'success': response.statusCode == 200 && data['success'] == true,
         'message': data['message'] ?? (response.statusCode == 200 ? 'Đã gửi mã xác thực OTP qua email' : 'Không thể gửi mã OTP'),
+        'isNetworkError': false,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Lỗi kết nối máy chủ: $e',
+        'isNetworkError': true,
       };
     }
   }
@@ -119,7 +198,7 @@ class AuthService {
 
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.register}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode(requestBody),
       );
 
@@ -131,15 +210,20 @@ class AuthService {
           final rawData = data['data'] is Map ? data['data'] : null;
           final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
 
+          final userObj = userData != null ? User.fromJson(userData) : null;
           if (token != null) {
-            await saveToken(token);
+            await saveToken(token, userObj?.role);
+          }
+          if (userObj != null) {
+            await saveUser(userObj);
           }
 
           return {
             'success': true,
             'token': token,
-            'user': userData != null ? User.fromJson(userData) : null,
+            'user': userObj,
             'message': data['message'] ?? 'Registration successful',
+            'isNetworkError': false,
           };
         }
       }
@@ -147,11 +231,13 @@ class AuthService {
       return {
         'success': false,
         'message': data['message'] ?? 'Registration failed',
+        'isNetworkError': false,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Connection error: $e',
+        'isNetworkError': true,
       };
     }
   }
@@ -164,23 +250,29 @@ class AuthService {
 
       final response = await http.get(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profile}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+        headers: _headers(token),
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
         if (userData != null) {
-          return User.fromJson(userData);
+          final user = User.fromJson(userData);
+          if (user.role.isNotEmpty) {
+            await saveRole(user.role);
+          }
+          await saveUser(user);
+          return user;
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        await removeToken();
+        return null;
       }
-      return null;
+      return await getCachedUser();
     } catch (e) {
-      return null;
+      // Khi mất mạng hoặc timeout, lấy thông tin user đã lưu trong bộ nhớ cục bộ
+      return await getCachedUser();
     }
   }
 
@@ -194,10 +286,7 @@ class AuthService {
 
       final response = await http.put(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profile}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        headers: _headers(token),
         body: jsonEncode(updateData),
       );
 
@@ -206,9 +295,13 @@ class AuthService {
       if (response.statusCode == 200 && data['success'] == true) {
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
+        final userObj = userData != null ? User.fromJson(userData) : null;
+        if (userObj != null) {
+          await saveUser(userObj);
+        }
         return {
           'success': true,
-          'user': userData != null ? User.fromJson(userData) : null,
+          'user': userObj,
           'message': data['message'] ?? 'Profile updated successfully',
         };
       } else {
@@ -231,34 +324,55 @@ class AuthService {
     required String fullName,
     String? avatarUrl,
     String? googleId,
+    String? role,
   }) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}/auth/google'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'fullName': fullName,
           'avatarUrl': avatarUrl ?? '',
           'googleId': googleId ?? '',
+          if (role != null && role.isNotEmpty) 'role': role,
         }),
       );
 
-      final data = jsonDecode(response.body);
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        return {
+          'success': false,
+          'message': 'Máy chủ backend phản hồi lỗi (${response.statusCode}): ${response.reasonPhrase ?? 'Tunnel/Server Unavailable'}. Vui lòng kiểm tra API_BASE_URL trong file .env',
+        };
+      }
 
-      if (response.statusCode == 200 && data['success'] == true) {
+      final dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (jsonErr) {
+        return {
+          'success': false,
+          'message': 'Định dạng phản hồi không hợp lệ từ backend: $jsonErr. Vui lòng kiểm tra API_BASE_URL.',
+        };
+      }
+
+      if (data['success'] == true) {
         final token = data['token'] ?? data['data']?['token'];
         final rawData = data['data'] is Map ? data['data'] : null;
         final userData = data['user'] ?? rawData?['user'] ?? rawData ?? data;
 
+        final userObj = userData != null ? User.fromJson(userData) : null;
         if (token != null) {
-          await saveToken(token);
+          await saveToken(token, userObj?.role);
+        }
+        if (userObj != null) {
+          await saveUser(userObj);
         }
 
         return {
           'success': true,
           'token': token,
-          'user': userData != null ? User.fromJson(userData) : null,
+          'user': userObj,
           'message': data['message'] ?? 'Google login successful',
         };
       } else {
@@ -270,7 +384,7 @@ class AuthService {
     } catch (e) {
       return {
         'success': false,
-        'message': 'Connection error: $e',
+        'message': 'Lỗi kết nối máy chủ backend: $e',
       };
     }
   }
@@ -280,7 +394,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.sendEmailOtp}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'type': 'RESET_PASSWORD',
@@ -309,7 +423,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.verifyEmailOtp}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'otp': otp.trim(),
@@ -339,7 +453,7 @@ class AuthService {
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.resetPassword}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'otp': otp.trim(),
