@@ -6,7 +6,6 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../auth/login_screen.dart';
-import '../auth/profile_screen.dart';
 import '../customer/customer_home_screen.dart';
 import 'product/owner_product_list_screen.dart';
 import 'widgets/merchant_onboarding_dialog.dart';
@@ -1334,8 +1333,667 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   // =========================================================================
-  // REUSABLE HELPER WIDGETS
+  // TAB 5: HỒ SƠ QUÁN & CÀI ĐẶT (TRÁCH NHIỆM CHÍNH CỦA THÀNH VIÊN 1)
   // =========================================================================
+  Widget _buildTab5BusinessProfile(User? user) {
+    final biz = user?.business;
+    final hasBusiness = biz != null && (biz['name']?.toString() ?? '').trim().isNotEmpty;
+
+    final businessName = hasBusiness
+        ? (biz['name']?.toString() ?? 'Chưa đặt tên quán')
+        : 'Chưa hoàn thiện hồ sơ cơ sở F&B';
+
+    final description = biz?['description']?.toString() ??
+        'Hệ thống quán ẩm thực chất lượng cao, phục vụ các món ăn và đồ uống tinh hoa tại Đà Nẵng.';
+
+    final categoryName = biz?['category']?.toString() ?? 'Nhà hàng ẩm thực';
+    final district = biz?['address']?['district']?.toString() ??
+        biz?['district']?.toString() ??
+        'Hải Châu';
+    final city = biz?['address']?['city']?.toString() ??
+        biz?['city']?.toString() ??
+        'Đà Nẵng';
+    final street = biz?['address']?['street']?.toString() ?? 'Chi nhánh chính';
+    final addressFull = street.isNotEmpty ? '$street, $district, $city' : '$district, $city';
+    final phone = biz?['phone']?.toString() ?? user?.phone ?? '0901234567';
+    final googleMapsUrl = biz?['googleMapsUrl']?.toString() ?? '';
+
+    final minPrice = biz?['priceRange']?['min'] ?? 20000;
+    final maxPrice = biz?['priceRange']?['max'] ?? 100000;
+    final priceText = '${(minPrice / 1000).toInt()}k – ${(maxPrice / 1000).toInt()}k VNĐ';
+
+    final vibesList = biz?['vibes'];
+    final vibes = (vibesList is List && vibesList.isNotEmpty)
+        ? List<String>.from(vibesList)
+        : <String>['Yên tĩnh / Làm việc', 'Ấm cúng / Gia đình', 'Không gian thoáng đãng'];
+
+    final purposesList = biz?['purposes'];
+    final purposes = (purposesList is List && purposesList.isNotEmpty)
+        ? List<String>.from(purposesList)
+        : <String>['Gặp gỡ bạn bè', 'Bữa ăn gia đình', 'Hẹn hò cặp đôi'];
+
+    final logoVal = biz?['logoUrl']?.toString() ?? '';
+    final logoUrl = logoVal.startsWith('http')
+        ? logoVal
+        : 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=300&q=80';
+
+    final coverVal = biz?['coverImageUrl']?.toString() ?? '';
+    final coverImageUrl = coverVal.startsWith('http')
+        ? coverVal
+        : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Hero Restaurant Header Card (Cover, Logo, Title, Quick Actions)
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 18,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Cover Image Banner with Status Chips
+              Stack(
+                children: [
+                  Container(
+                    height: 190,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(coverImageUrl),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.08),
+                            Colors.white.withValues(alpha: 0.95),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    right: 18,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.fiber_manual_record_rounded, color: Colors.white, size: 10),
+                              SizedBox(width: 6),
+                              Text('Đang mở cửa', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bolt_rounded, color: Color(0xFF2563EB), size: 15),
+                              SizedBox(width: 4),
+                              Text('Đặt bàn nhanh', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // Bottom Identity Info Row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Avatar Logo Overlapping
+                    Transform.translate(
+                      offset: const Offset(0, -32),
+                      child: Container(
+                        padding: const EdgeInsets.all(3.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xFF2563EB), width: 2.5),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                        ),
+                        child: CircleAvatar(
+                          radius: 42,
+                          backgroundColor: const Color(0xFFEFF6FF),
+                          backgroundImage: NetworkImage(logoUrl),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+
+                    // Restaurant Title & Rating
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  businessName,
+                                  style: const TextStyle(
+                                    color: Color(0xFF0F172A),
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.verified_rounded, color: Color(0xFF2563EB), size: 20),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                categoryName,
+                                style: const TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w700),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 15),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$district, $city',
+                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Quick Action Buttons (White & Blue)
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _openOnboardingForm,
+                          icon: const Icon(Icons.edit_note_rounded, size: 18),
+                          label: const Text('Sửa thông tin'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 2,
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _showStorefrontPreview(biz, user),
+                          icon: const Icon(Icons.remove_red_eye_rounded, size: 17, color: Color(0xFF2563EB)),
+                          label: const Text('Xem trước', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _showQrCodeDialog(biz),
+                          icon: const Icon(Icons.qr_code_rounded, size: 17, color: Color(0xFF2563EB)),
+                          label: const Text('QR Menu bàn', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Responsive 2-Column Body
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktopTwoCol = constraints.maxWidth >= 900;
+
+            final leftColumn = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Single Unified Component: THÔNG TIN & KHÔNG GIAN QUÁN
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x06000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.storefront_rounded, color: Color(0xFF2563EB), size: 22),
+                              SizedBox(width: 8),
+                              Text(
+                                'THÔNG TIN & KHÔNG GIAN QUÁN',
+                                style: TextStyle(
+                                  color: Color(0xFF2563EB),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          InkWell(
+                            onTap: _openOnboardingForm,
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF2563EB)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Chỉnh sửa',
+                                  style: TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      const Row(
+                        children: [
+                          Icon(Icons.place_rounded, color: Color(0xFF2563EB), size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Địa chỉ & Liên hệ',
+                            style: TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildProfileDetailRow(Icons.location_on_outlined, 'Địa chỉ quán:', addressFull),
+                      _buildProfileDetailRow(Icons.phone_in_talk_rounded, 'Hotline đặt bàn:', phone),
+                      _buildProfileDetailRow(Icons.payments_outlined, 'Khoảng giá:', priceText),
+                      if (googleMapsUrl.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.map_outlined, size: 18, color: Color(0xFF64748B)),
+                              const SizedBox(width: 10),
+                              const SizedBox(
+                                width: 140,
+                                child: Text(
+                                  'Bản đồ vị trí:',
+                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _launchGoogleMaps(googleMapsUrl),
+                                    icon: const Icon(Icons.open_in_new_rounded, size: 13),
+                                    label: const Text('Mở Google Maps'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2563EB),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 10),
+                      const Divider(color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 14),
+
+                      const Row(
+                        children: [
+                          Icon(Icons.palette_rounded, color: Color(0xFF2563EB), size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Không gian, Vibe & Tiện ích',
+                            style: TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: const Border(left: BorderSide(color: Color(0xFF2563EB), width: 3.5)),
+                        ),
+                        child: Text(
+                          description,
+                          style: const TextStyle(color: Color(0xFF334155), fontSize: 13.5, height: 1.45),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text('Không gian & Vibe quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: vibes.map((v) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.spa_rounded, color: Color(0xFF1D4ED8), size: 14),
+                              const SizedBox(width: 6),
+                              Text(v, style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        )).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text('Phù hợp cho mục đích:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: purposes.map((p) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.groups_rounded, color: Color(0xFF15803D), size: 15),
+                              const SizedBox(width: 6),
+                              Text(p, style: const TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        )).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text('Tiện ích phục vụ tại quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 10,
+                        children: [
+                          _buildAmenityBadge(Icons.wifi_rounded, 'Wifi tốc độ cao'),
+                          _buildAmenityBadge(Icons.ac_unit_rounded, 'Máy lạnh / Điều hòa'),
+                          _buildAmenityBadge(Icons.local_parking_rounded, 'Bãi đỗ xe rộng rãi'),
+                          _buildAmenityBadge(Icons.credit_card_rounded, 'Thanh toán thẻ / QR'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+
+            final rightColumn = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Card C: Tài khoản Chủ sở hữu & Bảo mật
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x06000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.manage_accounts_rounded, color: Color(0xFF2563EB), size: 22),
+                              SizedBox(width: 8),
+                              Text(
+                                'TÀI KHOẢN CHỦ SỞ HỮU',
+                                style: TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                            ),
+                            child: const Text('MERCHANT', style: TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      // User Identity Tile
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: const Color(0xFF2563EB),
+                            child: Text(
+                              (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user?.fullName ?? 'Chủ Quán Đối Tác',
+                                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  user?.email ?? 'chưa cập nhật email',
+                                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      const Divider(color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 12),
+                      _buildProfileDetailRow(Icons.badge_rounded, 'Họ và tên:', user?.fullName ?? 'Chưa cập nhật'),
+                      _buildProfileDetailRow(Icons.email_rounded, 'Email đăng nhập:', user?.email ?? 'Chưa cập nhật'),
+                      _buildProfileDetailRow(Icons.phone_rounded, 'Số điện thoại:', user?.phone?.isNotEmpty == true ? user!.phone! : 'Chưa thiết lập'),
+                      const SizedBox(height: 14),
+
+                      // Account Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _showChangePasswordDialog,
+                              icon: const Icon(Icons.lock_reset_rounded, size: 16, color: Color(0xFF2563EB)),
+                              label: const Text('Đổi mật khẩu', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showEditOwnerAccountDialog(user),
+                              icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF334155)),
+                              label: const Text('Sửa tài khoản', style: TextStyle(color: Color(0xFF334155), fontSize: 12.5, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+
+            if (isDesktopTwoCol) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 7, child: leftColumn),
+                  const SizedBox(width: 20),
+                  Expanded(flex: 5, child: rightColumn),
+                ],
+              );
+            } else {
+              return Column(
+                children: [
+                  leftColumn,
+                  const SizedBox(height: 18),
+                  rightColumn,
+                ],
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAmenityBadge(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: const Color(0xFF2563EB), size: 16),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildProfileDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF64748B)),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 140,
+            child: Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSkeletonHeader({required String moduleTitle, required String memberTag, required String description}) {
     return Container(
       padding: const EdgeInsets.all(18),
