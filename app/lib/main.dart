@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_constants.dart';
 import 'providers/auth_provider.dart';
+import 'providers/booking_provider.dart';
+import 'providers/order_provider.dart';
+import 'providers/table_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'services/supabase_auth_service.dart';
@@ -42,6 +45,9 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider(create: (_) => TableProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
       ],
       child: MaterialApp(
         title: 'FConnect F&B Platform',

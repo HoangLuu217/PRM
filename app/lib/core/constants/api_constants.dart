@@ -20,5 +20,11 @@ class ApiConstants {
   static const String businesses = '/businesses';
   static const String onboardBusiness = '/businesses/onboard';
   static const String bookings = '/bookings';
+  static const String myBookings = '/bookings/me';
+  static const String tables = '/tables';
+  static const String orders = '/orders';
+  static const String myOrders = '/orders/me';
+  static const String ownerBookings = '/owner/bookings';
+  static const String ownerOrders = '/owner/orders';
   static const String articles = '/articles';
 }
