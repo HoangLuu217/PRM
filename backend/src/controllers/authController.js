@@ -218,7 +218,7 @@ export const registerUser = async (req, res) => {
       phone,
       otpCode,
       role = 'USER',
-      accountType, // 'USER' | 'MERCHANT'
+      accountType,
       isPhoneVerified,
       preferences,
       businessName,
@@ -228,7 +228,10 @@ export const registerUser = async (req, res) => {
       googleMapsUrl,
     } = req.body;
 
-    const userRole = accountType === 'MERCHANT' || role === 'MERCHANT' ? 'MERCHANT' : 'USER';
+    const requestedRole = accountType || role;
+    const userRole = ['MERCHANT', 'BUSINESS_OWNER'].includes(requestedRole)
+      ? requestedRole
+      : ['USER', 'CUSTOMER'].includes(requestedRole) ? requestedRole : 'USER';
     const cleanEmail = email ? email.toLowerCase().trim() : '';
     const cleanPhone = phone ? phone.trim() : '';
 
@@ -281,7 +284,7 @@ export const registerUser = async (req, res) => {
     let createdBusiness = null;
 
     // If registering as a Merchant and business name is provided, initialize Business & Branch
-    if (user && userRole === 'MERCHANT' && businessName) {
+    if (user && ['MERCHANT', 'BUSINESS_OWNER'].includes(userRole) && businessName) {
       try {
         const rawSlug = businessName
           .toLowerCase()
@@ -297,7 +300,7 @@ export const registerUser = async (req, res) => {
           slug,
           description: businessDescription || `Hệ thống quán ẩm thực ${businessName.trim()}`,
           categories: [businessCategory || 'RESTAURANT'],
-          status: 'APPROVED',
+          status: 'PENDING',
           logoUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80',
           coverImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
           googleMapsUrl: googleMapsUrl ? googleMapsUrl.trim() : '',
@@ -341,7 +344,9 @@ export const registerUser = async (req, res) => {
     if (user) {
       res.status(201).json({
         success: true,
-        message: userRole === 'MERCHANT' ? 'Đăng ký tài khoản Chủ Doanh Nghiệp thành công!' : 'Đăng ký tài khoản thành công!',
+        message: ['MERCHANT', 'BUSINESS_OWNER'].includes(userRole)
+          ? 'Đăng ký tài khoản Chủ Doanh Nghiệp thành công!'
+          : 'Đăng ký tài khoản thành công!',
         data: {
           _id: user._id,
           fullName: user.fullName,
@@ -584,4 +589,3 @@ export const googleLogin = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
