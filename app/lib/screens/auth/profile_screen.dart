@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorite_provider.dart';
 import '../../providers/user_provider.dart';
+import '../customer/favorites_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
 
@@ -72,6 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _loadUserData() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    Provider.of<FavoriteProvider>(context, listen: false).loadFavorites();
     if (authProvider.user == null) {
       authProvider.checkAuthStatus().then((_) {
         if (mounted && authProvider.user != null) {
@@ -692,6 +695,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.logout();
+    if (mounted) {
+      Provider.of<FavoriteProvider>(context, listen: false).clear();
+    }
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -969,6 +975,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 2a. Stats Row for Customer (Completed Visits & Favorite Spots)
   Widget _buildCustomerStatsRow() {
+    final favCount = context.watch<FavoriteProvider>().count;
     return Row(
       children: [
         Expanded(
@@ -982,12 +989,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _buildStatCard(
-            icon: Icons.favorite_rounded,
-            iconBg: const Color(0xFFECFDF5),
-            iconColor: const Color(0xFF10B981),
-            value: '8',
-            label: 'Favorite Spots',
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+              );
+            },
+            child: _buildStatCard(
+              icon: Icons.favorite_rounded,
+              iconBg: const Color(0xFFECFDF5),
+              iconColor: const Color(0xFF10B981),
+              value: '$favCount',
+              label: 'Favorite Spots',
+            ),
           ),
         ),
       ],
@@ -1153,8 +1168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: 'My Favorites',
         subtitle: 'Saved dining spots & cafes',
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tính năng Quán yêu thích (Member 2)')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FavoritesScreen()),
           );
         },
       ),

@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/favorite_provider.dart';
 import '../../auth/login_screen.dart';
 import '../../auth/profile_screen.dart';
+import '../favorites_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
 class HomeFeedTab extends StatelessWidget {
@@ -454,7 +456,72 @@ class HomeFeedTab extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+
+          // Nút Quán yêu thích có badge
+          Consumer<FavoriteProvider>(
+            builder: (context, favProvider, _) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.favorite_rounded, color: Color(0xFFEF4444), size: 22),
+                    tooltip: 'Quán yêu thích',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    onPressed: () {
+                      final auth = context.read<AuthProvider>();
+                      if (!auth.isAuthenticated) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Vui lòng đăng nhập để xem danh sách yêu thích'),
+                            action: SnackBarAction(
+                              label: 'Đăng nhập',
+                              textColor: Colors.amber,
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              ),
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                      );
+                    },
+                  ),
+                  if (favProvider.count > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '${favProvider.count}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 6),
 
           // User Avatar / Nút Đăng nhập
           if (isLoggedIn)
@@ -764,11 +831,11 @@ class HomeFeedTab extends StatelessWidget {
                   ),
                 ),
 
-              // Rating Google Maps Badge (Góc trên phải)
+              // Rating Google Maps Badge (Góc trên phải, kế bên nút Favorite)
               if (r.googleRating != null && r.googleRating! > 0)
                 Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 10,
+                  right: 50,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -806,6 +873,62 @@ class HomeFeedTab extends StatelessWidget {
                     ),
                   ),
                 ),
+
+              // Nút Favorite Heart (Góc trên cùng bên phải ảnh bìa)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Consumer<FavoriteProvider>(
+                  builder: (context, favProvider, _) {
+                    final isFav = favProvider.isFavorite(r.id);
+                    return Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isFav ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                          size: 18,
+                        ),
+                        tooltip: isFav ? 'Bỏ yêu thích' : 'Yêu thích quán',
+                        onPressed: () {
+                          final auth = context.read<AuthProvider>();
+                          if (!auth.isAuthenticated) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
+                                action: SnackBarAction(
+                                  label: 'Đăng nhập',
+                                  textColor: Colors.amber,
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                  ),
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          favProvider.toggleFavorite(r, context: context);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
 
               // Category tag (Góc dưới trái ảnh bìa)
               Positioned(

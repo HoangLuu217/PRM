@@ -1,10 +1,13 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../models/restaurant_model.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/favorite_provider.dart';
 import '../../../services/location_service.dart';
+import '../../auth/login_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
 class FoodMapTab extends StatefulWidget {
@@ -33,7 +36,7 @@ class _FoodMapTabState extends State<FoodMapTab> {
   bool _isSatelliteMode = false;
   LatLng? _myCurrentLocation;
   bool _isLocating = false;
-  double _currentRotation = 0.0;
+  double _currentZoom = 13.8;
   static const LatLng _daNangCenter = LatLng(16.0544, 108.2022);
 
   @override
@@ -188,66 +191,122 @@ class _FoodMapTabState extends State<FoodMapTab> {
   }
 
   List<Marker> _buildMapMarkers() {
-    final filtered = widget.restaurants.where((r) {
-      if (_mapCategoryFilter != 'Tất cả') {
-        final matchesCat = r.categories.any((c) => c.toLowerCase() == _mapCategoryFilter.toLowerCase()) ||
-            r.displayCategory.toLowerCase().contains(_mapCategoryFilter.toLowerCase()) ||
-            (r.primaryCategoryName != null &&
-                r.primaryCategoryName!.toLowerCase().contains(_mapCategoryFilter.toLowerCase()));
-        if (!matchesCat) return false;
-      }
-      final query = _mapSearchController.text.trim().toLowerCase();
-      if (query.isNotEmpty) {
-        final matches = r.name.toLowerCase().contains(query) ||
-            r.address.toLowerCase().contains(query) ||
-            r.displayCategory.toLowerCase().contains(query);
-        if (!matches) return false;
-      }
-      return true;
-    }).toList();
+    final markers = <Marker>[];
 
-    final markers = filtered.map<Marker>((r) {
-      final isSelected = _selectedMapRestaurant?.id == r.id;
+    // Thuật toán co giãn và ẩn icon theo mức zoom tương tự Google Maps
+    // Zoom < 11.5: Thu nhỏ quá mức (toàn vùng/tỉnh) -> ẩn hết icon quán ăn để chống rối mắt
+    // Zoom 11.5 -> 18.5+: Phóng to dần, icon tăng kích thước từ 16px lên 40px
+    final isZoomTooSmall = _currentZoom < 11.5;
+    final t = ((_currentZoom - 11.5) / 7.0).clamp(0.0, 1.0);
+    final baseSize = 16.0 + (t * 24.0);
+    final baseIconSize = 9.0 + (t * 12.0);
+    final baseBorder = 1.2 + (t * 0.8);
+
+    if (!isZoomTooSmall) {
+      final filtered = widget.restaurants.where((r) {
+        if (_mapCategoryFilter != 'Tất cả') {
+          final matchesCat = r.categories.any((c) => c.toLowerCase() == _mapCategoryFilter.toLowerCase()) ||
+              r.displayCategory.toLowerCase().contains(_mapCategoryFilter.toLowerCase()) ||
+              (r.primaryCategoryName != null &&
+                  r.primaryCategoryName!.toLowerCase().contains(_mapCategoryFilter.toLowerCase()));
+          if (!matchesCat) return false;
+        }
+        final query = _mapSearchController.text.trim().toLowerCase();
+        if (query.isNotEmpty) {
+          final matches = r.name.toLowerCase().contains(query) ||
+              r.address.toLowerCase().contains(query) ||
+              r.displayCategory.toLowerCase().contains(query);
+          if (!matches) return false;
+        }
+        return true;
+      }).toList();
+
+      for (final r in filtered) {
+        final isSelected = _selectedMapRestaurant?.id == r.id;
+        final lat = (r.latitude != 0.0) ? r.latitude : 16.0544;
+        final lng = (r.longitude != 0.0) ? r.longitude : 108.2022;
+
+        final markerSize = isSelected ? (baseSize * 1.35).clamp(24.0, 50.0) : baseSize;
+        final iconSize = isSelected ? (baseIconSize * 1.35).clamp(13.0, 26.0) : baseIconSize;
+        final borderWidth = isSelected ? (baseBorder * 1.3).clamp(1.8, 2.8) : baseBorder;
+
+        markers.add(
+          Marker(
+            point: LatLng(lat, lng),
+            width: markerSize,
+            height: markerSize,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _onSelectMapRestaurant(r),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF0072FF) : const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: borderWidth),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: isSelected ? 6 : 3,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isSelected ? Icons.place_rounded : Icons.restaurant_rounded,
+                  color: Colors.white,
+                  size: iconSize,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    } else if (_selectedMapRestaurant != null) {
+      // Khi thu nhỏ bản đồ quá mức nhưng đang chọn 1 quán ăn, vẫn giữ lại ghim quán đó
+      final r = _selectedMapRestaurant!;
       final lat = (r.latitude != 0.0) ? r.latitude : 16.0544;
       final lng = (r.longitude != 0.0) ? r.longitude : 108.2022;
-
-      return Marker(
-        point: LatLng(lat, lng),
-        width: isSelected ? 48 : 36,
-        height: isSelected ? 48 : 36,
-        child: GestureDetector(
-          onTap: () => _onSelectMapRestaurant(r),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF0072FF) : const Color(0xFFEF4444),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: isSelected ? 2.5 : 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: isSelected ? 8 : 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              isSelected ? Icons.place_rounded : Icons.restaurant_rounded,
-              color: Colors.white,
-              size: isSelected ? 26 : 18,
+      markers.add(
+        Marker(
+          point: LatLng(lat, lng),
+          width: 24,
+          height: 24,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _onSelectMapRestaurant(r),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0072FF),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.place_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
             ),
           ),
         ),
       );
-    }).toList();
+    }
 
-    // Thêm marker vị trí GPS người dùng nếu đã xác định được
+    // Thêm marker vị trí GPS người dùng nếu đã xác định được (co giãn cân đối theo zoom)
     if (_myCurrentLocation != null) {
+      final gpsSize = (32.0 + t * 20.0).clamp(32.0, 52.0);
       markers.add(
         Marker(
           point: _myCurrentLocation!,
-          width: 52,
-          height: 52,
+          width: gpsSize,
+          height: gpsSize,
           child: GestureDetector(
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -270,8 +329,8 @@ class _FoodMapTabState extends State<FoodMapTab> {
               children: [
                 // Vòng sóng radar lan tỏa
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: gpsSize * 0.9,
+                  height: gpsSize * 0.9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF0072FF).withValues(alpha: 0.22),
@@ -279,8 +338,8 @@ class _FoodMapTabState extends State<FoodMapTab> {
                 ),
                 // Viền trắng bảo vệ
                 Container(
-                  width: 24,
-                  height: 24,
+                  width: (gpsSize * 0.46).clamp(16.0, 24.0),
+                  height: (gpsSize * 0.46).clamp(16.0, 24.0),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white,
@@ -292,14 +351,15 @@ class _FoodMapTabState extends State<FoodMapTab> {
                       ),
                     ],
                   ),
-                ),
-                // Chấm tròn định vị xanh dương đậm
-                Container(
-                  width: 15,
-                  height: 15,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF0072FF),
+                  child: Center(
+                    child: Container(
+                      width: (gpsSize * 0.28).clamp(10.0, 15.0),
+                      height: (gpsSize * 0.28).clamp(10.0, 15.0),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0072FF),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -458,7 +518,9 @@ class _FoodMapTabState extends State<FoodMapTab> {
           heroTag: 'zoom_in_btn',
           onPressed: () {
             final curZoom = _osmMapController.camera.zoom;
-            _osmMapController.move(_osmMapController.camera.center, (curZoom + 1).clamp(6.0, 19.0));
+            final targetZoom = (curZoom + 1).clamp(6.0, 19.0);
+            _osmMapController.move(_osmMapController.camera.center, targetZoom);
+            setState(() => _currentZoom = targetZoom);
           },
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF0F172A),
@@ -472,65 +534,15 @@ class _FoodMapTabState extends State<FoodMapTab> {
           heroTag: 'zoom_out_btn',
           onPressed: () {
             final curZoom = _osmMapController.camera.zoom;
-            _osmMapController.move(_osmMapController.camera.center, (curZoom - 1).clamp(6.0, 19.0));
+            final targetZoom = (curZoom - 1).clamp(6.0, 19.0);
+            _osmMapController.move(_osmMapController.camera.center, targetZoom);
+            setState(() => _currentZoom = targetZoom);
           },
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF0F172A),
           elevation: 3,
           tooltip: 'Thu nhỏ',
           child: const Icon(Icons.remove_rounded, size: 20),
-        ),
-        const SizedBox(height: 8),
-        // Nút La Bàn / Căn chỉnh hướng Bắc - Nam (North Up)
-        FloatingActionButton.small(
-          heroTag: 'compass_north_btn',
-          onPressed: () {
-            _osmMapController.rotate(0.0);
-            setState(() => _currentRotation = 0.0);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.explore_rounded, color: Colors.white, size: 20),
-                    SizedBox(width: 8),
-                    Text('🧭 Đã chỉnh bản đồ về đúng hướng Bắc - Nam'),
-                  ],
-                ),
-                backgroundColor: Color(0xFF0072FF),
-                behavior: SnackBarBehavior.floating,
-                duration: Duration(seconds: 1),
-              ),
-            );
-          },
-          backgroundColor: Colors.white,
-          elevation: 3,
-          tooltip: 'Chỉnh lại hướng Bắc - Nam',
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Transform.rotate(
-                angle: -(_currentRotation * math.pi / 180),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.arrow_drop_up_rounded, size: 22, color: Color(0xFFEF4444)),
-                    Icon(Icons.arrow_drop_down_rounded, size: 22, color: Color(0xFF64748B)),
-                  ],
-                ),
-              ),
-              const Positioned(
-                top: 2,
-                child: Text(
-                  'N',
-                  style: TextStyle(
-                    color: Color(0xFFEF4444),
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         const SizedBox(height: 8),
         // Xem toàn bộ quán
@@ -803,6 +815,46 @@ class _FoodMapTabState extends State<FoodMapTab> {
                   padding: const EdgeInsets.all(8),
                 ),
               ),
+              const SizedBox(width: 6),
+              Consumer<FavoriteProvider>(
+                builder: (context, favProvider, _) {
+                  final isFav = favProvider.isFavorite(r.id);
+                  return IconButton(
+                    onPressed: () {
+                      final auth = context.read<AuthProvider>();
+                      if (!auth.isAuthenticated) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
+                            action: SnackBarAction(
+                              label: 'Đăng nhập',
+                              textColor: Colors.amber,
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              ),
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      favProvider.toggleFavorite(r, context: context);
+                    },
+                    icon: Icon(
+                      isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      color: isFav ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                      size: 20,
+                    ),
+                    tooltip: isFav ? 'Bỏ yêu thích' : 'Yêu thích quán',
+                    style: IconButton.styleFrom(
+                      backgroundColor: isFav ? const Color(0xFFFFF1F2) : const Color(0xFFF1F5F9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ],
@@ -825,13 +877,14 @@ class _FoodMapTabState extends State<FoodMapTab> {
               initialZoom: 13.8,
               minZoom: 6.0,
               maxZoom: 20.0,
+              initialRotation: 0.0,
               interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all,
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
               onPositionChanged: (camera, hasGesture) {
-                if ((camera.rotation - _currentRotation).abs() > 0.5) {
+                if ((camera.zoom - _currentZoom).abs() >= 0.05) {
                   setState(() {
-                    _currentRotation = camera.rotation;
+                    _currentZoom = camera.zoom;
                   });
                 }
               },
@@ -844,8 +897,8 @@ class _FoodMapTabState extends State<FoodMapTab> {
             children: [
               TileLayer(
                 urlTemplate: _isSatelliteMode
-                    ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
-                    : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                    ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&apistyle=s.t:33|p.v:off'
+                    : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&apistyle=s.t:33|p.v:off',
                 fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'vn.fconnect.app',
                 maxZoom: 20,

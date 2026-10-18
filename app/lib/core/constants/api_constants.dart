@@ -21,4 +21,5 @@ class ApiConstants {
   static const String onboardBusiness = '/businesses/onboard';
   static const String bookings = '/bookings';
   static const String articles = '/articles';
+  static const String favorites = '/favorites';
 }

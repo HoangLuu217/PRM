@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/restaurant_model.dart';
+import '../../providers/favorite_provider.dart';
 import '../../services/location_service.dart';
 import '../../services/restaurant_service.dart';
 import '../auth/profile_screen.dart';
@@ -34,6 +36,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void initState() {
     super.initState();
     _loadRestaurants();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FavoriteProvider>().loadFavoriteIds();
+    });
   }
 
   @override

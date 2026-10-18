@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorite_provider.dart';
 import '../../services/restaurant_service.dart';
 import '../auth/login_screen.dart';
 import 'widgets/restaurant_modals.dart';
@@ -26,7 +27,6 @@ class RestaurantDetailScreen extends StatefulWidget {
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   int _selectedTabIndex = 0;
-  bool _isFavorite = false;
   bool _isLoadingMenu = true;
   List<Map<String, dynamic>> _menuItems = [];
   final RestaurantService _restaurantService = RestaurantService();
@@ -334,26 +334,43 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    CircleAvatar(
-                      backgroundColor: Colors.black.withValues(alpha: 0.45),
-                      radius: 18,
-                      child: IconButton(
-                        icon: Icon(
-                          _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          color: _isFavorite ? const Color(0xFFEF4444) : Colors.white,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          setState(() => _isFavorite = !_isFavorite);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(_isFavorite ? 'Đã thêm vào danh sách yêu thích' : 'Đã bỏ yêu thích'),
-                              duration: const Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
+                    Consumer<FavoriteProvider>(
+                      builder: (context, favProvider, _) {
+                        final isFav = favProvider.isFavorite(widget.restaurant.id);
+                        return CircleAvatar(
+                          backgroundColor: Colors.black.withValues(alpha: 0.45),
+                          radius: 18,
+                          child: IconButton(
+                            icon: Icon(
+                              isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: isFav ? const Color(0xFFEF4444) : Colors.white,
+                              size: 18,
                             ),
-                          );
-                        },
-                      ),
+                            tooltip: isFav ? 'Bỏ yêu thích' : 'Thêm vào yêu thích',
+                            onPressed: () {
+                              final auth = context.read<AuthProvider>();
+                              if (!auth.isAuthenticated) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
+                                    action: SnackBarAction(
+                                      label: 'Đăng nhập',
+                                      textColor: Colors.amber,
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                      ),
+                                    ),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              favProvider.toggleFavorite(widget.restaurant, context: context);
+                            },
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -689,11 +706,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         options: MapOptions(
                           initialCenter: LatLng(r.latitude, r.longitude),
                           initialZoom: 15.5,
+                          initialRotation: 0.0,
                           interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                            urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&apistyle=s.t:33|p.v:off',
                             fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'vn.fconnect.app',
                           ),
@@ -701,9 +719,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                             markers: [
                               Marker(
                                 point: LatLng(r.latitude, r.longitude),
-                                width: 44,
-                                height: 44,
-                                child: const Icon(Icons.location_pin, color: Color(0xFFEF4444), size: 40),
+                                width: 32,
+                                height: 32,
+                                child: const Icon(Icons.location_pin, color: Color(0xFFEF4444), size: 28),
                               ),
                             ],
                           ),
