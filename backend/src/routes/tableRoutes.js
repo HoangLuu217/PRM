@@ -1,3 +1,4 @@
+import { validateIds } from '../utils/operations.js';
 import express from 'express';
 import {
   getTables,
@@ -5,16 +6,17 @@ import {
   updateTable,
   deleteTable,
 } from '../controllers/tableController.js';
-import { protect, staffOnly } from '../middlewares/auth.js';
+import { protect, branchOwnerOnly } from '../middlewares/auth.js';
 
 const router = express.Router();
+router.use(validateIds);
 
 router.route('/')
   .get(getTables)
-  .post(protect, staffOnly, createTable);
+  .post(protect, branchOwnerOnly, createTable);
 
 router.route('/:id')
-  .put(protect, staffOnly, updateTable)
-  .delete(protect, staffOnly, deleteTable);
+  .put(protect, branchOwnerOnly, updateTable)
+  .delete(protect, branchOwnerOnly, deleteTable);
 
 export default router;
