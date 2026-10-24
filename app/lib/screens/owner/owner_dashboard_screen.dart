@@ -4,9 +4,16 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/booking_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../providers/table_provider.dart';
 import '../../providers/user_provider.dart';
 import '../auth/login_screen.dart';
+import '../auth/profile_screen.dart';
 import '../customer/customer_home_screen.dart';
+import 'owner_booking_screen.dart';
+import 'owner_order_screen.dart';
+import 'owner_table_screen.dart';
 import 'product/owner_product_list_screen.dart';
 import 'widgets/merchant_onboarding_dialog.dart';
 
@@ -34,7 +41,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     _selectedTab = widget.initialTabIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndPromptOnboarding();
+      _loadDashboardData();
     });
+  }
+
+  void _loadDashboardData() {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    String? branchId;
+    if (user?.business != null) {
+      final biz = user!.business!;
+      if (biz['branches'] is List && (biz['branches'] as List).isNotEmpty) {
+        final b = (biz['branches'] as List)[0];
+        if (b is Map) branchId = (b['_id'] ?? b['id'])?.toString();
+      }
+      if (branchId == null && biz['primaryBranch'] is Map) {
+        branchId = (biz['primaryBranch']['_id'] ?? biz['primaryBranch']['id'])?.toString();
+      }
+      branchId ??= (biz['_id'] ?? biz['id'])?.toString();
+    }
+
+    Provider.of<BookingProvider>(context, listen: false).fetchOwnerBookings();
+    Provider.of<TableProvider>(context, listen: false).fetchTables(branchId: branchId);
+    Provider.of<OrderProvider>(context, listen: false).fetchOwnerOrders();
   }
 
   void _checkAndPromptOnboarding() {
@@ -952,13 +980,25 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        // Avatar
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: const Color(0xFF2563EB),
-                          child: Text(
-                            (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        // Avatar -> Hồ sơ cá nhân
+                        Tooltip(
+                          message: 'Xem hồ sơ cá nhân',
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                              );
+                            },
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: const Color(0xFF2563EB),
+                              child: Text(
+                                (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -1067,6 +1107,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             ],
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+              tooltip: 'Làm mới dữ liệu',
+              onPressed: _loadDashboardData,
+            ),
+            IconButton(
+              icon: const Icon(Icons.person_outline_rounded, color: Color(0xFF64748B)),
+              tooltip: 'Hồ sơ',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
               tooltip: 'Đăng xuất',
@@ -1177,13 +1232,17 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   // TAB 0: TỔNG QUAN / DASHBOARD (SƯỜN CHO THÀNH VIÊN 5 - DASHBOARD & METRICS)
   // =========================================================================
   Widget _buildTab0DashboardSkeleton() {
+    final bookingProvider = Provider.of<BookingProvider>(context);
+    final tableProvider = Provider.of<TableProvider>(context);
+    final orderProvider = Provider.of<OrderProvider>(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSkeletonHeader(
           moduleTitle: 'Tổng Quan Hoạt Động Quán',
           memberTag: 'Thành viên 5 (Dashboard & Communication)',
-          description: 'Khung sườn thống kê doanh thu, tần suất đặt bàn và thông báo hệ thống.',
+          description: 'Thống kê tổng quan hoạt động quán, bàn trống, đặt bàn và đơn gọi món.',
         ),
         const SizedBox(height: 18),
 
@@ -1200,9 +1259,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               childAspectRatio: isWide ? 1.5 : 1.35,
               children: [
                 _buildKpiCardSkeleton('Doanh thu hôm nay', '--- đ', Icons.payments_rounded, const Color(0xFFFBBF24)),
-                _buildKpiCardSkeleton('Đặt bàn mới', '-- khách', Icons.bookmark_added_rounded, const Color(0xFF38BDF8)),
-                _buildKpiCardSkeleton('Bàn đang phục vụ', '-- / --', Icons.table_restaurant_rounded, const Color(0xFF4ADE80)),
-                _buildKpiCardSkeleton('Tin nhắn mới', '--', Icons.chat_bubble_outline_rounded, const Color(0xFFA78BFA)),
+                _buildKpiCardSkeleton('Đặt bàn chờ duyệt', '${bookingProvider.pendingCount}', Icons.bookmark_added_rounded, const Color(0xFF38BDF8)),
+                _buildKpiCardSkeleton('Bàn đang trống', '${tableProvider.availableCount} / ${tableProvider.totalTables}', Icons.table_restaurant_rounded, const Color(0xFF4ADE80)),
+                _buildKpiCardSkeleton('Đơn cần làm', '${orderProvider.pendingOrdersCount + orderProvider.preparingOrdersCount}', Icons.receipt_long_rounded, const Color(0xFFA78BFA)),
               ],
             );
           },
@@ -1214,10 +1273,77 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           icon: Icons.insights_rounded,
           title: 'Khung Sườn Biểu Đồ & Thống Kê',
           subtitle: 'Module này thuộc trách nhiệm của Thành viên 5. Khi hoàn thiện, Thành viên 5 sẽ kết nối NotificationProvider và Dashboard Service để vẽ biểu đồ và hiển thị số liệu thực.',
-          actionLabel: 'Làm mới số liệu mẫu',
-          onAction: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Sườn Dashboard sẵn sàng cho Thành viên 5 tích hợp!')),
+          actionLabel: 'Làm mới dữ liệu',
+          onAction: _loadDashboardData,
+        ),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // TAB 2: QUẢN LÝ BÀN & ĐẶT CHỖ (THÀNH VIÊN 4 - BOOKINGS & TABLES)
+  // =========================================================================
+  Widget _buildTab2BookingSkeleton() {
+    final bookingProvider = Provider.of<BookingProvider>(context);
+    final tableProvider = Provider.of<TableProvider>(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSkeletonHeader(
+          moduleTitle: 'Quản Lý Bàn & Đặt Chỗ',
+          memberTag: 'Thành viên 4 (Booking & Table)',
+          description: 'Quản lý lịch hẹn đặt bàn của thực khách, phân bổ chỗ ngồi và trạng thái bàn ăn.',
+        ),
+        const SizedBox(height: 18),
+
+        // Quick Stats
+        Row(
+          children: [
+            _buildStatItem(
+              'Đặt bàn chờ duyệt',
+              '${bookingProvider.pendingCount}',
+              const Color(0xFFF59E0B),
+              Icons.event_available_rounded,
+            ),
+            const SizedBox(width: 12),
+            _buildStatItem(
+              'Bàn đang trống',
+              '${tableProvider.availableCount}/${tableProvider.totalTables}',
+              const Color(0xFF10B981),
+              Icons.table_restaurant_rounded,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // 1. Quản lý Đặt bàn (Booking)
+        _buildFeatureTile(
+          title: 'Quản lý Đặt bàn (Booking)',
+          subtitle: 'Xem danh sách khách đặt, xác nhận yêu cầu, xếp bàn & check-in',
+          icon: Icons.calendar_month_rounded,
+          accentColor: const Color(0xFF2563EB),
+          badgeText: bookingProvider.pendingCount > 0 ? '${bookingProvider.pendingCount} chờ duyệt' : null,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OwnerBookingScreen()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // 2. Quản lý Bàn ăn (Table)
+        _buildFeatureTile(
+          title: 'Quản lý Bàn ăn (Table)',
+          subtitle: 'Danh sách bàn, số chỗ ngồi, trạng thái hoạt động & thêm/sửa/xóa bàn',
+          icon: Icons.table_restaurant_rounded,
+          accentColor: const Color(0xFF10B981),
+          badgeText: '${tableProvider.totalTables} bàn',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OwnerTableScreen()),
             );
           },
         ),
@@ -1226,80 +1352,56 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   // =========================================================================
-  // TAB 2: QUẢN LÝ BÀN & ĐẶT CHỖ (SƯỜN CHO THÀNH VIÊN 4 - BOOKINGS & TABLES)
-  // =========================================================================
-  Widget _buildTab2BookingSkeleton() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildSkeletonHeader(
-          moduleTitle: 'Quản Lý Bàn & Đặt Chỗ',
-          memberTag: 'Thành viên 4 (Booking & Order)',
-          description: 'Khung sườn quản lý sơ đồ bàn và tiếp nhận yêu cầu đặt chỗ của thực khách.',
-        ),
-        const SizedBox(height: 18),
-
-        // Filter Bar
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildFilterChip('Tất cả yêu cầu', true),
-              _buildFilterChip('Chờ xác nhận (3)', false),
-              _buildFilterChip('Đã nhận bàn (5)', false),
-              _buildFilterChip('Đã hoàn tất (8)', false),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        _buildSampleListItem('Khách: Nguyễn Văn A • 4 người', 'Thời gian: 19:30 Hôm nay • Bàn số 04 • Trạng thái: Chờ xác nhận', Icons.event_seat_rounded),
-        _buildSampleListItem('Khách: Trần Thị B • 2 người', 'Thời gian: 20:00 Hôm nay • Bàn số 01 (View cửa sổ) • Trạng thái: Đã nhận', Icons.event_available_rounded),
-
-        const SizedBox(height: 16),
-        _buildPlaceholderCard(
-          icon: Icons.table_restaurant_rounded,
-          title: 'Khung Sườn TableProvider & BookingProvider',
-          subtitle: 'Phân hệ quản lý bàn và xác nhận lịch đặt chỗ theo PROJECT.md sẽ do Thành viên 4 kết nối cơ sở dữ liệu.',
-        ),
-      ],
-    );
-  }
-
-  // =========================================================================
-  // TAB 3: QUẢN LÝ ĐƠN HÀNG (SƯỜN CHO THÀNH VIÊN 4 - ORDERS)
+  // TAB 3: QUẢN LÝ ĐƠN HÀNG (THÀNH VIÊN 4 - ORDERS)
   // =========================================================================
   Widget _buildTab3OrderSkeleton() {
+    final orderProvider = Provider.of<OrderProvider>(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSkeletonHeader(
           moduleTitle: 'Quản Lý Đơn Hàng Gọi Món',
           memberTag: 'Thành viên 4 (Booking & Order)',
-          description: 'Khung sườn theo dõi đơn gọi món tại bàn, chế biến và thanh toán.',
+          description: 'Theo dõi đơn gọi món tại bàn, xác nhận chế biến, sẵn sàng phục vụ và thanh toán.',
         ),
         const SizedBox(height: 18),
 
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildFilterChip('Đang chế biến (2)', true),
-              _buildFilterChip('Đang phục vụ (4)', false),
-              _buildFilterChip('Đã thanh toán (15)', false),
-            ],
-          ),
+        // Quick Stats
+        Row(
+          children: [
+            _buildStatItem(
+              'Đơn hàng cần làm',
+              '${orderProvider.pendingOrdersCount + orderProvider.preparingOrdersCount}',
+              const Color(0xFF0072FF),
+              Icons.receipt_long_rounded,
+            ),
+            const SizedBox(width: 12),
+            _buildStatItem(
+              'Tổng đơn hôm nay',
+              '${orderProvider.todayOrdersCount}',
+              const Color(0xFF8B5CF6),
+              Icons.local_fire_department_rounded,
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
 
-        _buildSampleListItem('Đơn #ORD-1042 • Bàn 04', '3 món • Tổng: 185,000đ • Phương thức: Tiền mặt • Đang chế biến', Icons.receipt_long_rounded),
-        _buildSampleListItem('Đơn #ORD-1041 • Bàn 02', '5 món • Tổng: 340,000đ • Phương thức: Chuyển khoản • Đang phục vụ', Icons.done_all_rounded),
-
-        const SizedBox(height: 16),
-        _buildPlaceholderCard(
-          icon: Icons.shopping_bag_outlined,
-          title: 'Khung Sườn OrderProvider',
-          subtitle: 'Phân hệ theo dõi trạng thái đơn hàng và xuất hóa đơn theo PROJECT.md do Thành viên 4 phụ trách.',
+        // Quản lý Đơn món (Order)
+        _buildFeatureTile(
+          title: 'Quản lý Đơn món (Order)',
+          subtitle: 'Xác nhận đơn, chế biến, sẵn sàng, phục vụ & hoàn tất đơn gọi món',
+          icon: Icons.soup_kitchen_rounded,
+          accentColor: const Color(0xFFF97316),
+          badgeText: orderProvider.pendingOrdersCount > 0
+              ? '${orderProvider.pendingOrdersCount} chờ làm'
+              : null,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OwnerOrderScreen()),
+            );
+          },
         ),
       ],
     );
@@ -1994,6 +2096,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     );
   }
 
+
   Widget _buildSkeletonHeader({required String moduleTitle, required String memberTag, required String description}) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -2117,26 +2220,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2563EB) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF64748B),
-          fontSize: 12.5,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
   Widget _buildPlaceholderCard({
     required IconData icon,
     required String title,
@@ -2181,6 +2264,150 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    String? badgeText,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF0F172A)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (badgeText != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                badgeText,
+                                style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF94A3B8), size: 16),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
