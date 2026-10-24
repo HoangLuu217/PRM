@@ -89,6 +89,7 @@ class ProductOption {
 class ProductModel {
   final String id;
   final String? menuId;
+  final String? businessId;
   final String? branchId;
   final String category;
   final String name;
@@ -102,6 +103,7 @@ class ProductModel {
   ProductModel({
     required this.id,
     this.menuId,
+    this.businessId,
     this.branchId,
     required this.category,
     required this.name,
@@ -135,6 +137,7 @@ class ProductModel {
     return ProductModel(
       id: json['_id'] ?? json['id'] ?? '',
       menuId: json['menuId'] is Map ? json['menuId']['_id'] : json['menuId']?.toString(),
+      businessId: json['businessId'] is Map ? json['businessId']['_id'] : json['businessId']?.toString(),
       branchId: json['branchId'] is Map ? json['branchId']['_id'] : json['branchId']?.toString(),
       category: json['category'] ?? 'Khác',
       name: json['name'] ?? '',
@@ -151,6 +154,7 @@ class ProductModel {
     return {
       if (id.isNotEmpty) '_id': id,
       if (menuId != null) 'menuId': menuId,
+      if (businessId != null) 'businessId': businessId,
       if (branchId != null) 'branchId': branchId,
       'category': category,
       'name': name,
@@ -166,6 +170,7 @@ class ProductModel {
   ProductModel copyWith({
     String? id,
     String? menuId,
+    String? businessId,
     String? branchId,
     String? category,
     String? name,
@@ -179,6 +184,7 @@ class ProductModel {
     return ProductModel(
       id: id ?? this.id,
       menuId: menuId ?? this.menuId,
+      businessId: businessId ?? this.businessId,
       branchId: branchId ?? this.branchId,
       category: category ?? this.category,
       name: name ?? this.name,

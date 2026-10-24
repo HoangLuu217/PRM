@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prm_project/models/cart_item_model.dart';
+import 'package:prm_project/models/menu_model.dart';
 import 'package:prm_project/models/order_model.dart';
 import 'package:prm_project/models/product_model.dart';
 import 'package:prm_project/providers/cart_provider.dart';
+import 'package:prm_project/providers/menu_provider.dart';
 
 void main() {
   group('ProductModel Tests', () {
@@ -216,6 +218,80 @@ void main() {
       expect(order.discount, 10000.0);
       expect(order.total, 90000.0);
       expect(order.items.length, 1);
+    });
+  });
+
+  group('MenuModel Tests', () {
+    test('fromJson correctly parses menu, computes categories and products', () {
+      final json = {
+        'menu': {
+          '_id': 'menu_01',
+          'businessId': 'biz_01',
+          'name': 'Thực Đơn Hải Sản',
+          'description': 'Tươi sống mỗi ngày',
+          'status': 'ACTIVE',
+        },
+        'categories': ['Tất cả', 'Cua - Ghẹ', 'Tôm'],
+        'products': [
+          {
+            '_id': 'prod_cua',
+            'name': 'Cua Rang Me',
+            'category': 'Cua - Ghẹ',
+            'price': 250000,
+            'isAvailable': true,
+          },
+          {
+            '_id': 'prod_tom',
+            'name': 'Tôm Nướng Muối Ớt',
+            'category': 'Tôm',
+            'price': 180000,
+            'isAvailable': true,
+          },
+        ],
+      };
+
+      final menu = MenuModel.fromJson(json);
+
+      expect(menu.id, 'menu_01');
+      expect(menu.businessId, 'biz_01');
+      expect(menu.name, 'Thực Đơn Hải Sản');
+      expect(menu.isActive, true);
+      expect(menu.categories, ['Tất cả', 'Cua - Ghẹ', 'Tôm']);
+      expect(menu.products.length, 2);
+      expect(menu.products.first.name, 'Cua Rang Me');
+    });
+  });
+
+  group('MenuProvider Tests', () {
+    test('selectCategory updates filteredProducts accordingly', () {
+      final menu = MenuModel(
+        id: 'm1',
+        businessId: 'b1',
+        name: 'Menu Test',
+        categories: ['Tất cả', 'Cà Phê', 'Trà Sữa'],
+        products: [
+          ProductModel(id: '1', category: 'Cà Phê', name: 'Espresso', price: 30000),
+          ProductModel(id: '2', category: 'Trà Sữa', name: 'Trà Sữa Trân Châu', price: 35000),
+        ],
+      );
+
+      final menuProvider = MenuProvider();
+      menuProvider.setMenu(menu);
+
+      expect(menuProvider.selectedCategory, 'Tất cả');
+      expect(menuProvider.filteredProducts.length, 2);
+
+      menuProvider.selectCategory('Cà Phê');
+      expect(menuProvider.selectedCategory, 'Cà Phê');
+      expect(menuProvider.filteredProducts.length, 1);
+      expect(menuProvider.filteredProducts.first.name, 'Espresso');
+
+      menuProvider.selectCategory('Trà Sữa');
+      expect(menuProvider.filteredProducts.length, 1);
+      expect(menuProvider.filteredProducts.first.name, 'Trà Sữa Trân Châu');
+
+      menuProvider.selectCategory('Tất cả');
+      expect(menuProvider.filteredProducts.length, 2);
     });
   });
 }

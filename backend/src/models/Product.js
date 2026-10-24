@@ -32,7 +32,11 @@ const productSchema = new mongoose.Schema(
     menuId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Menu',
-      required: true,
+      required: false,
+    },
+    businessId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Business',
     },
     branchId: {
       type: mongoose.Schema.Types.ObjectId,

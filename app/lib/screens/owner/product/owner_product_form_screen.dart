@@ -273,6 +273,7 @@ class _OwnerProductFormScreenState extends State<OwnerProductFormScreen> {
       } else {
         final newProd = ProductModel(
           id: '',
+          businessId: widget.businessId,
           category: category,
           name: name,
           description: description,

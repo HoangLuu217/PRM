@@ -61,4 +61,16 @@ class MenuProvider with ChangeNotifier {
     _selectedCategory = category;
     notifyListeners();
   }
+
+  void setMenu(MenuModel menu) {
+    _activeMenu = menu;
+    _products = menu.products;
+    final cats = <String>{};
+    for (var p in _products) {
+      if (p.category.isNotEmpty) cats.add(p.category);
+    }
+    _categories = ['Tất cả', ...cats.toList()..sort()];
+    _selectedCategory = 'Tất cả';
+    notifyListeners();
+  }
 }

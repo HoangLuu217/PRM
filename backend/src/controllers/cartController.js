@@ -66,11 +66,17 @@ export const addToCart = async (req, res) => {
       });
     }
 
+    const normalizedOptions = (selectedOptions || []).map((opt) => ({
+      name: opt.name || opt.optionName || 'Tùy chọn',
+      value: opt.value || opt.choiceName || '',
+      additionalPrice: Number(opt.additionalPrice || opt.price || 0),
+    }));
+
     // Check if identical item (same product, same size, same options) exists
     const existingIndex = cart.items.findIndex((item) => {
       const sameProduct = item.productId.toString() === productId.toString();
       const sameSize = (item.selectedSize?.name || null) === (selectedSize?.name || null);
-      const sameOptions = JSON.stringify(item.selectedOptions || []) === JSON.stringify(selectedOptions || []);
+      const sameOptions = JSON.stringify(item.selectedOptions || []) === JSON.stringify(normalizedOptions);
       return sameProduct && sameSize && sameOptions;
     });
 
@@ -81,7 +87,7 @@ export const addToCart = async (req, res) => {
         productId,
         quantity: Number(quantity),
         selectedSize: selectedSize || undefined,
-        selectedOptions,
+        selectedOptions: normalizedOptions,
       });
     }
 

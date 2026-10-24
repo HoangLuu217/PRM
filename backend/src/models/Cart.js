@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 
 const selectedOptionSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    value: { type: String, required: true },
+    name: { type: String, default: '' },
+    value: { type: String, default: '' },
     additionalPrice: { type: Number, default: 0 },
   },
   { _id: false }
