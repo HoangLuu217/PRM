@@ -27,10 +27,18 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
     });
   }
 
+  String? get _resolvedBusinessId {
+    if (widget.businessId != null && widget.businessId!.isNotEmpty) {
+      return widget.businessId;
+    }
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    return auth.user?.business?['_id']?.toString() ?? auth.user?.business?['id']?.toString();
+  }
+
   void _loadProducts() {
     final productProvider = Provider.of<ProductProvider>(context, listen: false);
     productProvider.fetchProducts(
-      businessId: widget.businessId,
+      businessId: _resolvedBusinessId,
       includeUnavailable: true,
     );
   }
@@ -201,7 +209,7 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => OwnerProductFormScreen(
-                                      businessId: widget.businessId,
+                                      businessId: _resolvedBusinessId,
                                     ),
                                   ),
                                 ).then((_) => _loadProducts());
@@ -233,7 +241,7 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => OwnerProductFormScreen(
                                     product: prod,
-                                    businessId: widget.businessId,
+                                    businessId: _resolvedBusinessId,
                                   ),
                                 ),
                               ).then((_) => _loadProducts());
@@ -251,7 +259,7 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
             context,
             MaterialPageRoute(
               builder: (_) => OwnerProductFormScreen(
-                businessId: widget.businessId,
+                businessId: _resolvedBusinessId,
               ),
             ),
           ).then((_) => _loadProducts());

@@ -1215,7 +1215,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       case 0:
         return _buildTab0DashboardSkeleton();
       case 1:
-        return const OwnerProductListScreen();
+        final bizId = user?.business?['_id']?.toString() ?? user?.business?['id']?.toString();
+        return OwnerProductListScreen(businessId: bizId);
       case 2:
         return _buildTab2BookingSkeleton();
       case 3:
