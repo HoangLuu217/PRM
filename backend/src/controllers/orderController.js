@@ -30,6 +30,7 @@ export const createOrder = async (req, res) => {
       items,
       discount = 0,
       note,
+      paymentMethod = 'CASH',
     } = req.body;
 
     if (!['USER', 'CUSTOMER'].includes(req.user.role)) {
@@ -175,6 +176,8 @@ export const createOrder = async (req, res) => {
       discount: safeDiscount,
       total: subtotal - safeDiscount,
       note,
+      paymentMethod,
+      paymentStatus: 'PENDING',
       status: 'PENDING',
     });
 

@@ -109,6 +109,16 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    paymentMethod: {
+      type: String,
+      enum: ['CASH', 'BANK_TRANSFER', 'PAYOS_QR', 'MOMO', 'CARD'],
+      default: 'CASH',
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'],
+      default: 'PENDING',
+    },
   },
   {
     timestamps: true,

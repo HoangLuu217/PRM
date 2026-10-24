@@ -10,6 +10,7 @@ import '../../models/product_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/menu_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/product_card.dart';
 import '../auth/login_screen.dart';
@@ -41,6 +42,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ProductProvider>(context, listen: false).fetchProducts(
         businessId: widget.restaurant.id,
+      );
+      Provider.of<MenuProvider>(context, listen: false).fetchBusinessMenu(
+        widget.restaurant.id,
       );
     });
     _loadMenuProducts();
@@ -741,7 +745,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   Widget _buildMenuTabContent() {
     final productProvider = Provider.of<ProductProvider>(context);
 
-    if (productProvider.isLoading) {
+    if (productProvider.isLoading || _isLoadingMenu) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(30.0),
