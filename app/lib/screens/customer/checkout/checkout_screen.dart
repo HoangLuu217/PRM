@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../../models/booking_model.dart';
 import '../../../models/order_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../services/booking_service.dart';
 import '../../../services/checkout_service.dart';
+import '../../../services/restaurant_service.dart';
 import '../../../widgets/price_summary.dart';
 import '../customer_home_screen.dart';
+import '../widgets/restaurant_modals.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -18,6 +22,11 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _noteController = TextEditingController();
   final CheckoutService _checkoutService = CheckoutService();
+  final BookingService _bookingService = BookingService();
+  final RestaurantService _restaurantService = RestaurantService();
+
+  BookingModel? _activeBooking;
+  bool _isLoadingBooking = true;
 
   String _selectedOrderType = 'PRE_ORDER';
   String _selectedPaymentMethod = 'PAYOS_QR';
@@ -58,6 +67,66 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchActiveBooking();
+  }
+
+  Future<void> _fetchActiveBooking() async {
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    if (cartProvider.businessId == null) {
+      if (mounted) setState(() => _isLoadingBooking = false);
+      return;
+    }
+
+    try {
+      final myBookings = await _bookingService.getMyBookings();
+      final validBookings = myBookings.where((b) {
+        final matchesBusiness = b.businessId == cartProvider.businessId;
+        final isValidStatus = b.isPending || b.isConfirmed || b.isCheckedIn;
+        return matchesBusiness && isValidStatus;
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _activeBooking = validBookings.isNotEmpty ? validBookings.first : null;
+          _isLoadingBooking = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingBooking = false);
+      }
+    }
+  }
+
+  void _openBookingModal() async {
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    if (cartProvider.businessId == null) return;
+
+    try {
+      final restaurants = await _restaurantService.getRestaurants(city: 'Tất cả');
+      final restaurant = restaurants.firstWhere(
+        (r) => r.id == cartProvider.businessId,
+        orElse: () => restaurants.first,
+      );
+
+      if (mounted) {
+        RestaurantModals.showBooking(context, restaurant, restaurantService: _restaurantService);
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) _fetchActiveBooking();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể tải thông tin đặt bàn: $e')),
+        );
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _noteController.dispose();
     super.dispose();
@@ -83,6 +152,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
+    if (_activeBooking == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn bắt buộc phải đặt bàn tại quán trước khi tiến hành đặt món!'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -91,6 +170,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final payload = {
         'businessId': cartProvider.businessId,
         if (cartProvider.branchId != null) 'branchId': cartProvider.branchId,
+        'bookingId': _activeBooking!.id,
+        if (_activeBooking!.tableId != null) 'tableId': _activeBooking!.tableId,
         'orderType': _selectedOrderType,
         'paymentMethod': _selectedPaymentMethod,
         'note': _noteController.text.trim(),
@@ -579,6 +660,132 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
+
+                  // Booking Enforcement Card
+                  if (_isLoadingBooking)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                            SizedBox(width: 10),
+                            Text('Đang kiểm tra lịch đặt bàn...', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (_activeBooking != null)
+                    Container(
+                      padding: const EdgeInsets.all(14.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.event_seat_rounded, color: Colors.white, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Lịch đặt bàn đã liên kết',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF15803D)),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF15803D),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        _activeBooking!.statusLabel,
+                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Mã: #${_activeBooking!.bookingCode} • ${_activeBooking!.bookingDate} (${_activeBooking!.startTime})',
+                                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Số khách: ${_activeBooking!.guestCount} người${_activeBooking!.tableName != null ? " • Bàn: ${_activeBooking!.tableName}" : ""}',
+                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF4B5563)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(14.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 22),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Chưa có lịch đặt bàn tại quán này',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF991B1B)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Quy định nhà hàng: Bạn bắt buộc phải đặt bàn thành công trước khi tiến hành đặt món ăn!',
+                            style: TextStyle(fontSize: 12.5, color: Color(0xFF7F1D1D), height: 1.3),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _openBookingModal,
+                              icon: const Icon(Icons.table_restaurant_rounded, size: 18),
+                              label: const Text('Đặt bàn tại quán ngay', style: TextStyle(fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFDC2626),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 16),
 
                   // 1. Order Type Selection
                   const Text('1. Hình thức nhận món', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),

@@ -59,20 +59,38 @@ export const createOrder = async (req, res) => {
     }
 
     let selectedTableId = tableId;
-    if (bookingId) {
+    let resolvedBookingId = bookingId;
+
+    if (resolvedBookingId) {
       const booking = await Booking.findOne({
-        _id: bookingId,
+        _id: resolvedBookingId,
         userId: req.user._id,
-        branchId,
-        status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
+        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
       });
       if (!booking) {
-        return res.status(400).json({ success: false, message: 'Booking không hợp lệ cho đơn hàng này' });
+        return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã bị hủy' });
       }
-      if (tableId && String(tableId) !== String(booking.tableId)) {
-        return res.status(400).json({ success: false, message: 'Table must match the booking' });
+      if (tableId && booking.tableId && String(tableId) !== String(booking.tableId)) {
+        return res.status(400).json({ success: false, message: 'Bàn phải trùng với bàn đã đặt cọc' });
       }
-      selectedTableId = booking.tableId;
+      selectedTableId = booking.tableId || selectedTableId;
+    } else {
+      // Bắt buộc phải có lịch đặt bàn trước đó tại quán
+      const activeBooking = await Booking.findOne({
+        userId: req.user._id,
+        businessId,
+        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+      }).sort({ createdAt: -1 });
+
+      if (!activeBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn bắt buộc phải đặt bàn tại quán trước khi thực hiện đặt món. Vui lòng đặt bàn trước!',
+        });
+      }
+      resolvedBookingId = activeBooking._id;
+      selectedTableId = activeBooking.tableId || selectedTableId;
+    }
     }
     if (tableId && !(await Table.exists({ _id: tableId, branchId }))) {
       return res.status(400).json({ success: false, message: 'Bàn không thuộc chi nhánh đã chọn' });
@@ -168,7 +186,7 @@ export const createOrder = async (req, res) => {
       userId: req.user._id,
       businessId,
       branchId,
-      bookingId,
+      bookingId: resolvedBookingId,
       tableId: selectedTableId,
       orderType,
       items: formattedItems,

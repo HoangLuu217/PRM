@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import '../../../models/cart_item_model.dart';
 import '../../../models/product_model.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../services/booking_service.dart';
+import '../../../services/restaurant_service.dart';
 import '../../../widgets/product_quantity_selector.dart';
+import '../widgets/restaurant_modals.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product;
@@ -58,7 +61,70 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return '${intPrice.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}đ';
   }
 
-  void _onAddToCart() {
+  void _showRequireBookingDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+            SizedBox(width: 8),
+            Text('Yêu cầu Đặt bàn', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Text(
+          'Bạn chưa có lịch đặt bàn tại "${widget.businessName}". Quy định nhà hàng yêu cầu khách hàng phải đặt bàn thành công trước khi chọn món!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final restaurantService = RestaurantService();
+              try {
+                final list = await restaurantService.getRestaurants(city: 'Tất cả');
+                final r = list.firstWhere(
+                  (item) => item.id == widget.businessId,
+                  orElse: () => list.first,
+                );
+                if (mounted) {
+                  RestaurantModals.showBooking(context, r, restaurantService: restaurantService);
+                }
+              } catch (_) {}
+            },
+            icon: const Icon(Icons.table_restaurant_rounded, size: 18),
+            label: const Text('Đặt bàn ngay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onAddToCart() async {
+    // Check if customer has an active booking for this restaurant
+    try {
+      final bookingService = BookingService();
+      final myBookings = await bookingService.getMyBookings();
+      final hasActiveBooking = myBookings.any((b) =>
+          b.businessId == widget.businessId &&
+          (b.isPending || b.isConfirmed || b.isCheckedIn));
+
+      if (!hasActiveBooking) {
+        if (!mounted) return;
+        _showRequireBookingDialog();
+        return;
+      }
+    } catch (_) {}
+
     // Validate required options
     for (var opt in widget.product.options) {
       if (opt.required) {
