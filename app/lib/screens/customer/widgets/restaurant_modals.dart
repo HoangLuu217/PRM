@@ -6,8 +6,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/restaurant_service.dart';
 import '../../auth/login_screen.dart';
+import '../booking/booking_detail_screen.dart';
 import '../booking/booking_screen.dart';
-import '../booking/my_bookings_screen.dart';
 import '../restaurant_detail_screen.dart';
 
 class RestaurantModals {
@@ -402,25 +402,25 @@ class RestaurantModals {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  Navigator.pushAndRemoveUntil(
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                    (route) => route.isFirst,
+                    MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đơn đặt bàn #${booking.bookingCode} đã được khởi tạo!'),
+                      content: Text('Đặt bàn thành công! Đơn #${booking.bookingCode} tại ${booking.businessName} đã được giữ chỗ 🎉'),
                       backgroundColor: const Color(0xFF10B981),
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 },
-                icon: const Icon(Icons.event_seat_rounded, color: Colors.white),
+                icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
                 label: const Text(
-                  'Xem lịch sử đặt bàn của tôi',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                  'Xác nhận đã chuyển tiền & Xem vé đặt bàn',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0072FF),
+                  backgroundColor: const Color(0xFF10B981),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
