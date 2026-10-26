@@ -306,6 +306,23 @@ class RestaurantModals {
                 setModalState(() {
                   isPaymentSuccess = true;
                 });
+
+                // Tự động đóng modal và mở vé đặt bàn sau 1.5 giây
+                Future.delayed(const Duration(milliseconds: 1500), () {
+                  if (!context.mounted) return;
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Xác nhận đặt cọc thành công! Bàn của bạn tại ${booking.businessName} đã được giữ chỗ 🎉'),
+                      backgroundColor: const Color(0xFF10B981),
+                      duration: const Duration(seconds: 4),
+                    ),
+                  );
+                });
               }
             });
           }
@@ -426,9 +443,9 @@ class RestaurantModals {
                   const SizedBox(height: 14),
 
                   // Status Indicator
-                  if (isPaymentSuccess) ...[
+                  if (isPaymentSuccess)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDCFCE7),
                         borderRadius: BorderRadius.circular(12),
@@ -441,50 +458,37 @@ class RestaurantModals {
                           SizedBox(width: 8),
                           Text(
                             'ĐÃ XÁC NHẬN TIỀN CỌC THÀNH CÔNG 🎉',
-                            style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.bold, fontSize: 13),
+                            style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Đang chờ thanh toán cọc... Hệ thống sẽ tự động xác nhận ngay khi nhận tiền',
+                              style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                  ],
-                  const SizedBox(height: 14),
-
-                  // Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        pollTimer?.cancel();
-                        Navigator.pop(ctx);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              isPaymentSuccess
-                                  ? 'Đã xác nhận cọc thành công! Bàn của bạn tại ${booking.businessName} đã được giữ chỗ 🎉'
-                                  : 'Đơn đặt bàn #${booking.bookingCode} đã được tạo thành công!',
-                            ),
-                            backgroundColor: const Color(0xFF10B981),
-                            duration: const Duration(seconds: 4),
-                          ),
-                        );
-                      },
-                      icon: Icon(isPaymentSuccess ? Icons.check_circle_rounded : Icons.confirmation_number_rounded, color: Colors.white),
-                      label: Text(
-                        isPaymentSuccess ? 'Xem vé đặt bàn đã xác nhận' : 'Đóng & Xem vé đặt bàn',
-                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isPaymentSuccess ? const Color(0xFF10B981) : const Color(0xFF0072FF),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 12),
                 ],
               ),

@@ -247,6 +247,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               setModalState(() {
                 isPaymentSuccess = true;
               });
+
+              // Tự động đóng modal và đưa khách sang màn hình Đơn hàng sau 1.5 giây
+              Future.delayed(const Duration(milliseconds: 1500), () {
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                  (route) => route.isFirst,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Thanh toán thành công! Đơn hàng #$orderCode đã được gửi đến nhà bếp 🎉'),
+                    backgroundColor: const Color(0xFF10B981),
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+              });
             }
           });
 
@@ -365,9 +383,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: 14),
 
                   // Realtime Status Indicator
-                  if (isPaymentSuccess) ...[
+                  if (isPaymentSuccess)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDCFCE7),
                         borderRadius: BorderRadius.circular(12),
@@ -379,51 +397,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 22),
                           SizedBox(width: 8),
                           Text(
-                            'ĐÃ NHẬN TIỀN THANH TOÁN THÀNH CÔNG 🎉',
-                            style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.bold, fontSize: 13),
+                            'ĐÃ XÁC NHẬN THANH TOÁN THÀNH CÔNG 🎉',
+                            style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Đang chờ thanh toán... Hệ thống sẽ tự động xác nhận & chuyển trang ngay khi nhận tiền',
+                              style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                  ],
-                  const SizedBox(height: 14),
-
-                  // Track Order button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        pollTimer?.cancel();
-                        Navigator.pop(ctx);
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-                          (route) => route.isFirst,
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              isPaymentSuccess
-                                  ? 'Đơn hàng #$orderCode đã được thanh toán và chuyển ngay cho nhà bếp!'
-                                  : 'Đơn hàng #$orderCode đã được lưu. Bạn có thể theo dõi tiến độ đơn tại đây!',
-                            ),
-                            backgroundColor: const Color(0xFF10B981),
-                          ),
-                        );
-                      },
-                      icon: Icon(isPaymentSuccess ? Icons.check_circle_rounded : Icons.receipt_long_rounded, color: Colors.white),
-                      label: Text(
-                        isPaymentSuccess ? 'Xem đơn hàng đã thanh toán' : 'Đóng & Theo dõi đơn hàng',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isPaymentSuccess ? const Color(0xFF10B981) : const Color(0xFF0072FF),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 12),
                 ],
               ),
