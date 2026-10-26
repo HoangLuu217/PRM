@@ -763,7 +763,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  'Mã: #${_activeBooking!.bookingCode} • ${_activeBooking!.bookingDate} (${_activeBooking!.startTime})',
+                                  'Mã: #${_activeBooking!.bookingCode.length > 12 ? _activeBooking!.bookingCode.substring(0, 12) : _activeBooking!.bookingCode} • ${_activeBooking!.bookingDate} (${_activeBooking!.startTime})',
                                   style: const TextStyle(fontSize: 12.5, color: Color(0xFF166534), fontWeight: FontWeight.w600),
                                 ),
                                 Text(
