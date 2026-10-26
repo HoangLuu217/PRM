@@ -14,9 +14,9 @@ import {
 } from '../models/index.js';
 
 const generateOrderCode = () => {
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const randomNum = randomUUID().replaceAll('-', '').slice(0, 12);
-  return `FCO${dateStr}${randomNum}`;
+  const timestampPart = Math.floor(Date.now() / 1000) % 1000000;
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+  return Number(`${timestampPart}${randomPart}`);
 };
 
 export const createOrder = async (req, res) => {

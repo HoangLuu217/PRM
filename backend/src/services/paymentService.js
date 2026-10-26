@@ -1,4 +1,4 @@
-import { Booking, Branch, Business, Transaction, Wallet, Notification, User } from '../models/index.js';
+import { Booking, Branch, Business, Transaction, Wallet, Notification, User, Order } from '../models/index.js';
 import { createPayOSPaymentLink, verifyPayOSWebhook, getPayOSPaymentInfo } from './payosService.js';
 
 // Default system platform commission rate (10%)
@@ -202,21 +202,46 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
 };
 
 /**
- * Check payment status by orderCode
+ * Check payment status by orderCode (supports both Booking deposits and Food Orders)
  */
 export const checkDepositPaymentStatus = async (orderCode) => {
-  const transaction = await Transaction.findOne({ orderCode: Number(orderCode) });
-  if (!transaction) {
-    return { status: 'NOT_FOUND', isPaid: false };
+  const numericCode = Number(String(orderCode).replace(/\D/g, '')) || Number(orderCode);
+
+  let transaction = await Transaction.findOne({ orderCode: numericCode });
+  let order = await Order.findOne({ orderCode: String(orderCode) });
+  if (!order && numericCode > 0) {
+    order = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  // If status in DB is PENDING, actively query PayOS Gateway API
-  if (transaction.status === 'PENDING') {
+  // If DB already marks as paid
+  if (transaction?.status === 'PAID' || order?.paymentStatus === 'PAID') {
+    return {
+      orderCode,
+      status: 'PAID',
+      isPaid: true,
+      paidAt: transaction?.paidAt || order?.updatedAt || new Date(),
+    };
+  }
+
+  // Actively query PayOS Gateway API
+  if (numericCode > 0) {
     try {
-      const payosInfo = await getPayOSPaymentInfo(orderCode);
+      const payosInfo = await getPayOSPaymentInfo(numericCode);
       if (payosInfo && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED')) {
-        await completePaymentSuccess(orderCode, payosInfo);
-        transaction.status = 'PAID';
+        if (transaction) {
+          await completePaymentSuccess(numericCode, payosInfo);
+        }
+        if (order) {
+          order.paymentStatus = 'PAID';
+          order.status = 'CONFIRMED';
+          await order.save();
+        }
+        return {
+          orderCode,
+          status: 'PAID',
+          isPaid: true,
+          paidAt: new Date(),
+        };
       }
     } catch (err) {
       console.warn('Query PayOS payment info error:', err.message);
@@ -224,12 +249,9 @@ export const checkDepositPaymentStatus = async (orderCode) => {
   }
 
   return {
-    orderCode: transaction.orderCode,
-    status: transaction.status,
-    isPaid: transaction.status === 'PAID',
-    amount: transaction.amount,
-    bookingId: transaction.bookingId,
-    paidAt: transaction.paidAt,
+    orderCode,
+    status: transaction?.status || order?.paymentStatus || 'PENDING',
+    isPaid: false,
   };
 };
 

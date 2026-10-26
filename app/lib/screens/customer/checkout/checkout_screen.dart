@@ -218,9 +218,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _showPayOSQRModal(OrderModel order) {
     final amount = order.total > 0 ? order.total : 50000;
     final orderCode = order.orderCode;
+    final memo = 'DAT MON $orderCode';
     // Thay đổi thông tin ngân hàng thực tế từ backend PayOS Service (MBBank: 1021072004 - LUONG DANG HOANG LUU)
     final qrUrl =
-        'https://api.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent("COC BAN $orderCode")}&accountName=${Uri.encodeComponent("LUONG DANG HOANG LUU")}';
+        'https://api.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent("LUONG DANG HOANG LUU")}';
 
     Timer? pollTimer;
     bool isPaymentSuccess = false;
@@ -376,7 +377,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const Divider(height: 12),
                         _buildCopyableRow('Chủ tài khoản:', 'LUONG DANG HOANG LUU', 'LUONG DANG HOANG LUU'),
                         const Divider(height: 12),
-                        _buildCopyableRow('Nội dung CK:', 'COC BAN $orderCode', 'COC BAN $orderCode'),
+                        _buildCopyableRow('Nội dung CK:', memo, memo),
                       ],
                     ),
                   ),
