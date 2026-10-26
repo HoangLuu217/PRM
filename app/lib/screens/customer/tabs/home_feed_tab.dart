@@ -229,6 +229,7 @@ class HomeFeedTab extends StatelessWidget {
             child: _buildTopHeader(context, authProvider, user),
           ),
 
+
           // 2. Banner chính FConnect
           SliverToBoxAdapter(
             child: Padding(
