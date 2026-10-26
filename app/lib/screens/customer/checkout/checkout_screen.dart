@@ -10,6 +10,7 @@ import '../../../services/checkout_service.dart';
 import '../../../services/restaurant_service.dart';
 import '../../../widgets/price_summary.dart';
 import '../customer_home_screen.dart';
+import '../order/my_orders_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -336,7 +337,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 18),
 
-              // Confirm button
+              // Track Order button
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -345,24 +346,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     // Tắt Modal Bottom Sheet
                     Navigator.pop(ctx);
                     
-                    // Xóa hết back stack hiện tại (về Trang chủ CustomerHomeScreen) và hiện hộp thoại thành công
+                    // Chuyển hướng tới Màn hình Quản lý đơn hàng (MyOrdersScreen) để theo dõi trạng thái đơn thực tế
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => CustomerHomeScreen()),
-                      (route) => false,
+                      MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                      (route) => route.isFirst,
                     );
                     
-                    // (Tùy chọn) Hiện thông báo nhẹ
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đơn hàng đã thanh toán thành công và chuyển đến nhà bếp!'),
-                        backgroundColor: Color(0xFF10B981),
+                      SnackBar(
+                        content: Text('Đơn hàng #${order.orderCode} đã được khởi tạo thành công!'),
+                        backgroundColor: const Color(0xFF10B981),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.home_rounded, color: Colors.white),
+                  icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
                   label: const Text(
-                    'Hoàn tất & Về trang chủ',
+                    'Xem danh sách đơn hàng của tôi',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
