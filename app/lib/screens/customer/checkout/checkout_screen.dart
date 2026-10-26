@@ -824,38 +824,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   const SizedBox(height: 16),
 
-                  // 1. Order Type Selection
-                  const Text('1. Hình thức nhận món', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Column(
-                      children: _orderTypeLabels.entries.map((entry) {
-                        return Material(
-                          color: Colors.transparent,
-                          child: RadioListTile<String>(
-                            title: Text(entry.value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                            value: entry.key,
-                            groupValue: _selectedOrderType,
-                            activeColor: const Color(0xFF2563EB),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedOrderType = val);
-                              }
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // 2. Selected Items Summary
-                  const Text('2. Món ăn đã chọn', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  // 1. Selected Items Summary
+                  const Text('1. Món ăn đã chọn', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -891,8 +861,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  // 3. Note Field
-                  const Text('3. Ghi chú cho quán', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  // 2. Note Field
+                  const Text('2. Ghi chú cho quán', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _noteController,
