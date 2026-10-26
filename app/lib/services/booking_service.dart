@@ -210,4 +210,21 @@ class BookingService {
       return {'success': false, 'message': 'Lỗi kết nối thanh toán cọc: $e'};
     }
   }
+
+  /// 8. Kiểm tra trạng thái thanh toán PayOS theo orderCode
+  Future<bool> checkPaymentStatus(dynamic orderCode) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse('${ApiConstants.baseUrl}/payments/status/$orderCode');
+
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['data']?['isPaid'] == true || data['data']?['status'] == 'PAID';
+      }
+    } catch (e) {
+      debugPrint('[checkPaymentStatus Error]: $e');
+    }
+    return false;
+  }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -221,6 +222,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final qrUrl =
         'https://api.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent("COC BAN $orderCode")}&accountName=${Uri.encodeComponent("LUONG DANG HOANG LUU")}';
 
+    Timer? pollTimer;
+    bool isPaymentSuccess = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -228,153 +232,224 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       isDismissible: false,
       enableDrag: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.qr_code_2_rounded, color: Color(0xFF0072FF), size: 28),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Thanh toán qua VietQR / PayOS',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Mở App Ngân hàng bất kỳ để quét mã thanh toán',
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 16),
+        builder: (ctx, setModalState) {
+          // Khởi tạo Polling Timer tự động kiểm tra biến động giao dịch từ Backend / PayOS Webhook
+          pollTimer ??= Timer.periodic(const Duration(seconds: 3), (timer) async {
+            if (isPaymentSuccess) {
+              timer.cancel();
+              return;
+            }
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            if (authProvider.token == null) return;
+            final isPaid = await _checkoutService.checkPaymentStatus(orderCode, authProvider.token!);
+            if (isPaid && ctx.mounted) {
+              timer.cancel();
+              setModalState(() {
+                isPaymentSuccess = true;
+              });
+            }
+          });
 
-              // QR Box
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        qrUrl,
-                        width: 210,
-                        height: 210,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (_, child, prog) => prog == null
-                            ? child
-                            : const SizedBox(
-                                width: 210,
-                                height: 210,
-                                child: Center(child: CircularProgressIndicator()),
+          return WillPopScope(
+            onWillPop: () async {
+              pollTimer?.cancel();
+              return true;
+            },
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.qr_code_2_rounded, color: Color(0xFF0072FF), size: 28),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Thanh toán qua VietQR / PayOS',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Mở App Ngân hàng bất kỳ để quét mã thanh toán',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // QR Box
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            qrUrl,
+                            width: 210,
+                            height: 210,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (_, child, prog) => prog == null
+                                ? child
+                                : const SizedBox(
+                                    width: 210,
+                                    height: 210,
+                                    child: Center(child: CircularProgressIndicator()),
+                                  ),
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 210,
+                              height: 210,
+                              color: Colors.grey[100],
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.qr_code_rounded, size: 80, color: Color(0xFF0072FF)),
+                                  Text('VietQR Gateway', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ],
                               ),
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 210,
-                          height: 210,
-                          color: Colors.grey[100],
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.qr_code_rounded, size: 80, color: Color(0xFF0072FF)),
-                              Text('VietQR Gateway', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Số tiền: ${_formatPrice(amount.toDouble())}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0072FF)),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Số tiền: ${_formatPrice(amount.toDouble())}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0072FF)),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
+                  ),
+                  const SizedBox(height: 14),
 
-              // Bank info breakdown
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    _buildCopyableRow('Ngân hàng:', 'MBBank (Quân Đội)', 'MBBank'),
-                    const Divider(height: 12),
-                    _buildCopyableRow('Số tài khoản:', '1021072004', '1021072004'),
-                    const Divider(height: 12),
-                    _buildCopyableRow('Chủ tài khoản:', 'LUONG DANG HOANG LUU', 'LUONG DANG HOANG LUU'),
-                    const Divider(height: 12),
-                    _buildCopyableRow('Nội dung CK:', 'COC BAN $orderCode', 'COC BAN $orderCode'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
+                  // Bank info breakdown
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildCopyableRow('Ngân hàng:', 'MBBank (Quân Đội)', 'MBBank'),
+                        const Divider(height: 12),
+                        _buildCopyableRow('Số tài khoản:', '1021072004', '1021072004'),
+                        const Divider(height: 12),
+                        _buildCopyableRow('Chủ tài khoản:', 'LUONG DANG HOANG LUU', 'LUONG DANG HOANG LUU'),
+                        const Divider(height: 12),
+                        _buildCopyableRow('Nội dung CK:', 'COC BAN $orderCode', 'COC BAN $orderCode'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
 
-              // Track Order button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Tắt Modal Bottom Sheet
-                    Navigator.pop(ctx);
-                    
-                    // Chuyển hướng tới Màn hình Quản lý đơn hàng (MyOrdersScreen) để theo dõi trạng thái đơn thực tế
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-                      (route) => route.isFirst,
-                    );
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Đơn hàng #${order.orderCode} đã được khởi tạo thành công!'),
-                        backgroundColor: const Color(0xFF10B981),
+                  // Realtime Status Indicator
+                  if (isPaymentSuccess)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
-                  label: const Text(
-                    'Xem danh sách đơn hàng của tôi',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            'ĐÃ NHẬN TIỀN THANH TOÁN THÀNH CÔNG 🎉',
+                            style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB))),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Hệ thống đang tự động lắng nghe giao dịch chuyển tiền...',
+                              style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+
+                  // Track Order button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        pollTimer?.cancel();
+                        Navigator.pop(ctx);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                          (route) => route.isFirst,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isPaymentSuccess
+                                  ? 'Đơn hàng #$orderCode đã được thanh toán và chuyển ngay cho nhà bếp!'
+                                  : 'Đơn hàng #$orderCode đã được lưu. Bạn có thể theo dõi tiến độ đơn tại đây!',
+                            ),
+                            backgroundColor: const Color(0xFF10B981),
+                          ),
+                        );
+                      },
+                      icon: Icon(isPaymentSuccess ? Icons.check_circle_rounded : Icons.receipt_long_rounded, color: Colors.white),
+                      label: Text(
+                        isPaymentSuccess ? 'Xem đơn hàng đã thanh toán' : 'Đóng & Theo dõi đơn hàng',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isPaymentSuccess ? const Color(0xFF10B981) : const Color(0xFF0072FF),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0072FF),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
+                  const SizedBox(height: 12),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

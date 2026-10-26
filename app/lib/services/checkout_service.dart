@@ -50,4 +50,17 @@ class CheckoutService {
     }
     return [];
   }
+
+  /// Check PayOS payment status by orderCode
+  Future<bool> checkPaymentStatus(dynamic orderCode, String token) async {
+    try {
+      final uri = Uri.parse('$baseUrl/payments/status/$orderCode');
+      final response = await http.get(uri, headers: _headers(token)).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        return body['data']?['isPaid'] == true || body['data']?['status'] == 'PAID';
+      }
+    } catch (_) {}
+    return false;
+  }
 }
