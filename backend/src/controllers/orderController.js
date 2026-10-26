@@ -11,7 +11,10 @@ import {
   Menu,
   Booking,
   Table,
+  Transaction,
+  User,
 } from '../models/index.js';
+import { createPayOSPaymentLink } from '../services/payosService.js';
 
 const generateOrderCode = () => {
   const timestampPart = Math.floor(Date.now() / 1000) % 1000000;
@@ -181,8 +184,10 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã giảm giá cần được xác thực từ chương trình khuyến mãi' });
     }
 
+    const numericOrderCode = generateOrderCode();
+
     const order = await Order.create({
-      orderCode: generateOrderCode(),
+      orderCode: numericOrderCode,
       userId: req.user._id,
       businessId,
       branchId,
@@ -198,6 +203,50 @@ export const createOrder = async (req, res) => {
       paymentStatus: 'PENDING',
       status: 'PENDING',
     });
+
+    // Register PayOS Payment Link & Transaction
+    if (paymentMethod === 'PAYOS_QR' || paymentMethod === 'BANK_TRANSFER') {
+      try {
+        const user = await User.findById(req.user._id);
+        const description = `DAT MON ${numericOrderCode}`.slice(0, 25);
+        const paymentResult = await createPayOSPaymentLink({
+          orderCode: numericOrderCode,
+          amount: order.total,
+          description,
+          items: formattedItems.map((it) => ({
+            name: it.productName.slice(0, 50),
+            quantity: it.quantity,
+            price: it.unitPrice,
+          })),
+          buyerName: user?.fullName || 'Khách hàng',
+          buyerEmail: user?.email || '',
+          buyerPhone: user?.phone || '',
+        });
+
+        const commissionRate = 10;
+        const commissionAmount = Math.round((order.total * commissionRate) / 100);
+        const merchantAmount = order.total - commissionAmount;
+
+        await Transaction.create({
+          orderCode: numericOrderCode,
+          userId: req.user._id,
+          businessId,
+          branchId,
+          amount: order.total,
+          commissionRate,
+          commissionAmount,
+          merchantAmount,
+          paymentMethod: 'PAYOS_VIETQR',
+          status: 'PENDING',
+          description,
+          payosPaymentLinkId: paymentResult.paymentLinkId,
+          payosCheckoutUrl: paymentResult.checkoutUrl,
+          payosQrCode: paymentResult.qrCode,
+        });
+      } catch (payosErr) {
+        console.warn('Register PayOS Payment Link warning:', payosErr.message);
+      }
+    }
 
     await Cart.findOneAndDelete({ userId: req.user._id, branchId }).catch((error) => console.error('Cart cleanup failed:', error.message));
     UserInteraction.create({

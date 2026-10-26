@@ -143,11 +143,19 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
     return completeSubscriptionSuccess(orderCode, webhookData);
   }
 
-  // 1. Update Transaction (for deposit)
+  // 1. Update Transaction (for deposit / food order)
   transaction.status = 'PAID';
   transaction.paidAt = new Date();
   transaction.webhookData = webhookData;
   await transaction.save();
+
+  // 1b. Update Food Order if exists
+  const foodOrder = await Order.findOne({ orderCode: String(orderCode) });
+  if (foodOrder) {
+    foodOrder.paymentStatus = 'PAID';
+    foodOrder.status = 'CONFIRMED';
+    await foodOrder.save();
+  }
 
   // 2. Update Booking
   const booking = await Booking.findById(transaction.bookingId).populate('businessId branchId');
