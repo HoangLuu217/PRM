@@ -332,6 +332,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   backgroundColor: Colors.black.withValues(alpha: 0.45),
                   radius: 18,
                   child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     icon: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -342,6 +344,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
                         onPressed: () => _makePhoneCall(r.phone),
                       ),
@@ -351,6 +355,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: Icon(
                           _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                           color: _isFavorite ? const Color(0xFFEF4444) : Colors.white,

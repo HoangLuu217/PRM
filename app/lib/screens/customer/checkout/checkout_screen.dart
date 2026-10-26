@@ -279,9 +279,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                  icon: const Icon(Icons.home_rounded, color: Colors.white),
                   label: const Text(
-                    'Tôi đã chuyển khoản xong',
+                    'Hoàn tất & Về trang chủ',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
