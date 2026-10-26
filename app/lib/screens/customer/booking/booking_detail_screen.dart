@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/booking_model.dart';
 import '../../../providers/booking_provider.dart';
+import '../../../services/booking_service.dart';
+import '../widgets/restaurant_modals.dart';
 
 class BookingDetailScreen extends StatelessWidget {
   final BookingModel booking;
@@ -123,6 +125,33 @@ class BookingDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Nút Thanh toán cọc bàn VietQR / PayOS
+            if (booking.isPending || booking.isConfirmed) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final bookingService = BookingService();
+                    final depositRes = await bookingService.createDepositPaymentLink(booking.id);
+                    if (!context.mounted) return;
+                    RestaurantModals.showDepositPaymentModal(
+                      context,
+                      booking: booking,
+                      depositData: depositRes['data'] ?? {},
+                    );
+                  },
+                  icon: const Icon(Icons.qr_code_2_rounded, color: Colors.white),
+                  label: const Text('Thanh toán cọc bàn (VietQR / PayOS)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0072FF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Nút hủy đặt bàn
             if (booking.canCustomerCancel)

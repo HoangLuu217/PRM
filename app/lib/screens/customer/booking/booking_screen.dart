@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/booking_model.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../models/table_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/booking_provider.dart';
 import '../../../providers/table_provider.dart';
+import '../../../services/booking_service.dart';
 import '../../auth/login_screen.dart';
+import '../widgets/restaurant_modals.dart';
 import 'my_bookings_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -253,42 +256,51 @@ class _BookingScreenState extends State<BookingScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
               ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.pop(context);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Đóng'),
+              const SizedBox(height: 20),
+              if (res['booking'] is BookingModel) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0072FF),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
+                    onPressed: () async {
+                      final booking = res['booking'] as BookingModel;
+                      Navigator.pop(ctx);
+                      final bookingService = BookingService();
+                      final depositRes = await bookingService.createDepositPaymentLink(booking.id);
+                      if (!mounted) return;
+                      RestaurantModals.showDepositPaymentModal(
+                        context,
+                        booking: booking,
+                        depositData: depositRes['data'] ?? {},
+                      );
+                    },
+                    icon: const Icon(Icons.qr_code_2_rounded, size: 20),
+                    label: const Text('Thanh toán cọc bàn (VietQR / PayOS)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0072FF),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Xem lịch đặt'),
-                    ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                ],
+                  child: const Text('Xem lịch sử đặt bàn của tôi'),
+                ),
               ),
             ],
           ),

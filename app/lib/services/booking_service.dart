@@ -188,4 +188,26 @@ class BookingService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
+
+  /// 7. Tạo mã VietQR PayOS đặt cọc bàn (POST /api/payments/create-deposit-link)
+  Future<Map<String, dynamic>> createDepositPaymentLink(String bookingId) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse('${ApiConstants.baseUrl}/payments/create-deposit-link');
+
+      final body = {'bookingId': bookingId};
+      final res = await http
+          .post(uri, headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Không thể tạo mã thanh toán cọc'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối thanh toán cọc: $e'};
+    }
+  }
 }
