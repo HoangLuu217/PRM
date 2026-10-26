@@ -91,7 +91,7 @@ export const createOrder = async (req, res) => {
       resolvedBookingId = activeBooking._id;
       selectedTableId = activeBooking.tableId || selectedTableId;
     }
-    }
+
     if (tableId && !(await Table.exists({ _id: tableId, branchId }))) {
       return res.status(400).json({ success: false, message: 'Bàn không thuộc chi nhánh đã chọn' });
     }
