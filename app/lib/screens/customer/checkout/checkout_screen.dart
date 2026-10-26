@@ -6,6 +6,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../services/checkout_service.dart';
 import '../../../widgets/price_summary.dart';
+import '../customer_home_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -266,7 +267,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     // Xóa hết back stack hiện tại (về Trang chủ CustomerHomeScreen) và hiện hộp thoại thành công
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+                      MaterialPageRoute(builder: (_) => CustomerHomeScreen()),
                       (route) => false,
                     );
                     
