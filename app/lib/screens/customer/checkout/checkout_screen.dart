@@ -39,14 +39,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'badge': 'Khuyên dùng',
     },
     {
-      'id': 'CASH',
-      'title': 'Tiền mặt',
-      'subtitle': 'Thanh toán trực tiếp tại quầy hoặc khi nhận món',
-      'icon': Icons.payments_rounded,
-      'color': Color(0xFF10B981),
-      'badge': null,
-    },
-    {
       'id': 'MOMO',
       'title': 'Ví MoMo',
       'subtitle': 'Thanh toán tức thì qua ví điện tử MoMo',
@@ -97,7 +89,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final payload = {
         'businessId': cartProvider.businessId,
-        'branchId': cartProvider.branchId ?? cartProvider.businessId,
+        if (cartProvider.branchId != null) 'branchId': cartProvider.branchId,
         'orderType': _selectedOrderType,
         'paymentMethod': _selectedPaymentMethod,
         'note': _noteController.text.trim(),
@@ -142,8 +134,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _showPayOSQRModal(OrderModel order) {
     final amount = order.total > 0 ? order.total : 50000;
     final orderCode = order.orderCode;
+    // Thay đổi thông tin ngân hàng thực tế từ backend PayOS Service (MBBank: 1021072004 - LUONG DANG HOANG LUU)
     final qrUrl =
-        'https://img.vietqr.io/image/MB-0905123456-compact2.png?amount=$amount&addInfo=$orderCode&accountName=FCONNECT%20PLATFORM';
+        'https://api.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent("COC BAN $orderCode")}&accountName=${Uri.encodeComponent("LUONG DANG HOANG LUU")}';
 
     showModalBottomSheet(
       context: context,
@@ -251,11 +244,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     _buildCopyableRow('Ngân hàng:', 'MBBank (Quân Đội)', 'MBBank'),
                     const Divider(height: 12),
-                    _buildCopyableRow('Số tài khoản:', '0905123456', '0905123456'),
+                    _buildCopyableRow('Số tài khoản:', '1021072004', '1021072004'),
                     const Divider(height: 12),
-                    _buildCopyableRow('Chủ tài khoản:', 'FCONNECT PLATFORM', 'FCONNECT PLATFORM'),
+                    _buildCopyableRow('Chủ tài khoản:', 'LUONG DANG HOANG LUU', 'LUONG DANG HOANG LUU'),
                     const Divider(height: 12),
-                    _buildCopyableRow('Nội dung CK:', orderCode, orderCode),
+                    _buildCopyableRow('Nội dung CK:', 'COC BAN $orderCode', 'COC BAN $orderCode'),
                   ],
                 ),
               ),
@@ -267,8 +260,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 height: 48,
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    // Tắt Modal Bottom Sheet
                     Navigator.pop(ctx);
-                    _showSuccessDialog(orderCode, paymentTitle: 'VietQR / PayOS');
+                    
+                    // Xóa hết back stack hiện tại (về Trang chủ CustomerHomeScreen) và hiện hộp thoại thành công
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+                      (route) => false,
+                    );
+                    
+                    // (Tùy chọn) Hiện thông báo nhẹ
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đơn hàng đã thanh toán thành công và chuyển đến nhà bếp!'),
+                        backgroundColor: Color(0xFF10B981),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.check_circle_outline, color: Colors.white),
                   label: const Text(
@@ -281,14 +289,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showSuccessDialog(orderCode, paymentTitle: 'Chuyển khoản sau');
-                },
-                child: const Text('Thanh toán sau tại quán', style: TextStyle(color: Colors.grey)),
-              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -589,102 +590,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                     child: Column(
                       children: _orderTypeLabels.entries.map((entry) {
-                        return RadioListTile<String>(
-                          title: Text(entry.value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                          value: entry.key,
-                          groupValue: _selectedOrderType,
-                          activeColor: const Color(0xFF2563EB),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _selectedOrderType = val);
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // 2. Payment Method Selection
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('2. Phương thức thanh toán', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('An toàn & Bảo mật', style: TextStyle(color: Color(0xFF15803D), fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Column(
-                      children: _paymentMethods.map((pm) {
-                        final isSel = _selectedPaymentMethod == pm['id'];
-                        return InkWell(
-                          onTap: () => setState(() => _selectedPaymentMethod = pm['id']),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0xFFEFF6FF) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(
-                              children: [
-                                Radio<String>(
-                                  value: pm['id'],
-                                  groupValue: _selectedPaymentMethod,
-                                  activeColor: const Color(0xFF2563EB),
-                                  onChanged: (v) => setState(() => _selectedPaymentMethod = v!),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: (pm['color'] as Color).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(pm['icon'] as IconData, color: pm['color'] as Color, size: 22),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Text(pm['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                                          if (pm['badge'] != null) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF2563EB),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                pm['badge'],
-                                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(pm['subtitle'], style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                        return Material(
+                          color: Colors.transparent,
+                          child: RadioListTile<String>(
+                            title: Text(entry.value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                            value: entry.key,
+                            groupValue: _selectedOrderType,
+                            activeColor: const Color(0xFF2563EB),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedOrderType = val);
+                              }
+                            },
                           ),
                         );
                       }).toList(),
@@ -692,8 +609,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  // 3. Selected Items Summary
-                  const Text('3. Món ăn đã chọn', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  // 2. Selected Items Summary
+                  const Text('2. Món ăn đã chọn', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -708,17 +625,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       itemBuilder: (ctx, idx) {
                         final item = cartProvider.items[idx];
-                        return ListTile(
-                          title: Text('${item.quantity}x ${item.product.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: item.selectedSize != null || item.selectedOptions.isNotEmpty
-                              ? Text(
-                                  'Size: ${item.selectedSize?.name ?? "Chuẩn"}${item.selectedOptions.isNotEmpty ? ", ${item.selectedOptions.map((o) => o.value).join(', ')}" : ""}',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                )
-                              : null,
-                          trailing: Text(
-                            _formatPrice(item.itemSubtotal),
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        return Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            title: Text('${item.quantity}x ${item.product.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            subtitle: item.selectedSize != null || item.selectedOptions.isNotEmpty
+                                ? Text(
+                                    'Size: ${item.selectedSize?.name ?? "Chuẩn"}${item.selectedOptions.isNotEmpty ? ", ${item.selectedOptions.map((o) => o.value).join(', ')}" : ""}',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  )
+                                : null,
+                            trailing: Text(
+                              _formatPrice(item.itemSubtotal),
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            ),
                           ),
                         );
                       },
@@ -726,8 +646,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  // 4. Note Field
-                  const Text('4. Ghi chú cho quán', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  // 3. Note Field
+                  const Text('3. Ghi chú cho quán', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _noteController,
