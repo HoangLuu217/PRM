@@ -68,29 +68,33 @@ class RestaurantModals {
                 // Số lượng khách
                 const Text('Số lượng khách:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
                 const SizedBox(height: 8),
-                Row(
-                  children: [1, 2, 4, 6, 8, 10].map((guestNum) {
-                    final isSel = guestCount == guestNum;
-                    return GestureDetector(
-                      onTap: () => setModalState(() => guestCount = guestNum),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSel ? const Color(0xFF0072FF) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$guestNum người',
-                          style: TextStyle(
-                            color: isSel ? Colors.white : const Color(0xFF334155),
-                            fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                            fontSize: 12.5,
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [1, 2, 4, 6, 8, 10].map((guestNum) {
+                      final isSel = guestCount == guestNum;
+                      return GestureDetector(
+                        onTap: () => setModalState(() => guestCount = guestNum),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSel ? const Color(0xFF0072FF) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$guestNum người',
+                            style: TextStyle(
+                              color: isSel ? Colors.white : const Color(0xFF334155),
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                              fontSize: 12.5,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
                 ),
                 const SizedBox(height: 16),
 

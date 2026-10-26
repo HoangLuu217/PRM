@@ -245,9 +245,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                         children: [
                           const Icon(Icons.calendar_today_rounded, size: 15, color: Color(0xFF0072FF)),
                           const SizedBox(width: 6),
-                          Text(
-                            '${b.startTime} • ${b.bookingDate}',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1E293B)),
+                          Flexible(
+                            child: Text(
+                              '${b.startTime} • ${b.bookingDate}',
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1E293B)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
