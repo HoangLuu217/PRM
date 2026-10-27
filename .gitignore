@@ -12,4 +12,6 @@ app/.env
 # Flutter build outputs
 /app/build/
 /app/.dart_tool/
-
+# Firebase & Secrets
+backend/src/config/firebase-service-account.json
+*firebase-service-account*.json

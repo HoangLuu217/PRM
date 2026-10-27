@@ -10,16 +10,28 @@ const __dirname = path.dirname(__filename);
 let isFirebaseInitialized = false;
 
 try {
-  const serviceAccountPath = path.resolve(__dirname, '../config/firebase-service-account.json');
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+  let credential = null;
+
+  if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+    credential = admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     });
+  } else {
+    const serviceAccountPath = path.resolve(__dirname, '../config/firebase-service-account.json');
+    if (fs.existsSync(serviceAccountPath)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      credential = admin.credential.cert(serviceAccount);
+    }
+  }
+
+  if (credential) {
+    admin.initializeApp({ credential });
     isFirebaseInitialized = true;
     console.log('✅ Firebase Admin SDK initialized successfully');
   } else {
-    console.warn('⚠️ firebase-service-account.json not found in config. Push notifications will be skipped.');
+    console.warn('⚠️ Firebase credentials not found in env or config. Push notifications will be skipped.');
   }
 } catch (error) {
   console.error('❌ Failed to initialize Firebase Admin SDK:', error.message);
