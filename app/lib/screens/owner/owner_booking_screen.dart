@@ -361,37 +361,6 @@ class _OwnerBookingScreenState extends State<OwnerBookingScreen>
             const SizedBox(height: 8),
             Text('Ghi chú: ${b.note}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic)),
           ],
-          if (b.preOrder != null && b.preOrder!.items.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.restaurant_rounded, size: 14, color: Color(0xFF0072FF)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Món khách đặt trước (${b.preOrder!.items.length} món - ${b.preOrder!.total.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ):',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E3A8A)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    b.preOrder!.items.map((it) => '${it.quantity}x ${it.productName}').join(', '),
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-          ],
 
           // Nút thao tác của Owner
           const SizedBox(height: 14),

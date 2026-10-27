@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/supabase_auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -55,6 +56,10 @@ class AuthProvider extends ChangeNotifier {
           }
           _savedRole = _user!.role;
           await _authService.saveRole(_savedRole!);
+          // Đồng bộ FCM token nếu phiên đăng nhập còn hiệu lực
+          try {
+            NotificationService().syncTokenWithBackend();
+          } catch (_) {}
           _isLoading = false;
           notifyListeners();
           return;
@@ -130,6 +135,13 @@ class AuthProvider extends ChangeNotifier {
         } catch (_) {}
       }
 
+      // Tự động đẩy FCM Device Token lên backend để nhận Push Notification
+      try {
+        NotificationService().syncTokenWithBackend();
+      } catch (e) {
+        debugPrint('[Notification Sync Error]: $e');
+      }
+
       notifyListeners();
       return true;
     }
@@ -146,6 +158,14 @@ class AuthProvider extends ChangeNotifier {
         }
         _isLoading = false;
         _errorMessage = null;
+
+        // Tự động đẩy FCM Device Token lên backend
+        try {
+          NotificationService().syncTokenWithBackend();
+        } catch (e) {
+          debugPrint('[Notification Sync Error]: $e');
+        }
+
         notifyListeners();
         return true;
       }
