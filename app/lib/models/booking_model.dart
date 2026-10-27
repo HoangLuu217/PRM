@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'order_model.dart';
 
 class BookingModel {
   final String id;
@@ -26,7 +25,6 @@ class BookingModel {
   final DateTime? createdAt;
   final DateTime? checkedInAt;
   final DateTime? completedAt;
-  final OrderModel? preOrder;
 
   BookingModel({
     required this.id,
@@ -53,7 +51,6 @@ class BookingModel {
     this.createdAt,
     this.checkedInAt,
     this.completedAt,
-    this.preOrder,
   });
 
   bool get isPending => status == 'PENDING';
@@ -167,13 +164,6 @@ class BookingModel {
       tId = json['tableId'].toString();
     }
 
-    OrderModel? pOrder;
-    if (json['preOrderId'] is Map) {
-      try {
-        pOrder = OrderModel.fromJson(json['preOrderId'] as Map<String, dynamic>);
-      } catch (_) {}
-    }
-
     return BookingModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       userId: uId,
@@ -205,64 +195,6 @@ class BookingModel {
       completedAt: json['completedAt'] != null
           ? DateTime.tryParse(json['completedAt'].toString())
           : null,
-      preOrder: pOrder,
-    );
-  }
-
-
-  BookingModel copyWith({
-    String? id,
-    String? userId,
-    String? userName,
-    String? userPhone,
-    String? userAvatar,
-    String? businessId,
-    String? businessName,
-    String? businessLogo,
-    String? branchId,
-    String? branchName,
-    String? branchAddress,
-    String? tableId,
-    String? tableName,
-    int? tableCapacity,
-    String? bookingCode,
-    String? bookingDate,
-    String? startTime,
-    String? endTime,
-    int? guestCount,
-    String? status,
-    String? note,
-    DateTime? createdAt,
-    DateTime? checkedInAt,
-    DateTime? completedAt,
-    OrderModel? preOrder,
-  }) {
-    return BookingModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      userName: userName ?? this.userName,
-      userPhone: userPhone ?? this.userPhone,
-      userAvatar: userAvatar ?? this.userAvatar,
-      businessId: businessId ?? this.businessId,
-      businessName: businessName ?? this.businessName,
-      businessLogo: businessLogo ?? this.businessLogo,
-      branchId: branchId ?? this.branchId,
-      branchName: branchName ?? this.branchName,
-      branchAddress: branchAddress ?? this.branchAddress,
-      tableId: tableId ?? this.tableId,
-      tableName: tableName ?? this.tableName,
-      tableCapacity: tableCapacity ?? this.tableCapacity,
-      bookingCode: bookingCode ?? this.bookingCode,
-      bookingDate: bookingDate ?? this.bookingDate,
-      startTime: startTime ?? this.startTime,
-      endTime: endTime ?? this.endTime,
-      guestCount: guestCount ?? this.guestCount,
-      status: status ?? this.status,
-      note: note ?? this.note,
-      createdAt: createdAt ?? this.createdAt,
-      checkedInAt: checkedInAt ?? this.checkedInAt,
-      completedAt: completedAt ?? this.completedAt,
-      preOrder: preOrder ?? this.preOrder,
     );
   }
 

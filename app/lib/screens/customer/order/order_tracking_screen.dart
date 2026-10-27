@@ -127,14 +127,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'MÃ ĐƠN: #${_currentOrder.orderCode}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Text(
+                        'MÃ ĐƠN: #${_currentOrder.orderCode}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
                       ),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(

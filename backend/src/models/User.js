@@ -59,6 +59,11 @@ const userSchema = new mongoose.Schema(
       enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
       default: 'ACTIVE',
     },
+    fcmToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     preferences: {
       favoriteCategories: [
         {
