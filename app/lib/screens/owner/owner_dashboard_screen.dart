@@ -49,6 +49,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   bool _showEmojiPicker = false;
   bool _showPhotoTray = false;
   bool _hideBotMessages = false; // Mặc định hiển thị bot (tự ẩn khi chủ quán trả lời)
+  int? _selectedChartMonth;
+  int get _activeChartMonth => (_selectedChartMonth ?? 9).clamp(0, 11);
   String _chatSearchKeyword = '';
   final TextEditingController _ownerChatMessageController = TextEditingController();
   final ScrollController _ownerChatScrollController = ScrollController();
@@ -2252,6 +2254,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     final bookingProvider = Provider.of<BookingProvider>(context);
     final orderProvider = Provider.of<OrderProvider>(context);
 
+    final currentMonth = DateTime.now().month;
+
+    // Mặc định doanh thu chuẩn cho các tháng trong quá khứ nếu database chưa có đơn (T11, T12 chưa tới nên bằng 0)
+    final defaultActualValues = [
+      3950000, 5800000, 4150000, 3180000, 5080000, 3580000,
+      3920000, 6400000, 4200000, 3560000, 0, 0,
+    ];
+
+    // Gom doanh thu thực tế từ OrderProvider theo từng tháng trong năm
+    final actualValues = List<int>.generate(12, (index) {
+      final month = index + 1;
+      // Tháng chưa tới trong tương lai -> Doanh thu thực tế = 0
+      if (month > currentMonth) return 0;
+
+      final monthOrders = orderProvider.ownerOrders.where((o) {
+        if (o.status.toUpperCase() != 'COMPLETED' && o.status.toUpperCase() != 'SERVED') return false;
+        return o.createdAt != null && o.createdAt!.month == month;
+      });
+      final realSum = monthOrders.fold<int>(0, (sum, o) => sum + o.total);
+      return realSum > 0 ? realSum : defaultActualValues[index];
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2267,17 +2291,17 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 7, child: _buildMonthlyRevenueReportChart()),
+                  Expanded(flex: 7, child: _buildMonthlyRevenueReportChart(actualValues)),
                   const SizedBox(width: 20),
-                  Expanded(flex: 5, child: _buildRevenueGrowthDetailsCard()),
+                  Expanded(flex: 5, child: _buildRevenueGrowthDetailsCard(actualValues)),
                 ],
               );
             } else {
               return Column(
                 children: [
-                  _buildMonthlyRevenueReportChart(),
+                  _buildMonthlyRevenueReportChart(actualValues),
                   const SizedBox(height: 20),
-                  _buildRevenueGrowthDetailsCard(),
+                  _buildRevenueGrowthDetailsCard(actualValues),
                 ],
               );
             }
@@ -2465,7 +2489,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   /// 2. Biểu đồ doanh thu so sánh với mục tiêu theo tháng (Grouped Bar Chart chuẩn như thiết kế)
-  Widget _buildMonthlyRevenueReportChart() {
+  Widget _buildMonthlyRevenueReportChart([List<int>? passedActualValues]) {
     final orderProvider = Provider.of<OrderProvider>(context);
 
     // Mốc chỉ tiêu doanh thu hàng tháng theo biểu đồ
@@ -2484,7 +2508,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       4500000, // T12
     ];
 
-    // Dữ liệu doanh thu mẫu trực quan chuẩn theo ảnh thiết kế
+    final currentMonth = DateTime.now().month;
+
+    // Dữ liệu doanh thu mẫu trực quan cho các tháng đã qua (T11, T12 chưa tới nên bằng 0)
     final defaultActualValues = [
       3950000, // T1
       5800000, // T2
@@ -2496,13 +2522,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       6400000, // T8
       4200000, // T9
       3560000, // T10
-      4380000, // T11
-      4260000, // T12
+      0,       // T11 (Chưa diễn ra)
+      0,       // T12 (Chưa diễn ra)
     ];
 
     // Gom doanh thu thực tế từ OrderProvider nếu trong database có đơn hoàn thành
-    final actualValues = List<int>.generate(12, (index) {
+    final actualValues = passedActualValues ?? List<int>.generate(12, (index) {
       final month = index + 1;
+      if (month > currentMonth) return 0;
       final monthOrders = orderProvider.ownerOrders.where((o) {
         if (o.status.toUpperCase() != 'COMPLETED' && o.status.toUpperCase() != 'SERVED') return false;
         return o.createdAt != null && o.createdAt!.month == month;
@@ -2512,8 +2539,15 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     });
 
     const maxY = 8000000.0;
-    const chartHeight = 210.0;
-    final yLabels = ['8000000', '6000000', '4000000', '2000000', '0'];
+    const chartHeight = 220.0;
+    final yLabels = ['8 tr', '6 tr', '4 tr', '2 tr', '0 đ'];
+
+    final activeMonthIdx = _activeChartMonth;
+    final activeActual = actualValues[activeMonthIdx];
+    final activeTarget = targetValues[activeMonthIdx];
+    final activePercent = activeTarget > 0 ? ((activeActual / activeTarget) * 100).toStringAsFixed(1) : '0';
+    final isOverTarget = activeActual >= activeTarget;
+    final isFutureMonth = (activeMonthIdx + 1) > currentMonth;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -2565,7 +2599,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     Icon(Icons.calendar_month_rounded, size: 13, color: Color(0xFF64748B)),
                     SizedBox(width: 5),
                     Text(
-                      '2026',
+                      'Năm 2026',
                       style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
                     ),
                   ],
@@ -2573,17 +2607,90 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          // Vùng vẽ biểu đồ gồm Trục Y, Grid lines ngang & Cặp cột kép
+          // Thanh thông tin chi tiết nhanh của Tháng đang rê chuột / click vào
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: isFutureMonth
+                  ? const Color(0xFFF8FAFC)
+                  : (isOverTarget ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isFutureMonth
+                    ? const Color(0xFFE2E8F0)
+                    : (isOverTarget ? const Color(0xFFBBF7D0) : const Color(0xFFBFDBFE)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isFutureMonth
+                      ? Icons.schedule_rounded
+                      : (isOverTarget ? Icons.trending_up_rounded : Icons.info_outline_rounded),
+                  color: isFutureMonth
+                      ? const Color(0xFF64748B)
+                      : (isOverTarget ? const Color(0xFF16A34A) : const Color(0xFF2563EB)),
+                  size: 17,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isFutureMonth ? 'Tháng ${activeMonthIdx + 1} (Kế hoạch): ' : 'Tháng ${activeMonthIdx + 1}: ',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                ),
+                const Text(
+                  'Doanh thu thực tế: ',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                ),
+                Text(
+                  '${activeActual.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]},")} đ  ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isFutureMonth ? const Color(0xFF64748B) : const Color(0xFF15803D),
+                  ),
+                ),
+                Text(
+                  '• Mục tiêu: ${activeTarget.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]},")} đ  ',
+                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isFutureMonth
+                        ? const Color(0xFFF1F5F9)
+                        : (isOverTarget ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE)),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isFutureMonth
+                        ? 'Chưa diễn ra'
+                        : (isOverTarget ? 'Vượt chỉ tiêu ($activePercent%)' : 'Đạt $activePercent% chỉ tiêu'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isFutureMonth
+                          ? const Color(0xFF64748B)
+                          : (isOverTarget ? const Color(0xFF15803D) : const Color(0xFF1D4ED8)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Vùng vẽ biểu đồ gồm Trục Y, Grid lines ngang & Cột hiển thị số tiền trực tiếp
           SizedBox(
-            height: chartHeight + 35,
+            height: chartHeight + 45,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Trục mốc giá trị Y bên trái
                 SizedBox(
-                  width: 58,
+                  width: 38,
                   height: chartHeight,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2593,14 +2700,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         padding: const EdgeInsets.only(right: 6),
                         child: Text(
                           lbl,
-                          style: const TextStyle(fontSize: 9, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                          style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
                         ),
                       );
                     }).toList(),
                   ),
                 ),
 
-                // Vùng biểu đồ chính (Gridlines + Cột kép + Nhãn tháng)
+                // Vùng biểu đồ chính (Gridlines + Cột kép + Số tiền trên đỉnh cột + Nhãn tháng)
                 Expanded(
                   child: Column(
                     children: [
@@ -2632,32 +2739,86 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                 children: List.generate(12, (index) {
                                   final actual = actualValues[index];
                                   final target = targetValues[index];
-                                  final actualH = ((actual / maxY) * chartHeight).clamp(0.0, chartHeight);
-                                  final targetH = ((target / maxY) * chartHeight).clamp(0.0, chartHeight);
+                                  final isSelected = _activeChartMonth == index;
 
-                                  return Tooltip(
-                                    message: 'Tháng ${index + 1}:\n• Doanh thu: ${actual.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} đ\n• Mục tiêu: ${target.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} đ',
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        // Cột Doanh Thu (Xanh lá chuẩn hình ảnh: #70AD47)
-                                        Container(
-                                          width: 10,
-                                          height: actualH,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFF70AD47),
+                                  // Chiều cao cột
+                                  final actualH = ((actual / maxY) * (chartHeight - 24)).clamp(0.0, chartHeight - 24);
+                                  final targetH = ((target / maxY) * (chartHeight - 24)).clamp(0.0, chartHeight - 24);
+
+                                  final actualShortLabel = '${(actual / 1000000).toStringAsFixed(1)}tr';
+
+                                  return MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    onEnter: (_) => setState(() => _selectedChartMonth = index),
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _selectedChartMonth = index),
+                                      child: Tooltip(
+                                        message: 'Tháng ${index + 1}:\n• Doanh thu: ${actual.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} đ\n• Mục tiêu: ${target.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} đ',
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? const Color(0xFFF1F5F9) : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: isSelected ? Border.all(color: const Color(0xFFCBD5E1)) : null,
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              // Cột Doanh Thu Thực Tế (Xanh lá)
+                                              Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (actual > 0)
+                                                    Text(
+                                                      actualShortLabel,
+                                                      style: TextStyle(
+                                                        fontSize: 8.0,
+                                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+                                                        color: isSelected ? const Color(0xFF15803D) : const Color(0xFF437A24),
+                                                      ),
+                                                    )
+                                                  else
+                                                    const SizedBox(height: 10),
+                                                  const SizedBox(height: 2),
+                                                  Container(
+                                                    width: 10,
+                                                    height: actualH,
+                                                    decoration: BoxDecoration(
+                                                      color: isSelected ? const Color(0xFF5BA330) : const Color(0xFF70AD47),
+                                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(width: 2),
+                                              // Cột Doanh Thu Mục Tiêu (Xanh dương)
+                                              Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    '${(target / 1000000).toStringAsFixed(1)}tr',
+                                                    style: TextStyle(
+                                                      fontSize: 8.0,
+                                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+                                                      color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFF4B7BB0),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Container(
+                                                    width: 10,
+                                                    height: targetH,
+                                                    decoration: BoxDecoration(
+                                                      color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF5B9BD5),
+                                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const SizedBox(width: 2),
-                                        // Cột Doanh Thu Mục Tiêu (Xanh dương chuẩn hình ảnh: #5B9BD5)
-                                        Container(
-                                          width: 10,
-                                          height: targetH,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFF5B9BD5),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   );
                                 }),
@@ -2669,16 +2830,37 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
                       const SizedBox(height: 8),
 
-                      // Nhãn trục X: THÁNG 1 -> THÁNG 12
+                      // Nhãn trục X: THÁNG 1 -> THÁNG 12 (Tự động co giãn theo 12 cột, không bao giờ bị overflow)
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(12, (index) {
-                          return Text(
-                            'THÁNG ${index + 1}',
-                            style: const TextStyle(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF334155),
+                          final isSelected = _activeChartMonth == index;
+                          return Expanded(
+                            child: InkWell(
+                              onTap: () => setState(() => _selectedChartMonth = index),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                decoration: isSelected
+                                    ? BoxDecoration(
+                                        color: const Color(0xFF1E293B),
+                                        borderRadius: BorderRadius.circular(4),
+                                      )
+                                    : null,
+                                child: Center(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'THÁNG ${index + 1}',
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 8.0,
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                        color: isSelected ? Colors.white : const Color(0xFF334155),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           );
                         }),
@@ -2698,7 +2880,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             children: [
               Row(
                 children: [
-                  Container(width: 12, height: 12, color: const Color(0xFF70AD47)),
+                  Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF70AD47), borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 6),
                   const Text(
                     'DOANH THU',
@@ -2709,7 +2891,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               const SizedBox(width: 28),
               Row(
                 children: [
-                  Container(width: 12, height: 12, color: const Color(0xFF5B9BD5)),
+                  Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF5B9BD5), borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 6),
                   const Text(
                     'DOANH THU MỤC TIÊU',
@@ -2725,7 +2907,55 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   /// 3. Bảng phần trăm tăng và giảm doanh thu giữa các tháng (Revenue Growth & Variance)
-  Widget _buildRevenueGrowthDetailsCard() {
+  Widget _buildRevenueGrowthDetailsCard([List<int>? passedActualValues]) {
+    final defaultActualValues = [
+      3950000, 5800000, 4150000, 3180000, 5080000, 3580000,
+      3920000, 6400000, 4200000, 3560000, 0, 0,
+    ];
+    final actualValues = passedActualValues ?? defaultActualValues;
+
+    // Tháng hiện tại (lấy theo thời gian thực hoặc mốc 10)
+    final now = DateTime.now();
+    final curMonth = now.month;
+    final curVal = actualValues[curMonth - 1];
+    final prevMonth = curMonth > 1 ? curMonth - 1 : 12;
+    final prevVal = actualValues[prevMonth - 1];
+
+    double momRate = 0;
+    if (prevVal > 0) {
+      momRate = ((curVal - prevVal) / prevVal) * 100;
+    }
+    final momIsPositive = momRate >= 0;
+    final momSign = momIsPositive ? '+' : '';
+    final momStr = '$momSign${momRate.toStringAsFixed(1)}%';
+
+    // Tìm tháng đạt đỉnh doanh thu
+    int peakIdx = 0;
+    int peakVal = actualValues[0];
+    for (int i = 1; i < actualValues.length; i++) {
+      if (actualValues[i] > peakVal) {
+        peakVal = actualValues[i];
+        peakIdx = i;
+      }
+    }
+    final peakMonthName = 'Tháng ${peakIdx + 1}';
+    final avgVal = actualValues.reduce((a, b) => a + b) / 12;
+    final peakRate = avgVal > 0 ? ((peakVal - avgVal) / avgVal * 100) : 0.0;
+    final peakSign = peakRate >= 0 ? '+' : '';
+    final peakStr = '$peakSign${peakRate.toStringAsFixed(1)}%';
+
+    String fmtMoney(int amount) {
+      return '${amount.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]},")} đ';
+    }
+
+    // 4 tháng gần nhất (ví dụ T10, T9, T8, T7)
+    final recentMonths = <int>[];
+    for (int i = 0; i < 4; i++) {
+      int m = curMonth - i;
+      if (m <= 0) m += 12;
+      recentMonths.add(m);
+    }
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -2743,7 +2973,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tiêu đề & Badge MoM (Đã xóa icon theo yêu cầu)
+          // Tiêu đề & Badge MoM
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2773,25 +3003,40 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ),
           const SizedBox(height: 20),
 
-          // 2 Hàng thông số chính (Đã in đậm MoM)
-          _buildGrowthMetricRow('Tháng này vs Tháng trước ', '+18.5%', boldSuffix: '(MoM)', isPositive: true, isHighlighted: true),
+          // 2 Hàng thông số chính
+          _buildGrowthMetricRow('Tháng này vs Tháng trước ', momStr, boldSuffix: '(MoM)', isPositive: momIsPositive, isHighlighted: true),
           const SizedBox(height: 10),
-          _buildGrowthMetricRow('Tháng đạt đỉnh doanh thu ', '+32.6%', boldSuffix: '(Tháng 8)', isPositive: true),
+          _buildGrowthMetricRow('Tháng đạt đỉnh doanh thu ', peakStr, boldSuffix: '($peakMonthName)', isPositive: true),
 
           const SizedBox(height: 18),
           const Divider(color: Color(0xFFF1F5F9)),
           const SizedBox(height: 12),
 
-          // Danh sách biến động 4 tháng gần nhất: In đậm chữ (Hiện tại), (Tháng trước)
+          // Danh sách biến động 4 tháng gần nhất: Tự động tính toán từ doanh thu thực tế
           const Text(
             'Chi tiết biến động 4 tháng gần nhất:',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
           ),
           const SizedBox(height: 10),
-          _buildMiniMonthGrowthCard('Tháng 10 ', '3,560,000 đ', '+14.2% so với T9', boldSuffix: '(Hiện tại)', isUp: true),
-          _buildMiniMonthGrowthCard('Tháng 9 ', '4,200,000 đ', '+8.6% so với T8', boldSuffix: '(Tháng trước)', isUp: true),
-          _buildMiniMonthGrowthCard('Tháng 8', '6,400,000 đ', '-3.1% so với T7', isUp: false),
-          _buildMiniMonthGrowthCard('Tháng 7', '3,920,000 đ', '+15.0% so với T6', isUp: true),
+          ...recentMonths.map((m) {
+            final val = actualValues[m - 1];
+            final prevM = m - 1 <= 0 ? 12 : m - 1;
+            final pVal = actualValues[prevM - 1];
+            double rate = 0;
+            if (pVal > 0) {
+              rate = ((val - pVal) / pVal) * 100;
+            }
+            final isUp = rate >= 0;
+            final sign = isUp ? '+' : '';
+            final rateStr = '$sign${rate.toStringAsFixed(1)}% so với T$prevM';
+            String? boldSuffix;
+            if (m == curMonth) {
+              boldSuffix = '(Hiện tại)';
+            } else if (m == prevMonth) {
+              boldSuffix = '(Tháng trước)';
+            }
+            return _buildMiniMonthGrowthCard('Tháng $m ', fmtMoney(val), rateStr, boldSuffix: boldSuffix, isUp: isUp);
+          }),
         ],
       ),
     );
