@@ -165,7 +165,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       return;
     }
 
-    // Trên Mobile App: Luôn luôn chuyển tới Giao diện Khách hàng (CustomerHomeScreen)
+    // Trên Mobile App: Nếu là Chủ quán thì vào OwnerDashboardScreen, nếu là Khách thì vào CustomerHomeScreen
+    if (authProvider.isOwner) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
+        (route) => false,
+      );
+      return;
+    }
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
@@ -332,41 +341,39 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Glassmorphism Card Container (White with reduced opacity)
+                          // Form Card Container siêu mượt (bỏ BackdropFilter nặng nề để máy ảo không bị đơ)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(28),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 26.0, vertical: 28.0),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(28),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.22),
-                                    width: 1.2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.35),
-                                      blurRadius: 36,
-                                      offset: const Offset(0, 16),
-                                    ),
-                                    BoxShadow(
-                                      color: Colors.white.withValues(alpha: 0.05),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 26.0, vertical: 28.0),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A).withValues(alpha: 0.82),
+                                borderRadius: BorderRadius.circular(28),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  width: 1.2,
                                 ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Logo & Header Brand bên trong Form Card
-                                _buildBrandHeader(),
-                                const SizedBox(height: 24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    blurRadius: 36,
+                                    offset: const Offset(0, 16),
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.white.withValues(alpha: 0.05),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Logo & Header Brand bên trong Form Card
+                                  _buildBrandHeader(),
+                                  const SizedBox(height: 24),
 
-                                // Email Input Field
+                                  // Email Input Field
                                 _buildTextField(
                                   controller: _emailController,
                                   labelText: 'Địa chỉ Email',
@@ -475,7 +482,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                         ),
-                      ),
 
                       const SizedBox(height: 24),
 

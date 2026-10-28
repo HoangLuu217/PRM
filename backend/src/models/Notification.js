@@ -5,25 +5,15 @@ const notificationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+    },
+    businessId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Business',
+      required: false,
     },
     type: {
       type: String,
-      enum: [
-        'BOOKING_CONFIRMED',
-        'BOOKING_CANCELLED',
-        'BOOKING_REJECTED',
-        'BOOKING_CHECKED_IN',
-        'BOOKING_COMPLETED',
-        'ORDER_CONFIRMED',
-        'ORDER_PREPARING',
-        'ORDER_READY',
-        'ORDER_SERVED',
-        'ORDER_COMPLETED',
-        'ORDER_CANCELLED',
-        'REVIEW_REPLY',
-        'SYSTEM',
-      ],
       default: 'SYSTEM',
     },
     title: {

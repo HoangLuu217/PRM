@@ -30,10 +30,14 @@ class _SplashScreenState extends State<SplashScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     // Chạy kiểm tra auth song song với delay 1.2 giây để vừa đủ mượt mà không bị chờ lâu
-    await Future.wait([
-      authProvider.checkAuthStatus(),
-      Future.delayed(const Duration(milliseconds: 1200)),
-    ]);
+    try {
+      await Future.wait([
+        authProvider.checkAuthStatus(),
+        Future.delayed(const Duration(milliseconds: 1200)),
+      ]).timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('[Splash] Auth check timeout or error: $e');
+    }
 
     if (!mounted) return;
 
