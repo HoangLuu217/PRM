@@ -10,6 +10,7 @@ import '../../../providers/booking_provider.dart';
 import '../../../providers/table_provider.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/order_service.dart';
+import '../../../services/notification_service.dart';
 import '../../auth/login_screen.dart';
 import '../widgets/restaurant_modals.dart';
 import 'my_bookings_screen.dart';
@@ -260,6 +261,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (res['success'] == true) {
       final bookingCode = res['bookingCode'] ?? 'Đã xác nhận';
+
+      // Bắn Heads-up Banner thông báo trực tiếp ra ngoài máy điện thoại
+      NotificationService().showBookingSuccessNotification(
+        bookingCode: bookingCode,
+        restaurantName: widget.restaurant.name,
+        time: _selectedTime,
+        date: _dateString,
+      );
       final booking = res['booking'] as BookingModel?;
       final bookingId = booking?.id;
 

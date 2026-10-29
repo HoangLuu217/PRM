@@ -8,6 +8,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/checkout_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/restaurant_service.dart';
 import '../../../widgets/price_summary.dart';
 import '../customer_home_screen.dart';
@@ -576,6 +577,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _showSuccessDialog(String orderCode, {String paymentTitle = 'Thành công'}) {
+    // Bắn Heads-up Banner thông báo trực tiếp ra ngoài máy điện thoại
+    NotificationService().showOrderSuccessNotification(orderCode: orderCode);
     showDialog(
       context: context,
       barrierDismissible: false,
