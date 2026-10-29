@@ -293,50 +293,178 @@ class _OwnerTableScreenState extends State<OwnerTableScreen>
         label: const Text('Thêm bàn mới', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0072FF),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: List.generate(_tabs.length, (tabIndex) {
-          final filtered = _filterTables(tableProvider.tables, tabIndex);
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: TabBarView(
+            controller: _tabController,
+            children: List.generate(_tabs.length, (tabIndex) {
+              final filtered = _filterTables(tableProvider.tables, tabIndex);
 
-          if (tableProvider.isLoading && tableProvider.tables.isEmpty) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)));
-          }
+              if (tableProvider.isLoading && tableProvider.tables.isEmpty) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)));
+              }
 
-          if (filtered.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: () async => _loadTables(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                  Center(
-                    child: Column(
-                      children: [
-                        const Icon(Icons.table_restaurant_outlined, size: 48, color: Color(0xFF94A3B8)),
-                        const SizedBox(height: 12),
-                        const Text('Chưa có bàn nào trong danh mục này', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                        const SizedBox(height: 6),
-                        const Text('Nhấn "Thêm bàn mới" để tạo bàn cho quán', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
-                      ],
-                    ),
+              if (filtered.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: () async => _loadTables(),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.table_restaurant_outlined, size: 48, color: Color(0xFF94A3B8)),
+                            const SizedBox(height: 12),
+                            const Text('Chưa có bàn nào trong danh mục này',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                            const SizedBox(height: 6),
+                            const Text('Nhấn "Thêm bàn mới" để tạo bàn cho quán',
+                                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }
+                );
+              }
 
-          return RefreshIndicator(
-            onRefresh: () async => _loadTables(),
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              itemCount: filtered.length,
-              itemBuilder: (ctx, i) {
-                final tbl = filtered[i];
-                return _buildTableCard(tbl);
-              },
-            ),
-          );
-        }),
+              return RefreshIndicator(
+                onRefresh: () async => _loadTables(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 650;
+                    if (isDesktop) {
+                      final crossAxisCount = constraints.maxWidth >= 1050 ? 4 : (constraints.maxWidth >= 800 ? 3 : 2);
+                      return GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 90),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          mainAxisExtent: 155,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) => _buildTableWebGridCard(filtered[i]),
+                      );
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) {
+                        final tbl = filtered[i];
+                        return _buildTableCard(tbl);
+                      },
+                    );
+                  },
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableWebGridCard(TableModel tbl) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  tbl.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F172A)),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.people_alt_outlined, size: 12, color: Color(0xFF64748B)),
+                    const SizedBox(width: 3),
+                    Text('${tbl.capacity}',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: tbl.statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.table_restaurant_rounded, color: tbl.statusColor, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: tbl.statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        tbl.statusLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: tbl.statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(tbl.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0072FF)),
+                tooltip: 'Sửa bàn',
+                onPressed: () => _showAddEditTableDialog(tableToEdit: tbl),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                tooltip: 'Xóa bàn',
+                onPressed: () => _confirmDeleteTable(tbl),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -8,6 +8,9 @@ class RestaurantModel {
   final String? primaryCategoryName;
   final List<String> vibes;
   final List<String> purposes;
+  final List<String> features;
+  final List<String> spaceTags;
+  final List<String> amenities;
   final int minPrice;
   final int maxPrice;
   final double? _rating;
@@ -42,6 +45,9 @@ class RestaurantModel {
     this.primaryCategoryName,
     this.vibes = const [],
     this.purposes = const [],
+    this.features = const [],
+    this.spaceTags = const [],
+    this.amenities = const [],
     this.minPrice = 50000,
     this.maxPrice = 300000,
     double? rating,
@@ -64,6 +70,15 @@ class RestaurantModel {
   }) : _rating = rating ?? 4.8,
        _latitude = latitude ?? 16.0544,
        _longitude = longitude ?? 108.2022;
+
+  static List<String> _parseStringList(dynamic listData) {
+    if (listData == null || listData is! List) return <String>[];
+    return listData
+        .where((e) => e != null)
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
 
   factory RestaurantModel.fromJson(Map<String, dynamic> json) {
     final priceRange = json['priceRange'] is Map ? json['priceRange'] : {};
@@ -151,11 +166,7 @@ class RestaurantModel {
     }
 
     // 2. Danh mục
-    final rawCats =
-        (json['categories'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
+    final rawCats = _parseStringList(json['categories']);
     final categoryDisplayName = json['category']?.toString();
 
     // 3. AI Score
@@ -175,16 +186,11 @@ class RestaurantModel {
           json['coverImageUrl']?.toString() ?? json['imageUrl']?.toString(),
       categories: rawCats,
       primaryCategoryName: categoryDisplayName,
-      vibes:
-          (json['vibes'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      purposes:
-          (json['purposes'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      vibes: _parseStringList(json['vibes']),
+      purposes: _parseStringList(json['purposes']),
+      features: _parseStringList(json['features']),
+      spaceTags: _parseStringList(json['spaceTags']),
+      amenities: _parseStringList(targetBranch is Map ? targetBranch['amenities'] : null),
       minPrice: (priceRange['min'] as num?)?.toInt() ?? 50000,
       maxPrice: (priceRange['max'] as num?)?.toInt() ?? 300000,
       rating: (ratingSummary['average'] as num?)?.toDouble() ?? 4.8,
@@ -262,5 +268,43 @@ class RestaurantModel {
     final minK = (minPrice / 1000).round();
     final maxK = (maxPrice / 1000).round();
     return '${minK}k - ${maxK}k';
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'name': name,
+      'description': description,
+      'logoUrl': logoUrl,
+      'coverImageUrl': coverImageUrl,
+      'categories': categories,
+      'category': primaryCategoryName,
+      'vibes': vibes,
+      'purposes': purposes,
+      'features': features,
+      'spaceTags': spaceTags,
+      'priceRange': {
+        'min': minPrice,
+        'max': maxPrice,
+      },
+      'ratingSummary': {
+        'average': _rating,
+        'totalReviews': totalReviews,
+      },
+      'googleRating': {
+        'rating': googleRating,
+        'userRatingsTotal': googleTotalReviews,
+      },
+      'addressText': address,
+      'phone': phone,
+      'aiScore': aiMatchScore,
+      'recommendationReason': recommendationReason,
+      'openTime': openTime,
+      'closeTime': closeTime,
+      'branchId': branchId,
+      'isBookingEnabled': isBookingEnabled,
+      'latitude': _latitude,
+      'longitude': _longitude,
+    };
   }
 }

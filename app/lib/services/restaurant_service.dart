@@ -25,6 +25,17 @@ class RestaurantService {
     'Bar & Pub': 'BAR',
   };
 
+  Map<String, String> _headers([String? token]) {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
+    };
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
   // 1. Lấy danh sách quán ăn từ Backend REST API (Kết nối trực tiếp MongoDB Atlas qua Express Server)
   Future<List<RestaurantModel>> getRestaurants({
     String city = 'Đà Nẵng',
@@ -88,7 +99,7 @@ class RestaurantService {
 
       debugPrint('[RestaurantService] -> Gọi API: $uri');
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
 
       debugPrint('[RestaurantService] <- Nhận mã HTTP: ${response.statusCode}');
 

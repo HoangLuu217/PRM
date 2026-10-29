@@ -300,7 +300,7 @@ export const registerUser = async (req, res) => {
           slug,
           description: businessDescription || `Hệ thống quán ẩm thực ${businessName.trim()}`,
           categories: [businessCategory || 'RESTAURANT'],
-          status: 'PENDING',
+          status: 'APPROVED',
           logoUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=400&q=80',
           coverImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
           googleMapsUrl: googleMapsUrl ? googleMapsUrl.trim() : '',

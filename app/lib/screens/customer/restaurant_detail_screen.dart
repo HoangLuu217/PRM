@@ -6,11 +6,21 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
+import '../../models/product_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/cart_provider.dart';
+import '../../providers/favorite_provider.dart';
+import '../../providers/menu_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../widgets/product_card.dart';
 import '../auth/login_screen.dart';
 import 'booking/booking_screen.dart';
+import 'cart/cart_screen.dart';
 import 'chat/customer_chat_screen.dart';
+import 'product/product_detail_screen.dart';
+import '../../providers/booking_provider.dart';
+import '../../services/order_service.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final RestaurantModel restaurant;
@@ -26,13 +36,29 @@ class RestaurantDetailScreen extends StatefulWidget {
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   int _selectedTabIndex = 0;
-  bool _isFavorite = false;
   bool _isLoadingMenu = true;
   List<Map<String, dynamic>> _menuItems = [];
+  final Map<String, int> _selectedDishesForBooking = {};
+
+  int get _totalSelectedDishes {
+    int sum = 0;
+    for (final q in _selectedDishesForBooking.values) {
+      sum += q;
+    }
+    return sum;
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ProductProvider>(context, listen: false).fetchProducts(
+        businessId: widget.restaurant.id,
+      );
+      Provider.of<MenuProvider>(context, listen: false).fetchBusinessMenu(
+        widget.restaurant.id,
+      );
+    });
     _loadMenuProducts();
   }
 
@@ -318,6 +344,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   backgroundColor: Colors.black.withValues(alpha: 0.45),
                   radius: 18,
                   child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     icon: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -328,6 +356,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: const Icon(Icons.forum_rounded, color: Colors.white, size: 17),
                         tooltip: 'Chat với quán',
                         onPressed: () {
@@ -345,31 +375,52 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
                         onPressed: () => _makePhoneCall(r.phone),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    CircleAvatar(
-                      backgroundColor: Colors.black.withValues(alpha: 0.45),
-                      radius: 18,
-                      child: IconButton(
-                        icon: Icon(
-                          _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          color: _isFavorite ? const Color(0xFFEF4444) : Colors.white,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          setState(() => _isFavorite = !_isFavorite);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(_isFavorite ? 'Đã thêm vào danh sách yêu thích' : 'Đã bỏ yêu thích'),
-                              duration: const Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
+                    Consumer<FavoriteProvider>(
+                      builder: (context, favProvider, _) {
+                        final isFav = favProvider.isFavorite(widget.restaurant.id);
+                        return CircleAvatar(
+                          backgroundColor: Colors.black.withValues(alpha: 0.45),
+                          radius: 18,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(
+                              isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: isFav ? const Color(0xFFEF4444) : Colors.white,
+                              size: 18,
                             ),
-                          );
-                        },
-                      ),
+                            tooltip: isFav ? 'Bỏ yêu thích' : 'Thêm vào yêu thích',
+                            onPressed: () {
+                              final auth = context.read<AuthProvider>();
+                              if (!auth.isAuthenticated) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
+                                    behavior: SnackBarBehavior.floating,
+                                    action: SnackBarAction(
+                                      label: 'Đăng nhập',
+                                      textColor: Colors.amber,
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              favProvider.toggleFavorite(widget.restaurant, token: auth.token, context: context);
+                            },
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -468,7 +519,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     final tabs = [
       {'title': 'Thông tin', 'icon': Icons.info_outline_rounded},
       {'title': 'Thực đơn (${_menuItems.length})', 'icon': Icons.restaurant_menu_rounded},
-      {'title': 'Bài viết (1)', 'icon': Icons.menu_book_rounded},
       {'title': 'Đánh giá (${widget.restaurant.totalReviews})', 'icon': Icons.star_border_rounded},
     ];
 
@@ -531,8 +581,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       case 1:
         return _buildMenuTabContent();
       case 2:
-        return _buildArticlesTabContent();
-      case 3:
         return _buildReviewsTabContent(r);
       default:
         return _buildInfoTabContent(r);
@@ -541,17 +589,42 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   // 1. Tab THÔNG TIN QUÁN (Giới thiệu, Điểm nổi bật & Tiện ích, Bản đồ định vị)
   Widget _buildInfoTabContent(RestaurantModel r) {
-    final featuresList = [
-      'Thanh toán chuyển khoản / QR',
-      'Wifi tốc độ cao',
-      'Chỗ để xe máy miễn phí',
-      'Chỗ để ô tô rộng rãi',
-      'Không gian ngoài trời / Sân vườn',
-      'Thanh toán thẻ (POS)',
-      'Xuất hóa đơn VAT',
-      'Ghế trẻ em',
-      ...r.vibes,
-    ];
+    final featuresList = <String>[];
+    if (r.features.isNotEmpty) featuresList.addAll(r.features);
+    if (r.spaceTags.isNotEmpty) featuresList.addAll(r.spaceTags);
+    if (r.vibes.isNotEmpty) featuresList.addAll(r.vibes);
+    if (r.purposes.isNotEmpty) featuresList.addAll(r.purposes);
+
+    // Ánh xạ tiện ích từ chi nhánh (Branch amenities) sang tiếng Việt
+    final Map<String, String> amenityLabels = {
+      'WIFI': 'Wifi miễn phí',
+      'AIR_CONDITIONING': 'Điều hòa / Máy lạnh',
+      'AIR_CONDITIONER': 'Điều hòa / Máy lạnh',
+      'PARKING': 'Chỗ để xe rộng rãi',
+      'PRIVATE_ROOM': 'Phòng riêng VIP',
+      'OUTDOOR_SEATING': 'Không gian ngoài trời',
+      'SEA_VIEW': 'View biển tuyệt đẹp',
+      'RIVER_VIEW': 'View sông thoáng mát',
+      'CREDIT_CARD': 'Thanh toán thẻ',
+      'ELEVATOR': 'Thang máy',
+      'POWER_OUTLETS': 'Ổ cắm điện',
+    };
+
+    for (final a in r.amenities) {
+      final label = amenityLabels[a] ?? a;
+      if (!featuresList.contains(label)) {
+        featuresList.add(label);
+      }
+    }
+
+    if (featuresList.isEmpty) {
+      featuresList.addAll([
+        'Thanh toán chuyển khoản / QR',
+        'Wifi tốc độ cao',
+        'Chỗ để xe máy miễn phí',
+        'Không gian thoáng mát',
+      ]);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,11 +778,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         options: MapOptions(
                           initialCenter: LatLng(r.latitude, r.longitude),
                           initialZoom: 15.5,
+                          initialRotation: 0.0,
                           interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                            urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&apistyle=s.t:33|p.v:off',
                             fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'vn.fconnect.app',
                           ),
@@ -717,9 +791,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                             markers: [
                               Marker(
                                 point: LatLng(r.latitude, r.longitude),
-                                width: 44,
-                                height: 44,
-                                child: const Icon(Icons.location_pin, color: Color(0xFFEF4444), size: 40),
+                                width: 32,
+                                height: 32,
+                                child: const Icon(Icons.location_pin, color: Color(0xFFEF4444), size: 28),
                               ),
                             ],
                           ),
@@ -746,7 +820,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   // 2. Tab THỰC ĐƠN MÓN ĂN
   Widget _buildMenuTabContent() {
-    if (_isLoadingMenu) {
+    final productProvider = Provider.of<ProductProvider>(context);
+
+    if (productProvider.isLoading || _isLoadingMenu) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(30.0),
@@ -755,7 +831,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       );
     }
 
-    if (_menuItems.isEmpty) {
+    final realProducts = productProvider.filteredProducts;
+
+    if (realProducts.isEmpty && _menuItems.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(30),
         alignment: Alignment.center,
@@ -770,128 +848,116 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           'Thực đơn món ăn đặc sắc',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
         ),
-        const SizedBox(height: 12),
-        ..._menuItems.map((prod) {
-          final name = prod['name']?.toString() ?? 'Món ngon';
-          final desc = prod['description']?.toString() ?? '';
-          final price = (prod['price'] as num?)?.toInt() ?? 50000;
-          final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
-          final cat = prod['category']?.toString() ?? 'Món chính';
+        const SizedBox(height: 8),
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
+        // Category Filter Chips
+        if (productProvider.categories.length > 1) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    img ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80',
-                    width: 76,
-                    height: 76,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 76,
-                      height: 76,
-                      color: const Color(0xFFF1F5F9),
-                      child: const Icon(Icons.fastfood_rounded, color: Color(0xFF94A3B8)),
+              children: productProvider.categories.map((cat) {
+                final isSel = productProvider.selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: isSel,
+                    selectedColor: Colors.deepOrange,
+                    labelStyle: TextStyle(
+                      color: isSel ? Colors.white : Colors.black87,
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                    onSelected: (_) => productProvider.selectCategory(cat),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // Product List
+        if (realProducts.isNotEmpty)
+          ...realProducts.map((prod) {
+            return ProductCard(
+              product: prod,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: prod,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          cat,
-                          style: const TextStyle(color: Color(0xFF0072FF), fontSize: 10, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF0F172A)),
-                      ),
-                      if (desc.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          desc,
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 4),
-                      Text(
-                        '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ',
-                        style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13.5),
-                      ),
-                    ],
+                );
+              },
+              onAddToCart: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: prod,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                );
+              },
+            );
+          })
+        else
+          ..._menuItems.map((prod) {
+            final name = prod['name']?.toString() ?? 'Món ngon';
+            final desc = prod['description']?.toString() ?? '';
+            final price = (prod['price'] as num?)?.toDouble() ?? 50000.0;
+            final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
+            final cat = prod['category']?.toString() ?? 'Món chính';
+
+            final fakeProduct = ProductModel(
+              id: 'fake_${name.hashCode}',
+              category: cat,
+              name: name,
+              description: desc,
+              price: price,
+              imageUrl: img ?? '',
+            );
+
+            return ProductCard(
+              product: fakeProduct,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: fakeProduct,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                    ),
+                  ),
+                );
+              },
+              onAddToCart: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: fakeProduct,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
       ],
     );
   }
 
-  // 3. Tab BÀI VIẾT REVIEW
-  Widget _buildArticlesTabContent() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              widget.restaurant.coverImageUrl ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Khám phá trải nghiệm ẩm thực đỉnh cao tại ${widget.restaurant.name}',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Bởi Ban Biên Tập FConnect • 4 phút đọc',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${widget.restaurant.name} là một trong những điểm đến ẩm thực tiêu biểu tại Đà Nẵng, mang đến hương vị chuẩn mực và không gian phục vụ chuyên nghiệp...',
-            style: const TextStyle(color: Color(0xFF475569), fontSize: 13, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 4. Tab ĐÁNH GIÁ (Reviews)
+  // 3. Tab ĐÁNH GIÁ (Reviews)
   Widget _buildReviewsTabContent(RestaurantModel r) {
     return Column(
       children: [
@@ -996,101 +1062,251 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     );
   }
 
+
+  void _showAddToOldBookingDialog(Map<String, dynamic> prod) async {
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    await bookingProvider.fetchMyBookings();
+    if (!mounted) return;
+
+    final activeBookings = bookingProvider.myBookings
+        .where((b) => b.businessId == widget.restaurant.id && (b.isPending || b.isConfirmed))
+        .toList();
+
+    if (activeBookings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn chưa có đơn đặt bàn nào đang chờ/xác nhận tại quán này.'),
+          backgroundColor: Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.history_edu_rounded, color: Color(0xFF0072FF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Thêm "${prod['name']}" vào đơn cũ:',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...activeBookings.map((b) {
+              return ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: const Color(0xFFF8FAFC),
+                leading: const Icon(Icons.table_restaurant_rounded, color: Color(0xFF0072FF)),
+                title: Text('#${b.bookingCode} - ${b.startTime} (${b.bookingDate})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                subtitle: Text('Khách: ${b.guestCount} người'),
+                trailing: const Icon(Icons.add_shopping_cart, color: Color(0xFF0072FF), size: 20),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final res = await OrderService().createOrder(
+                    businessId: b.businessId,
+                    branchId: b.branchId,
+                    bookingId: b.id,
+                    tableId: b.tableId,
+                    items: [
+                      {
+                        'productId': (prod['_id'] ?? prod['id'] ?? '').toString(),
+                        'quantity': 1,
+                        'selectedOptions': [],
+                      }
+                    ],
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(res['success'] == true ? 'Đã thêm món vào đơn #${b.bookingCode} thành công!' : (res['message'] ?? 'Thất bại')),
+                        backgroundColor: res['success'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Widget Thanh Sticky Bottom
   Widget _buildStickyBottomActionBar(RestaurantModel r) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Nút Chat với quán
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.forum_rounded, color: Color(0xFF0072FF), size: 20),
-              tooltip: 'Chat với quán',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CustomerChatScreen(restaurant: r),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
+    final cartProvider = Provider.of<CartProvider>(context);
+    final intPrice = cartProvider.subtotal.toInt();
+    final formattedCartTotal =
+        '${intPrice.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}đ';
 
-          // Nút gọi điện thoại
-          Expanded(
-            flex: 4,
-            child: OutlinedButton.icon(
-              onPressed: () => _makePhoneCall(r.phone),
-              icon: const Icon(Icons.phone_outlined, size: 17),
-              label: const Text('Gọi quán', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0F172A),
-                side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 13),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Nút đặt bàn ngay
-          Expanded(
-            flex: 6,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (cartProvider.itemCount > 0)
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
             child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0072FF).withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+              color: Colors.deepOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${cartProvider.totalQuantity}',
+                      style: const TextStyle(
+                        color: Colors.deepOrange,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Xem giỏ hàng',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formattedCartTotal,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
                 ],
               ),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BookingScreen(restaurant: r),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.table_restaurant_rounded, size: 18),
-                label: const Text('Đặt bàn ngay', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                ),
-              ),
+
             ),
           ),
-        ],
-      ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Nút Chat với quán
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.forum_rounded, color: Color(0xFF0072FF), size: 20),
+                  tooltip: 'Chat với quán',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CustomerChatScreen(restaurant: r),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Nút gọi điện thoại
+              Expanded(
+                flex: 4,
+                child: OutlinedButton.icon(
+                  onPressed: () => _makePhoneCall(r.phone),
+                  icon: const Icon(Icons.phone_outlined, size: 17),
+                  label: const Text('Gọi quán', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Nút đặt bàn ngay
+              Expanded(
+                flex: 6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0072FF).withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookingScreen(restaurant: r),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.table_restaurant_rounded, size: 18),
+                    label: const Text('Đặt bàn ngay', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

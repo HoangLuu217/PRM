@@ -11,12 +11,15 @@ import {
   Menu,
   Booking,
   Table,
+  Transaction,
+  User,
 } from '../models/index.js';
+import { createPayOSPaymentLink } from '../services/payosService.js';
 
 const generateOrderCode = () => {
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const randomNum = randomUUID().replaceAll('-', '').slice(0, 12);
-  return `FCO${dateStr}${randomNum}`;
+  const timestampPart = Math.floor(Date.now() / 1000) % 1000000;
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+  return Number(`${timestampPart}${randomPart}`);
 };
 
 export const createOrder = async (req, res) => {
@@ -30,6 +33,7 @@ export const createOrder = async (req, res) => {
       items,
       discount = 0,
       note,
+      paymentMethod = 'CASH',
     } = req.body;
 
     if (!['USER', 'CUSTOMER'].includes(req.user.role)) {
@@ -58,21 +62,43 @@ export const createOrder = async (req, res) => {
     }
 
     let selectedTableId = tableId;
-    if (bookingId) {
+    let resolvedBookingId = bookingId;
+
+    if (resolvedBookingId) {
       const booking = await Booking.findOne({
-        _id: bookingId,
+        _id: resolvedBookingId,
         userId: req.user._id,
-        branchId,
-        status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
+        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
       });
       if (!booking) {
-        return res.status(400).json({ success: false, message: 'Booking không hợp lệ cho đơn hàng này' });
+      if (!booking) {
+        return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã kết thúc/hủy' });
       }
-      if (tableId && String(tableId) !== String(booking.tableId)) {
-        return res.status(400).json({ success: false, message: 'Table must match the booking' });
+      if (!branchId) branchId = booking.branchId;
+      if (!businessId) businessId = booking.businessId;
+      if (tableId && booking.tableId && String(tableId) !== String(booking.tableId)) {
+        return res.status(400).json({ success: false, message: 'Bàn ăn không khớp với đơn đặt bàn' });
       }
-      selectedTableId = booking.tableId;
+      }
+      selectedTableId = booking.tableId || selectedTableId;
+    } else {
+      // Bắt buộc phải có lịch đặt bàn trước đó tại quán
+      const activeBooking = await Booking.findOne({
+        userId: req.user._id,
+        businessId,
+        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+      }).sort({ createdAt: -1 });
+
+      if (!activeBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn bắt buộc phải đặt bàn tại quán trước khi thực hiện đặt món. Vui lòng đặt bàn trước!',
+        });
+      }
+      resolvedBookingId = activeBooking._id;
+      selectedTableId = activeBooking.tableId || selectedTableId;
     }
+
     if (tableId && !(await Table.exists({ _id: tableId, branchId }))) {
       return res.status(400).json({ success: false, message: 'Bàn không thuộc chi nhánh đã chọn' });
     }
@@ -162,12 +188,40 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã giảm giá cần được xác thực từ chương trình khuyến mãi' });
     }
 
+    let existingOrder = null;
+    if (resolvedBookingId) {
+      existingOrder = await Order.findOne({ bookingId: resolvedBookingId, status: { $in: ['PENDING', 'CONFIRMED'] } });
+    }
+
+    if (existingOrder && existingOrder.status === 'PENDING') {
+      const mergedItems = [...existingOrder.items];
+      for (const newItem of formattedItems) {
+        const existIdx = mergedItems.findIndex((it) => String(it.productId) === String(newItem.productId));
+        if (existIdx > -1) {
+          mergedItems[existIdx].quantity += newItem.quantity;
+          mergedItems[existIdx].subtotal = (mergedItems[existIdx].unitPrice) * mergedItems[existIdx].quantity;
+        } else {
+          mergedItems.push(newItem);
+        }
+      }
+      const newSubtotal = mergedItems.reduce((sum, it) => sum + it.subtotal, 0);
+      existingOrder.items = mergedItems;
+      existingOrder.subtotal = newSubtotal;
+      existingOrder.total = newSubtotal - existingOrder.discount;
+      if (note) existingOrder.note = existingOrder.note ? `${existingOrder.note}; ${note}` : note;
+      await existingOrder.save();
+      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: existingOrder._id });
+      return res.status(200).json({ success: true, data: existingOrder, message: 'Đã thêm món vào đơn đặt bàn thành công!' });
+    }
+
+    const numericOrderCode = generateOrderCode();
+
     const order = await Order.create({
-      orderCode: generateOrderCode(),
+      orderCode: numericOrderCode,
       userId: req.user._id,
       businessId,
       branchId,
-      bookingId,
+      bookingId: resolvedBookingId,
       tableId: selectedTableId,
       orderType,
       items: formattedItems,
@@ -175,8 +229,58 @@ export const createOrder = async (req, res) => {
       discount: safeDiscount,
       total: subtotal - safeDiscount,
       note,
+      paymentMethod,
+      paymentStatus: 'PENDING',
       status: 'PENDING',
     });
+
+    if (resolvedBookingId) {
+      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: order._id });
+    }
+
+    // Register PayOS Payment Link & Transaction
+    if (paymentMethod === 'PAYOS_QR' || paymentMethod === 'BANK_TRANSFER') {
+      try {
+        const user = await User.findById(req.user._id);
+        const description = `DAT MON ${numericOrderCode}`.slice(0, 25);
+        const paymentResult = await createPayOSPaymentLink({
+          orderCode: numericOrderCode,
+          amount: order.total,
+          description,
+          items: formattedItems.map((it) => ({
+            name: it.productName.slice(0, 50),
+            quantity: it.quantity,
+            price: it.unitPrice,
+          })),
+          buyerName: user?.fullName || 'Khách hàng',
+          buyerEmail: user?.email || '',
+          buyerPhone: user?.phone || '',
+        });
+
+        const commissionRate = 10;
+        const commissionAmount = Math.round((order.total * commissionRate) / 100);
+        const merchantAmount = order.total - commissionAmount;
+
+        await Transaction.create({
+          orderCode: numericOrderCode,
+          userId: req.user._id,
+          businessId,
+          branchId,
+          amount: order.total,
+          commissionRate,
+          commissionAmount,
+          merchantAmount,
+          paymentMethod: 'PAYOS_VIETQR',
+          status: 'PENDING',
+          description,
+          payosPaymentLinkId: paymentResult.paymentLinkId,
+          payosCheckoutUrl: paymentResult.checkoutUrl,
+          payosQrCode: paymentResult.qrCode,
+        });
+      } catch (payosErr) {
+        console.warn('Register PayOS Payment Link warning:', payosErr.message);
+      }
+    }
 
     await Cart.findOneAndDelete({ userId: req.user._id, branchId }).catch((error) => console.error('Cart cleanup failed:', error.message));
     UserInteraction.create({

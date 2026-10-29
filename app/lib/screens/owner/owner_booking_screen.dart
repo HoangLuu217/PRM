@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/booking_model.dart';
-import '../../../models/table_model.dart';
 import '../../../providers/booking_provider.dart';
-import '../../../providers/table_provider.dart';
 
 class OwnerBookingScreen extends StatefulWidget {
   const OwnerBookingScreen({super.key});
@@ -59,99 +57,6 @@ class _OwnerBookingScreenState extends State<OwnerBookingScreen>
       default:
         return list;
     }
-  }
-
-  /// Modal xác nhận đặt bàn & gán/chọn bàn ăn
-  void _showConfirmBookingDialog(BookingModel b) {
-    final tableProvider = Provider.of<TableProvider>(context, listen: false);
-    TableModel? selectedTable;
-
-    // Tải danh sách bàn trống cho slot này
-    tableProvider.fetchAvailableTables(
-      branchId: b.branchId,
-      bookingDate: b.bookingDate,
-      startTime: b.startTime,
-      guestCount: b.guestCount,
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final tables = tableProvider.availableTables;
-
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF0072FF)),
-                const SizedBox(width: 8),
-                Text('Xác nhận #${b.bookingCode}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Khách: ${b.userName ?? "Khách hàng"} • ${b.guestCount} người', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text('Thời gian: ${b.startTime} • ${b.bookingDate}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                  const SizedBox(height: 16),
-                  const Text('Chọn bàn ăn cho khách:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                  const SizedBox(height: 8),
-                  if (tableProvider.isLoading)
-                    const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
-                  else if (tables.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
-                      child: const Text('Không có bàn trống phù hợp, hoặc bàn đã được chỉ định tự động.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                    )
-                  else
-                    ...tables.map((t) {
-                      return RadioListTile<TableModel?>(
-                        value: t,
-                        groupValue: selectedTable,
-                        onChanged: (val) => setDialogState(() => selectedTable = val),
-                        title: Text('${t.name} (${t.capacity} chỗ)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        subtitle: Text(t.location, style: const TextStyle(fontSize: 11)),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        activeColor: const Color(0xFF0072FF),
-                      );
-                    }),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  final res = await Provider.of<BookingProvider>(context, listen: false)
-                      .updateOwnerBookingStatus(
-                    b.id,
-                    'CONFIRMED',
-                    tableId: selectedTable?.id ?? b.tableId,
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(res['message'] ?? 'Đã xác nhận đặt bàn'),
-                        backgroundColor: res['success'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                      ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0072FF), foregroundColor: Colors.white),
-                child: const Text('Xác nhận đặt bàn'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
   }
 
   void _updateStatusDirect(BookingModel b, String status, String actionTitle) {
@@ -211,48 +116,86 @@ class _OwnerBookingScreenState extends State<OwnerBookingScreen>
           tabs: _tabs.map((title) => Tab(text: title)).toList(),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: List.generate(_tabs.length, (tabIndex) {
-          final filtered = _filterBookings(bookingProvider.ownerBookings, tabIndex);
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: TabBarView(
+            controller: _tabController,
+            children: List.generate(_tabs.length, (tabIndex) {
+              final filtered = _filterBookings(bookingProvider.ownerBookings, tabIndex);
 
-          if (bookingProvider.isLoading && bookingProvider.ownerBookings.isEmpty) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)));
-          }
+              if (bookingProvider.isLoading && bookingProvider.ownerBookings.isEmpty) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)));
+              }
 
-          if (filtered.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: () async => _loadBookings(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                  Center(
-                    child: Column(
-                      children: [
-                        const Icon(Icons.event_note_outlined, size: 48, color: Color(0xFF94A3B8)),
-                        const SizedBox(height: 12),
-                        const Text('Không có đơn đặt bàn nào trong mục này', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                      ],
-                    ),
+              if (filtered.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: () async => _loadBookings(),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      const Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.event_note_outlined, size: 48, color: Color(0xFF94A3B8)),
+                            SizedBox(height: 12),
+                            Text('Không có đơn đặt bàn nào trong mục này',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }
+                );
+              }
 
-          return RefreshIndicator(
-            onRefresh: () async => _loadBookings(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filtered.length,
-              itemBuilder: (ctx, i) {
-                final b = filtered[i];
-                return _buildOwnerBookingCard(b);
-              },
-            ),
-          );
-        }),
+              return RefreshIndicator(
+                onRefresh: () async => _loadBookings(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 850;
+                    if (isDesktop) {
+                      final rows = <Widget>[];
+                      for (int i = 0; i < filtered.length; i += 2) {
+                        final b1 = filtered[i];
+                        final b2 = (i + 1 < filtered.length) ? filtered[i + 1] : null;
+                        rows.add(
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(child: _buildOwnerBookingCard(b1)),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: b2 != null
+                                        ? _buildOwnerBookingCard(b2)
+                                        : const SizedBox(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: rows,
+                      );
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _buildOwnerBookingCard(filtered[i]),
+                    );
+                  },
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
@@ -346,20 +289,42 @@ class _OwnerBookingScreenState extends State<OwnerBookingScreen>
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.table_restaurant, size: 15, color: Color(0xFF10B981)),
-              const SizedBox(width: 6),
-              Text(
-                b.tableName != null ? 'Bàn: ${b.tableName}' : 'Chưa gán bàn cụ thể',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: b.tableName != null ? const Color(0xFF10B981) : const Color(0xFFF59E0B)),
-              ),
-            ],
-          ),
+
           if (b.note.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text('Ghi chú: ${b.note}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic)),
+          ],
+
+          if (b.preOrder != null && b.preOrder!.items.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.restaurant_rounded, size: 14, color: Color(0xFF0072FF)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Món đặt trước (${b.preOrder!.items.length} món) • ${b.preOrder!.total.toString().replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (m) => '${m[1]}.')} đ',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E3A8A)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    b.preOrder!.items.map((it) => '${it.quantity}x ${it.productName}').join(', '),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
           ],
 
           // Nút thao tác của Owner
@@ -380,7 +345,7 @@ class _OwnerBookingScreenState extends State<OwnerBookingScreen>
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () => _showConfirmBookingDialog(b),
+                  onPressed: () => _updateStatusDirect(b, 'CONFIRMED', 'Xác nhận đặt bàn'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0072FF),
                     foregroundColor: Colors.white,

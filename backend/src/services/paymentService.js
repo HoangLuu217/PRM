@@ -1,4 +1,4 @@
-import { Booking, Branch, Business, Transaction, Wallet, Notification, User } from '../models/index.js';
+import { Booking, Branch, Business, Transaction, Wallet, Notification, User, Order } from '../models/index.js';
 import { createPayOSPaymentLink, verifyPayOSWebhook, getPayOSPaymentInfo } from './payosService.js';
 
 // Default system platform commission rate (10%)
@@ -143,11 +143,19 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
     return completeSubscriptionSuccess(orderCode, webhookData);
   }
 
-  // 1. Update Transaction (for deposit)
+  // 1. Update Transaction (for deposit / food order)
   transaction.status = 'PAID';
   transaction.paidAt = new Date();
   transaction.webhookData = webhookData;
   await transaction.save();
+
+  // 1b. Update Food Order if exists
+  const foodOrder = await Order.findOne({ orderCode: String(orderCode) });
+  if (foodOrder) {
+    foodOrder.paymentStatus = 'PAID';
+    foodOrder.status = 'CONFIRMED';
+    await foodOrder.save();
+  }
 
   // 2. Update Booking
   const booking = await Booking.findById(transaction.bookingId).populate('businessId branchId');
@@ -202,34 +210,72 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
 };
 
 /**
- * Check payment status by orderCode
+ * Check payment status by orderCode (supports both Booking deposits and Food Orders)
  */
 export const checkDepositPaymentStatus = async (orderCode) => {
-  const transaction = await Transaction.findOne({ orderCode: Number(orderCode) });
-  if (!transaction) {
-    return { status: 'NOT_FOUND', isPaid: false };
+  const numericCode = Number(String(orderCode).replace(/\D/g, '')) || Number(orderCode);
+
+  let transaction = await Transaction.findOne({ orderCode: numericCode });
+  let order = await Order.findOne({ orderCode: String(orderCode) });
+  if (!order && numericCode > 0) {
+    order = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  // If status in DB is PENDING, actively query PayOS Gateway API
-  if (transaction.status === 'PENDING') {
+  // If DB already marks as paid
+  if (transaction?.status === 'PAID' || order?.paymentStatus === 'PAID') {
+    return {
+      orderCode,
+      status: 'PAID',
+      isPaid: true,
+      paidAt: transaction?.paidAt || order?.updatedAt || new Date(),
+    };
+  }
+
+  let payosInfo = null;
+  if (numericCode > 0) {
     try {
-      const payosInfo = await getPayOSPaymentInfo(orderCode);
-      if (payosInfo && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED')) {
-        await completePaymentSuccess(orderCode, payosInfo);
-        transaction.status = 'PAID';
-      }
+      payosInfo = await getPayOSPaymentInfo(numericCode);
     } catch (err) {
       console.warn('Query PayOS payment info error:', err.message);
     }
   }
 
+  const isPayOSPaid = payosInfo && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED');
+
+  // Dev / Testing Simulation Auto-Confirm Mode:
+  // Since local development environment (localhost) cannot receive real bank webhooks,
+  // in development mode, after 4 seconds of displaying QR, auto-confirm payment for testing flow!
+  const isDevTest = process.env.NODE_ENV === 'development';
+  const createdTime = transaction?.createdAt || order?.createdAt || new Date();
+  const secondsSinceCreation = (Date.now() - new Date(createdTime).getTime()) / 1000;
+  const shouldAutoConfirmDev = isDevTest && secondsSinceCreation >= 4;
+
+  if (isPayOSPaid || shouldAutoConfirmDev) {
+    if (transaction) {
+      transaction.status = 'PAID';
+      transaction.paidAt = new Date();
+      await transaction.save();
+      if (transaction.bookingId) {
+        await Booking.findByIdAndUpdate(transaction.bookingId, { depositStatus: 'PAID', status: 'CONFIRMED' });
+      }
+    }
+    if (order) {
+      order.paymentStatus = 'PAID';
+      order.status = 'CONFIRMED';
+      await order.save();
+    }
+    return {
+      orderCode,
+      status: 'PAID',
+      isPaid: true,
+      paidAt: new Date(),
+    };
+  }
+
   return {
-    orderCode: transaction.orderCode,
-    status: transaction.status,
-    isPaid: transaction.status === 'PAID',
-    amount: transaction.amount,
-    bookingId: transaction.bookingId,
-    paidAt: transaction.paidAt,
+    orderCode,
+    status: transaction?.status || order?.paymentStatus || 'PENDING',
+    isPaid: false,
   };
 };
 
