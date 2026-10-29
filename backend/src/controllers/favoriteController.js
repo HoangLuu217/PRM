@@ -1,4 +1,4 @@
-import { Favorite, UserInteraction, User } from '../models/index.js';
+import { Favorite, UserInteraction, User, Business, Branch } from '../models/index.js';
 
 // @desc    Add business to favorites
 // @route   POST /api/favorites
@@ -6,27 +6,41 @@ import { Favorite, UserInteraction, User } from '../models/index.js';
 export const addFavorite = async (req, res) => {
   try {
     const { businessId } = req.body;
+    if (!businessId) {
+      return res.status(400).json({ success: false, message: 'businessId là bắt buộc' });
+    }
 
-    const favorite = await Favorite.create({
+    let favorite = await Favorite.findOne({
       userId: req.user._id,
       businessId,
     });
 
-    // Automatically record interaction for personalized recommendations
-    UserInteraction.create({
-      userId: req.user._id,
-      businessId,
-      type: 'FAVORITE',
-      metadata: { source: 'favorite_toggle' },
-    }).catch(() => {});
+    if (!favorite) {
+      favorite = await Favorite.create({
+        userId: req.user._id,
+        businessId,
+      });
+
+      // Automatically record interaction for personalized recommendations
+      UserInteraction.create({
+        userId: req.user._id,
+        businessId,
+        type: 'FAVORITE',
+        metadata: { source: 'favorite_toggle' },
+      }).catch(() => {});
+    }
 
     res.status(201).json({
       success: true,
+      message: 'Đã thêm vào danh sách yêu thích',
       data: favorite,
     });
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(400).json({ success: false, message: 'Đã thêm doanh nghiệp này vào danh sách yêu thích' });
+      return res.status(200).json({
+        success: true,
+        message: 'Đã thêm doanh nghiệp này vào danh sách yêu thích',
+      });
     }
     res.status(500).json({ success: false, message: error.message });
   }
@@ -57,13 +71,88 @@ export const removeFavorite = async (req, res) => {
 export const getMyFavorites = async (req, res) => {
   try {
     const favorites = await Favorite.find({ userId: req.user._id })
-      .populate('businessId', 'name logoUrl coverImageUrl categories priceRange ratingSummary')
+      .populate({
+        path: 'businessId',
+        select:
+          'name slug description logoUrl coverImageUrl categories priceRange ratingSummary googleRating openTime closeTime vibes purposes features addressText status phone',
+      })
       .sort({ createdAt: -1 });
+
+    // Filter out favorites whose business might have been removed
+    const validFavorites = favorites.filter((f) => f.businessId);
+
+    // Fetch active branches to populate address, phone and GPS coords
+    const businessIds = validFavorites.map((f) => f.businessId._id);
+    const branches = await Branch.find({
+      businessId: { $in: businessIds },
+      status: 'ACTIVE',
+    }).lean();
+
+    const branchMap = {};
+    branches.forEach((br) => {
+      const bId = br.businessId.toString();
+      if (!branchMap[bId]) branchMap[bId] = [];
+      branchMap[bId].push(br);
+    });
+
+    const enriched = validFavorites.map((f) => {
+      const bObj = f.businessId.toObject ? f.businessId.toObject() : { ...f.businessId };
+      const bId = bObj._id.toString();
+      const bBranches = branchMap[bId] || [];
+      bObj.branches = bBranches;
+      bObj.primaryBranch = bBranches[0] || null;
+      if (!bObj.addressText && bObj.primaryBranch?.address) {
+        const street = bObj.primaryBranch.address.street || '';
+        const district = bObj.primaryBranch.address.district || '';
+        bObj.addressText = [street, district].filter(Boolean).join(', ');
+      }
+      return {
+        _id: f._id,
+        userId: f.userId,
+        business: bObj,
+        businessId: bObj,
+        createdAt: f.createdAt,
+      };
+    });
 
     res.json({
       success: true,
-      count: favorites.length,
-      data: favorites,
+      count: enriched.length,
+      data: enriched,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get list of favorite business IDs for current user
+// @route   GET /api/favorites/ids
+// @access  Private (Customer)
+export const getFavoriteIds = async (req, res) => {
+  try {
+    const favorites = await Favorite.find({ userId: req.user._id }).select('businessId');
+    const ids = favorites.map((f) => f.businessId?.toString()).filter(Boolean);
+    res.json({
+      success: true,
+      data: ids,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Check if a business is favorited by current user
+// @route   GET /api/favorites/check/:businessId
+// @access  Private (Customer)
+export const checkFavorite = async (req, res) => {
+  try {
+    const favorite = await Favorite.findOne({
+      userId: req.user._id,
+      businessId: req.params.businessId,
+    });
+    res.json({
+      success: true,
+      isFavorite: !!favorite,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

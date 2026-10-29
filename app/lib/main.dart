@@ -8,6 +8,7 @@ import 'core/constants/supabase_constants.dart';
 import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/favorite_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/table_provider.dart';
@@ -66,6 +67,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => FavoriteProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => TableProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),

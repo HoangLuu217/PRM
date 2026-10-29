@@ -3,6 +3,8 @@ import {
   addFavorite,
   removeFavorite,
   getMyFavorites,
+  getFavoriteIds,
+  checkFavorite,
   getMyFavoriteDishes,
   addFavoriteDish,
   removeFavoriteDish,
@@ -21,6 +23,9 @@ router.route('/dishes')
 router.delete('/dishes/:dishId', removeFavoriteDish);
 
 // Business favorites
+router.get('/ids', getFavoriteIds);
+router.get('/check/:businessId', checkFavorite);
+
 router.route('/')
   .get(getMyFavorites)
   .post(addFavorite);

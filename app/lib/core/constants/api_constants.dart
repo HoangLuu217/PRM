@@ -30,4 +30,5 @@ class ApiConstants {
   static const String ownerBookings = '/owner/bookings';
   static const String ownerOrders = '/owner/orders';
   static const String articles = '/articles';
+  static const String favorites = '/favorites';
 }
