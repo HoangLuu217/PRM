@@ -25,6 +25,7 @@ class HomeFeedTab extends StatelessWidget {
   final VoidCallback onToggleSortByAi;
   final TextEditingController searchController;
   final VoidCallback onSearch;
+  final ValueChanged<String>? onSearchChanged;
   final VoidCallback onResetFilters;
   final Function(RestaurantModel)? onShowBooking;
   final Function(RestaurantModel)? onShowDetails;
@@ -46,6 +47,7 @@ class HomeFeedTab extends StatelessWidget {
     required this.onToggleSortByAi,
     required this.searchController,
     required this.onSearch,
+    this.onSearchChanged,
     required this.onResetFilters,
     this.onShowBooking,
     this.onShowDetails,
@@ -253,11 +255,19 @@ class HomeFeedTab extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.local_fire_department_rounded, color: Color(0xFF0072FF), size: 24),
+                      Icon(
+                        searchController.text.trim().isNotEmpty
+                            ? Icons.search_rounded
+                            : Icons.local_fire_department_rounded,
+                        color: const Color(0xFF0072FF),
+                        size: 24,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Khám Phá Tất Cả Quán Ăn tại $selectedCity',
+                          searchController.text.trim().isNotEmpty
+                              ? 'Kết quả tìm kiếm cho "${searchController.text.trim()}" (${restaurants.length} quán)'
+                              : 'Khám Phá Tất Cả Quán Ăn tại $selectedCity',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -435,6 +445,9 @@ class HomeFeedTab extends StatelessWidget {
               child: TextField(
                 controller: searchController,
                 textInputAction: TextInputAction.search,
+                onChanged: (val) {
+                  onSearchChanged?.call(val);
+                },
                 onSubmitted: (_) => onSearch(),
                 style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
                 decoration: InputDecoration(
@@ -446,6 +459,7 @@ class HomeFeedTab extends StatelessWidget {
                           icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
                           onPressed: () {
                             searchController.clear();
+                            onSearchChanged?.call('');
                             onSearch();
                           },
                         )

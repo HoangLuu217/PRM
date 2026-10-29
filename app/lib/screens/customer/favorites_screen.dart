@@ -30,6 +30,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     super.dispose();
   }
 
+  String _removeAccents(String str) {
+    var result = str.toLowerCase();
+    result = result.replaceAll(RegExp(r'[àáạảãâầấậẩẫăằắặẳẵ]'), 'a');
+    result = result.replaceAll(RegExp(r'[èéẹẻẽêềếệểễ]'), 'e');
+    result = result.replaceAll(RegExp(r'[ìíịỉĩ]'), 'i');
+    result = result.replaceAll(RegExp(r'[òóọỏõôồốộổỗơờớợởỡ]'), 'o');
+    result = result.replaceAll(RegExp(r'[ùúụủũưừứựửữ]'), 'u');
+    result = result.replaceAll(RegExp(r'[ỳýỵỷỹ]'), 'y');
+    result = result.replaceAll(RegExp(r'[đ]'), 'd');
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final favProvider = context.watch<FavoriteProvider>();
@@ -37,9 +49,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     // Lọc theo từ khóa tìm kiếm & danh mục
     final filtered = allFavorites.where((r) {
-      final matchesSearch = _searchController.text.trim().isEmpty ||
-          r.name.toLowerCase().contains(_searchController.text.toLowerCase().trim()) ||
-          r.address.toLowerCase().contains(_searchController.text.toLowerCase().trim());
+      final q = _searchController.text.trim();
+      final cleanQ = _removeAccents(q);
+      final lowerQ = q.toLowerCase();
+
+      final matchesSearch = q.isEmpty ||
+          r.name.toLowerCase().contains(lowerQ) ||
+          _removeAccents(r.name).contains(cleanQ) ||
+          r.address.toLowerCase().contains(lowerQ) ||
+          _removeAccents(r.address).contains(cleanQ);
 
       final matchesCategory = _selectedCategory == 'Tất cả' ||
           r.displayCategory == _selectedCategory ||

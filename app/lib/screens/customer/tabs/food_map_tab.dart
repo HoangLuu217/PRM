@@ -55,6 +55,18 @@ class _FoodMapTabState extends State<FoodMapTab> {
     super.dispose();
   }
 
+  static String _removeVietnameseAccents(String str) {
+    var result = str.toLowerCase();
+    result = result.replaceAll(RegExp(r'[àáạảãâầấậẩẫăằắặẳẵ]'), 'a');
+    result = result.replaceAll(RegExp(r'[èéẹẻẽêềếệểễ]'), 'e');
+    result = result.replaceAll(RegExp(r'[ìíịỉĩ]'), 'i');
+    result = result.replaceAll(RegExp(r'[òóọỏõôồốộổỗơờớợởỡ]'), 'o');
+    result = result.replaceAll(RegExp(r'[ùúụủũưừứựửữ]'), 'u');
+    result = result.replaceAll(RegExp(r'[ỳýỵỷỹ]'), 'y');
+    result = result.replaceAll(RegExp(r'[đ]'), 'd');
+    return result;
+  }
+
   Future<void> _determineMyCurrentLocation({bool moveCamera = false}) async {
     setState(() => _isLocating = true);
     final pos = await _locationService.getCurrentLocation();
@@ -211,11 +223,16 @@ class _FoodMapTabState extends State<FoodMapTab> {
                   r.primaryCategoryName!.toLowerCase().contains(_mapCategoryFilter.toLowerCase()));
           if (!matchesCat) return false;
         }
-        final query = _mapSearchController.text.trim().toLowerCase();
+        final query = _mapSearchController.text.trim();
         if (query.isNotEmpty) {
-          final matches = r.name.toLowerCase().contains(query) ||
-              r.address.toLowerCase().contains(query) ||
-              r.displayCategory.toLowerCase().contains(query);
+          final cleanQuery = _removeVietnameseAccents(query);
+          final lowerQuery = query.toLowerCase();
+          final matches = r.name.toLowerCase().contains(lowerQuery) ||
+              _removeVietnameseAccents(r.name).contains(cleanQuery) ||
+              r.address.toLowerCase().contains(lowerQuery) ||
+              _removeVietnameseAccents(r.address).contains(cleanQuery) ||
+              r.displayCategory.toLowerCase().contains(lowerQuery) ||
+              _removeVietnameseAccents(r.displayCategory).contains(cleanQuery);
           if (!matches) return false;
         }
         return true;
