@@ -148,6 +148,24 @@ function extractReviewImages(r) {
  * Fetch Reviews and Rating using SerpApi
  */
 export async function fetchGooglePlaceReviews({ googleMapsUrl, businessName, address }) {
+  const trimmedUrl = (googleMapsUrl || '').trim();
+  const lowerUrl = trimmedUrl.toLowerCase();
+  const isValidMapsDomain =
+    lowerUrl.includes('google.com/maps') ||
+    lowerUrl.includes('maps.google.') ||
+    lowerUrl.includes('maps.app.goo.gl') ||
+    lowerUrl.includes('goo.gl/maps');
+
+  if (!isValidMapsDomain) {
+    return {
+      success: false,
+      message: 'Đường dẫn không hợp lệ! Vui lòng nhập đúng liên kết từ Google Maps (ví dụ: https://maps.app.goo.gl/... hoặc https://google.com/maps/...).',
+      rating: 0,
+      userRatingsTotal: 0,
+      reviews: [],
+    };
+  }
+
   const apiKey = (process.env.SERPAPI_KEY || process.env.GOOGLE_MAPS_API_KEY || '').trim();
 
   if (!apiKey) {

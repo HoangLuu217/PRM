@@ -723,6 +723,22 @@ export const syncGoogleReviews = async (req, res) => {
       });
     }
 
+    // Bắt buộc kiểm tra định dạng: Chỉ chấp nhận liên kết hợp lệ từ Google Maps
+    const lowerUrl = targetUrl.toLowerCase();
+    const isValidGoogleMapsUrl =
+      lowerUrl.includes('google.com/maps') ||
+      lowerUrl.includes('maps.google.') ||
+      lowerUrl.includes('maps.app.goo.gl') ||
+      lowerUrl.includes('goo.gl/maps');
+
+    if (!isValidGoogleMapsUrl) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Đường dẫn không hợp lệ! Vui lòng nhập đúng liên kết Google Maps của quán (ví dụ: https://maps.app.goo.gl/... hoặc https://www.google.com/maps/...).',
+      });
+    }
+
     // Get primary branch address if available
     const primaryBranch = await Branch.findOne({ businessId: business._id });
     const addressStr = primaryBranch
