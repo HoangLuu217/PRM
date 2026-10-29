@@ -195,7 +195,7 @@ class CartDatabaseHelper {
 
     final currentItems = await getAllCartItems();
     final existingIndex = currentItems.indexWhere((existing) {
-      return (existing.businessId == busId || existing.businessId == null) && existing.isSameConfiguration(item);
+      return existing.businessId == busId && existing.isSameConfiguration(item);
     });
 
     final sizeJsonStr = item.selectedSize != null ? jsonEncode(item.selectedSize!.toJson()) : null;

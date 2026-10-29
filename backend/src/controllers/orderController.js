@@ -122,12 +122,12 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Một món trong đơn không tồn tại hoặc đã hết hàng' });
       }
       const menu = await Menu.findById(product.menuId).select('businessId branchId status');
-      const belongsToBranch = menu && menu.status === 'ACTIVE'
-        && String(menu.businessId) === String(businessId)
-        && (!menu.branchId || String(menu.branchId) === String(branchId))
-        && (!product.branchId || String(product.branchId) === String(branchId));
-      if (!belongsToBranch) {
-        return res.status(400).json({ success: false, message: `Món "${product.name}" không thuộc chi nhánh đã chọn` });
+      const belongsToBusiness = (menu && String(menu.businessId) === String(businessId))
+        || (product && String(product.businessId) === String(businessId));
+
+      if (!belongsToBusiness) {
+        // Món thuộc nhà hàng khác -> Bỏ qua không tính vào đơn hàng này
+        continue;
       }
 
       let unitPrice = product.price;
