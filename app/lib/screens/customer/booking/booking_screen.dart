@@ -328,37 +328,15 @@ class _BookingScreenState extends State<BookingScreen> {
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 20),
-              if (res['booking'] is BookingModel) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0072FF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () async {
-                      final booking = res['booking'] as BookingModel;
-                      Navigator.pop(ctx);
-                      final bookingService = BookingService();
-                      final depositRes = await bookingService.createDepositPaymentLink(booking.id);
-                      if (!mounted) return;
-                      RestaurantModals.showDepositPaymentModal(
-                        context,
-                        booking: booking,
-                        depositData: depositRes['data'] ?? {},
-                      );
-                    },
-                    icon: const Icon(Icons.qr_code_2_rounded, size: 20),
-                    label: const Text('Thanh toán cọc bàn (VietQR / PayOS)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0072FF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: () {
                     Navigator.pop(ctx);
                     Navigator.pushReplacement(
@@ -366,11 +344,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
                     );
                   },
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Xem lịch sử đặt bàn của tôi'),
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                  label: const Text('Xem lịch sử đặt bàn của tôi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
             ],

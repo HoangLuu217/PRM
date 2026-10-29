@@ -9,6 +9,7 @@ import '../../../services/restaurant_service.dart';
 import '../../auth/login_screen.dart';
 import '../booking/booking_detail_screen.dart';
 import '../booking/booking_screen.dart';
+import '../booking/my_bookings_screen.dart';
 import '../restaurant_detail_screen.dart';
 
 class RestaurantModals {
@@ -188,16 +189,24 @@ class RestaurantModals {
                       if (errorMsg.contains('Booking must be in the future')) {
                         errorMsg = 'Khung giờ đặt bàn phải sau thời điểm hiện tại. Vui lòng chọn giờ khác!';
                       }
-                      if (res['success'] == true && res['booking'] is BookingModel) {
-                        final booking = res['booking'] as BookingModel;
-                        final bookingService = BookingService();
-                        final depositRes = await bookingService.createDepositPaymentLink(booking.id);
-                        if (!context.mounted) return;
-                        
-                        showDepositPaymentModal(
+                      if (res['success'] == true) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: const Color(0xFF10B981),
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text('Đặt bàn tại ${r.name} thành công!')),
+                              ],
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        Navigator.push(
                           context,
-                          booking: booking,
-                          depositData: depositRes['data'] ?? {},
+                          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
                         );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
