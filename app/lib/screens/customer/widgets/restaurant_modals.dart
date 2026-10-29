@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../models/booking_model.dart';
 import '../../../models/restaurant_model.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/restaurant_service.dart';
@@ -10,6 +12,7 @@ import '../../auth/login_screen.dart';
 import '../booking/booking_detail_screen.dart';
 import '../booking/booking_screen.dart';
 import '../booking/my_bookings_screen.dart';
+import '../checkout/checkout_screen.dart';
 import '../restaurant_detail_screen.dart';
 
 class RestaurantModals {
@@ -191,6 +194,9 @@ class RestaurantModals {
                       }
                       if (res['success'] == true) {
                         Navigator.pop(ctx);
+                        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                        final hasCart = cartProvider.itemCount > 0 && cartProvider.businessId == r.id;
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             backgroundColor: const Color(0xFF10B981),
@@ -198,16 +204,28 @@ class RestaurantModals {
                               children: [
                                 const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
                                 const SizedBox(width: 8),
-                                Expanded(child: Text('Đặt bàn tại ${r.name} thành công!')),
+                                Expanded(
+                                  child: Text(hasCart
+                                      ? 'Đặt bàn thành công! Chuyển sang thanh toán món ăn...'
+                                      : 'Đặt bàn tại ${r.name} thành công!'),
+                                ),
                               ],
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                        );
+
+                        if (hasCart) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                          );
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
