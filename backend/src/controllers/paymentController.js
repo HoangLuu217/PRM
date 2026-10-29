@@ -88,6 +88,24 @@ export const checkPaymentStatusController = async (req, res) => {
   }
 };
 
+// @desc    Confirm Manual Payment (For Testing / Immediate Confirmation)
+// @route   POST /api/payments/confirm-manual/:orderCode
+// @access  Public / Private
+export const confirmManualPaymentController = async (req, res) => {
+  try {
+    const { orderCode } = req.params;
+    const result = await completePaymentSuccess(orderCode, { manual: true });
+    res.json({
+      success: true,
+      message: 'Xác nhận thanh toán thành công!',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Confirm manual payment error:', error);
+    res.status(400).json({ success: false, message: error.message || 'Lỗi xác nhận thanh toán' });
+  }
+};
+
 // @desc    Get Merchant Wallet
 // @route   GET /api/payments/merchant-wallet
 // @access  Private (Merchant)

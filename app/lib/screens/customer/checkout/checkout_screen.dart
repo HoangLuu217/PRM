@@ -424,6 +424,69 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706))),
+                          SizedBox(width: 8),
+                          Text(
+                            'Đang chờ giao dịch ngân hàng thực tế...',
+                            style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0072FF),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        onPressed: () async {
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          if (authProvider.token == null) return;
+                          final ok = await _checkoutService.confirmManualPayment(orderCode, authProvider.token!);
+                          if (ok && ctx.mounted) {
+                            pollTimer?.cancel();
+                            setModalState(() {
+                              isPaymentSuccess = true;
+                            });
+                            Future.delayed(const Duration(milliseconds: 1200), () {
+                              if (!mounted) return;
+                              Navigator.pop(ctx);
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                                (route) => route.isFirst,
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Thanh toán thành công! Đơn hàng #$orderCode đã được gửi đến nhà bếp 🎉'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                  duration: const Duration(seconds: 4),
+                                ),
+                              );
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                        label: const Text('Xác nhận đã chuyển khoản thành công', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                   ],
                   const SizedBox(height: 12),
                 ],

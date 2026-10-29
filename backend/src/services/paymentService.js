@@ -224,50 +224,13 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     order = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  let payosInfo = null;
-  if (numericCode > 0) {
-    try {
-      payosInfo = await getPayOSPaymentInfo(numericCode);
-    } catch (err) {
-      console.warn('Query PayOS payment info error:', err.message);
-    }
-  }
-
-  const targetAmount = order?.total || transaction?.amount || 1000;
-  const hasRealBankTransaction = Array.isArray(payosInfo?.transactions)
-    && payosInfo.transactions.length > 0
-    && payosInfo.transactions.some((t) => Number(t.amount || t.amountPaid || 0) >= targetAmount);
-
-  // If DB or PayOS verified payment with real bank transaction
-  if (hasRealBankTransaction || (transaction?.status === 'PAID' && transaction?.paidAt) || (order?.paymentStatus === 'PAID' && hasRealBankTransaction)) {
-    if (transaction && transaction.status !== 'PAID') {
-      transaction.status = 'PAID';
-      transaction.paidAt = new Date();
-      await transaction.save();
-      if (transaction.bookingId) {
-        await Booking.findByIdAndUpdate(transaction.bookingId, { depositStatus: 'PAID', status: 'CONFIRMED' });
-      }
-    }
-    if (order && order.paymentStatus !== 'PAID') {
-      order.paymentStatus = 'PAID';
-      order.status = 'CONFIRMED';
-      await order.save();
-      if (order.bookingId) {
-        await Booking.findByIdAndUpdate(order.bookingId, { status: 'CONFIRMED', depositStatus: 'PAID' });
-      }
-    }
-    return {
-      orderCode,
-      status: 'PAID',
-      isPaid: true,
-      paidAt: transaction?.paidAt || order?.updatedAt || new Date(),
-    };
-  }
+  const isPaid = (transaction?.status === 'PAID') || (order?.paymentStatus === 'PAID');
 
   return {
     orderCode,
-    status: transaction?.status || order?.paymentStatus || 'PENDING',
-    isPaid: false,
+    status: isPaid ? 'PAID' : 'PENDING',
+    isPaid,
+    paidAt: transaction?.paidAt || order?.updatedAt,
   };
 };
 

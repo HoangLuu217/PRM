@@ -64,4 +64,17 @@ class CheckoutService {
     } catch (_) {}
     return false;
   }
+
+  /// Manually confirm payment (For testing or immediate confirmation)
+  Future<bool> confirmManualPayment(dynamic orderCode, String token) async {
+    try {
+      final uri = Uri.parse('$baseUrl/payments/confirm-manual/$orderCode');
+      final response = await http.post(uri, headers: _headers(token)).timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        return body['success'] == true;
+      }
+    } catch (_) {}
+    return false;
+  }
 }
