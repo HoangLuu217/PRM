@@ -180,16 +180,18 @@ class BookingDetailScreen extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: const Color(0xFF0072FF)),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
-            ),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -17,6 +17,8 @@ export { Article } from './Article.js';
 export { FoodTourPlan } from './FoodTourPlan.js';
 export { Transaction } from './Transaction.js';
 export { Wallet } from './Wallet.js';
+export { Conversation } from './Conversation.js';
+export { Message } from './Message.js';
 
 // Legacy Aliases for backwards compatibility during controller refactoring
 export { Business as Restaurant } from './Business.js';

@@ -18,6 +18,7 @@ import articleRoutes from './articleRoutes.js';
 import uploadRoutes from './uploadRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
 import subscriptionRoutes from './subscriptionRoutes.js';
+import chatRoutes from './chatRoutes.js';
 import ownerRoutes from './ownerRoutes.js';
 
 const router = express.Router();
@@ -41,6 +42,7 @@ router.use('/interactions', interactionRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/ai', aiRoutes);
 router.use('/admin', adminRoutes);
+router.use('/chat', chatRoutes);
 router.use('/articles', articleRoutes);
 router.use('/upload', uploadRoutes);
 

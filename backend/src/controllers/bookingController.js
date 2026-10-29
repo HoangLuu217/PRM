@@ -2,8 +2,9 @@ import mongoose from 'mongoose';
 import { randomUUID } from 'node:crypto';
 import { fail, validDate, validTime, overlapFilter } from '../utils/operations.js';
 import { operationError } from '../utils/operations.js';
-import { Booking, Branch, Business, Notification, Table, Order, UserInteraction } from '../models/index.js';
+import { Booking, Branch, Business, Notification, Table, Order, UserInteraction, User } from '../models/index.js';
 import { emitBookingUpdate } from '../socket.js';
+import { sendPushToUser } from '../services/pushNotificationService.js';
 
 // Helper to generate clean, short booking code (e.g. FCB81023)
 const generateBookingCode = () => {
@@ -113,6 +114,48 @@ export const createBooking = async (req, res) => {
 
     // Phát tín hiệu Realtime cho Merchant Dashboard nhận thông báo đặt bàn tức thời
     emitBookingUpdate(businessId, booking, 'created');
+
+    // 1. Tạo Notification cho Khách hàng & Gửi Push Notification qua Firebase về điện thoại
+    Notification.create({
+      userId: req.user._id,
+      businessId,
+      type: 'BOOKING_CREATED',
+      referenceId: booking._id,
+      title: `Đặt bàn thành công #${booking.bookingCode}`,
+      message: `Bạn đã đặt bàn thành công tại ${business.name} lúc ${startTime} ngày ${bookingDate}. Trạng thái: Chờ xác nhận.`,
+    }).catch((err) => console.error('Booking notif customer err:', err));
+
+    sendPushToUser(
+      req.user._id,
+      `Đặt bàn thành công #${booking.bookingCode}`,
+      `Bạn đã đặt bàn thành công tại ${business.name} lúc ${startTime} ngày ${bookingDate}.`,
+      { bookingId: String(booking._id), bookingCode: booking.bookingCode }
+    ).catch(() => {});
+
+    // 2. Gửi thông báo cho Chủ quán
+    let ownerUserId = business.ownerId;
+    if (!ownerUserId) {
+      const anyOwner = await User.findOne({ role: { $in: ['MERCHANT', 'OWNER'] } });
+      if (anyOwner) ownerUserId = anyOwner._id;
+    }
+
+    if (ownerUserId) {
+      Notification.create({
+        userId: ownerUserId,
+        businessId,
+        type: 'NEW_BOOKING_ALERT',
+        referenceId: booking._id,
+        title: `Đơn đặt bàn mới #${booking.bookingCode}`,
+        message: `Khách hàng vừa đặt bàn lúc ${startTime} ngày ${bookingDate} (${guestCount} khách).`,
+      }).catch((err) => console.error('Booking notif owner err:', err));
+
+      sendPushToUser(
+        ownerUserId,
+        `Đơn đặt bàn mới #${booking.bookingCode}`,
+        `Khách hàng vừa đặt bàn lúc ${startTime} ngày ${bookingDate} (${guestCount} khách).`,
+        { bookingId: String(booking._id), bookingCode: booking.bookingCode }
+      ).catch(() => {});
+    }
 
     // Automatically record interaction for personalized recommendations
     UserInteraction.create({
@@ -291,6 +334,14 @@ export const updateBookingStatus = async (req, res) => {
       title: 'Booking #' + booking.bookingCode + ': ' + booking.status,
       message: 'Booking on ' + booking.bookingDate + ' at ' + booking.startTime + ': ' + booking.status,
     }).catch((error) => console.error('Booking notification failed:', error.message));
+
+    sendPushToUser(
+      booking.userId,
+      `Cập nhật đặt bàn #${booking.bookingCode}`,
+      `Nhà hàng đã cập nhật trạng thái đặt bàn: ${booking.status}`,
+      { bookingId: String(booking._id), status: booking.status }
+    ).catch(() => {});
+
     emitBookingUpdate(booking.businessId, booking, 'updated');
     res.json({ success: true, data: booking });
   } catch (error) { return operationError(res, error); }

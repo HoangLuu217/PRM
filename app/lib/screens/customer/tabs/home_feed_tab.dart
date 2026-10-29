@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/notification_provider.dart';
 import '../../auth/login_screen.dart';
 import '../../auth/profile_screen.dart';
+import '../notification/customer_notification_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
 class HomeFeedTab extends StatelessWidget {
@@ -454,7 +456,58 @@ class HomeFeedTab extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+
+          // Nút Chuông Thông Báo (Member 5)
+          Consumer<NotificationProvider>(
+            builder: (context, notiProvider, _) {
+              final unread = notiProvider.unreadCount;
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CustomerNotificationScreen()),
+                  );
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.notifications_none_rounded, color: Color(0xFF0F172A), size: 20),
+                      if (unread > 0)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 6),
 
           // User Avatar / Nút Đăng nhập
           if (isLoggedIn)

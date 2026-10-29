@@ -100,7 +100,7 @@ class AuthService {
           'password': password,
           if (role != null && role.isNotEmpty) 'role': role,
         }),
-      );
+      ).timeout(const Duration(seconds: 8));
 
       final data = jsonDecode(response.body);
 
