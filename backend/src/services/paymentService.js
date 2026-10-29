@@ -224,16 +224,6 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     order = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  // If DB already marks as paid
-  if (transaction?.status === 'PAID' || order?.paymentStatus === 'PAID') {
-    return {
-      orderCode,
-      status: 'PAID',
-      isPaid: true,
-      paidAt: transaction?.paidAt || order?.updatedAt || new Date(),
-    };
-  }
-
   let payosInfo = null;
   if (numericCode > 0) {
     try {
@@ -248,12 +238,9 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     && payosInfo.transactions.length > 0
     && payosInfo.transactions.some((t) => Number(t.amount || t.amountPaid || 0) >= targetAmount);
 
-  const isPayOSPaid = payosInfo
-    && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED')
-    && hasRealBankTransaction;
-
-  if (isPayOSPaid) {
-    if (transaction) {
+  // If DB or PayOS verified payment with real bank transaction
+  if (hasRealBankTransaction || (transaction?.status === 'PAID' && transaction?.paidAt) || (order?.paymentStatus === 'PAID' && hasRealBankTransaction)) {
+    if (transaction && transaction.status !== 'PAID') {
       transaction.status = 'PAID';
       transaction.paidAt = new Date();
       await transaction.save();
@@ -261,7 +248,7 @@ export const checkDepositPaymentStatus = async (orderCode) => {
         await Booking.findByIdAndUpdate(transaction.bookingId, { depositStatus: 'PAID', status: 'CONFIRMED' });
       }
     }
-    if (order) {
+    if (order && order.paymentStatus !== 'PAID') {
       order.paymentStatus = 'PAID';
       order.status = 'CONFIRMED';
       await order.save();
@@ -273,7 +260,7 @@ export const checkDepositPaymentStatus = async (orderCode) => {
       orderCode,
       status: 'PAID',
       isPaid: true,
-      paidAt: new Date(),
+      paidAt: transaction?.paidAt || order?.updatedAt || new Date(),
     };
   }
 

@@ -198,32 +198,6 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã giảm giá cần được xác thực từ chương trình khuyến mãi' });
     }
 
-    let existingOrder = null;
-    if (resolvedBookingId) {
-      existingOrder = await Order.findOne({ bookingId: resolvedBookingId, paymentStatus: 'PENDING', status: 'PENDING' });
-    }
-
-    if (existingOrder && existingOrder.status === 'PENDING') {
-      const mergedItems = [...existingOrder.items];
-      for (const newItem of formattedItems) {
-        const existIdx = mergedItems.findIndex((it) => String(it.productId) === String(newItem.productId));
-        if (existIdx > -1) {
-          mergedItems[existIdx].quantity += newItem.quantity;
-          mergedItems[existIdx].subtotal = (mergedItems[existIdx].unitPrice) * mergedItems[existIdx].quantity;
-        } else {
-          mergedItems.push(newItem);
-        }
-      }
-      const newSubtotal = mergedItems.reduce((sum, it) => sum + it.subtotal, 0);
-      existingOrder.items = mergedItems;
-      existingOrder.subtotal = newSubtotal;
-      existingOrder.total = newSubtotal - existingOrder.discount;
-      if (note) existingOrder.note = existingOrder.note ? `${existingOrder.note}; ${note}` : note;
-      await existingOrder.save();
-      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: existingOrder._id });
-      return res.status(200).json({ success: true, data: existingOrder, message: 'Đã thêm món vào đơn đặt bàn thành công!' });
-    }
-
     const numericOrderCode = generateOrderCode();
 
     const order = await Order.create({
