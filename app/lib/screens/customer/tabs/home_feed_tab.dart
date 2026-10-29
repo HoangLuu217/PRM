@@ -801,35 +801,6 @@ class HomeFeedTab extends StatelessWidget {
                 ),
               ),
 
-              // AI Match Score Badge (Góc trên trái)
-              if (r.aiMatchScore != null && r.aiMatchScore! > 0)
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF38BDF8), width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome, color: Color(0xFF38BDF8), size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${r.aiMatchScore!.toStringAsFixed(0)}% phù hợp',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
               // Rating Google Maps Badge (Góc trên phải)
               if (r.googleRating != null && r.googleRating! > 0)
