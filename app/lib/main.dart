@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +17,7 @@ import 'providers/product_provider.dart';
 import 'providers/table_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/auth/splash_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +50,22 @@ void main() async {
     } catch (e) {
       debugPrint("[Supabase] Init error (continuing in offline/fallback mode): $e");
     }
+  }
+
+  // Initialize Firebase for Mobile
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      debugPrint('[Firebase Init Error]: $e');
+    }
+  }
+
+  // Initialize Firebase Notification Service (Push + Local Notifications)
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('[NotificationService Init Error]: $e');
   }
 
   runApp(const MyApp());
