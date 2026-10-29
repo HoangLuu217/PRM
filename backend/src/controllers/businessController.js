@@ -51,6 +51,7 @@ export const getBusinesses = async (req, res) => {
         $or: [
           { 'address.city': { $regex: cleanCity, $options: 'i' } },
           { 'address.street': { $regex: cleanCity, $options: 'i' } },
+          { 'address.ward': { $regex: cleanCity, $options: 'i' } },
           { 'address.district': { $regex: cleanCity, $options: 'i' } },
         ],
       });
@@ -246,8 +247,9 @@ export const getBusinesses = async (req, res) => {
       b.primaryBranch = closestBranch || bBranches[0] || null;
       if (b.primaryBranch?.address) {
         const street = b.primaryBranch.address.street || '';
-        const district = b.primaryBranch.address.district || '';
-        b.addressText = [street, district].filter(Boolean).join(', ');
+        const ward = b.primaryBranch.address.ward || b.primaryBranch.address.district || '';
+        const city = b.primaryBranch.address.city || '';
+        b.addressText = [street, ward, city].filter(Boolean).join(', ');
       } else {
         b.addressText = '';
       }
@@ -555,6 +557,17 @@ export const onboardBusiness = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập tên quán / thương hiệu F&B' });
     }
 
+    if (
+      !businessAddress?.street?.trim() ||
+      !businessAddress?.ward?.trim() ||
+      !businessAddress?.city?.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp địa chỉ, phường/xã và tỉnh/thành hợp lệ.',
+      });
+    }
+
     const businessName = name.trim();
     const rawSlug = businessName
       .toLowerCase()
@@ -624,10 +637,10 @@ export const onboardBusiness = async (req, res) => {
     if (branch) {
       branch.name = `${businessName} - Chi nhánh chính`;
       branch.address = {
-        street: businessAddress?.street?.trim() || branch.address?.street || 'Trụ sở chính',
-        ward: businessAddress?.ward?.trim() || branch.address?.ward || '',
-        district: businessAddress?.district?.trim() || branch.address?.district || 'Hải Châu',
-        city: businessAddress?.city?.trim() || branch.address?.city || 'Thành phố Đà Nẵng',
+        street: businessAddress.street.trim(),
+        ward: businessAddress.ward.trim(),
+        district: '',
+        city: businessAddress.city.trim(),
       };
       if (googleMapsUrl) {
         branch.location = {
@@ -645,10 +658,10 @@ export const onboardBusiness = async (req, res) => {
         businessId: business._id,
         name: `${businessName} - Chi nhánh chính`,
         address: {
-          street: businessAddress?.street?.trim() || 'Trụ sở chính',
-          ward: businessAddress?.ward?.trim() || '',
-          district: businessAddress?.district?.trim() || 'Hải Châu',
-          city: businessAddress?.city?.trim() || 'Thành phố Đà Nẵng',
+          street: businessAddress.street.trim(),
+          ward: businessAddress.ward.trim(),
+          district: '',
+          city: businessAddress.city.trim(),
         },
         location: {
           type: 'Point',
@@ -670,7 +683,11 @@ export const onboardBusiness = async (req, res) => {
       success: true,
       message: 'Khởi tạo thông tin quán F&B thành công!',
       data: {
-        business,
+        business: {
+          ...business.toObject(),
+          address: branch.address,
+          primaryBranch: branch,
+        },
         branch,
       },
     });
@@ -706,7 +723,11 @@ export const syncGoogleReviews = async (req, res) => {
     // Get primary branch address if available
     const primaryBranch = await Branch.findOne({ businessId: business._id });
     const addressStr = primaryBranch
-      ? `${primaryBranch.address?.street || ''}, ${primaryBranch.address?.district || ''}, ${primaryBranch.address?.city || ''}`
+      ? [
+          primaryBranch.address?.street,
+          primaryBranch.address?.ward || primaryBranch.address?.district,
+          primaryBranch.address?.city,
+        ].filter(Boolean).join(', ')
       : '';
 
     const syncResult = await googleMapsService.fetchGooglePlaceReviews({
@@ -784,5 +805,3 @@ export const syncGoogleReviews = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-

@@ -2,16 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
-  // Lấy Base URL: nếu chạy Web thì luôn trỏ thẳng localhost:5000, nếu Mobile thì đọc từ .env
+  // Configure API_BASE_URL with the deployed API URL when building for production.
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:5000/api';
-    }
     final url = dotenv.isInitialized ? (dotenv.env['API_BASE_URL'] ?? '') : '';
-    if (url.isEmpty) {
-      return 'http://10.0.2.2:5000/api';
+    if (url.trim().isNotEmpty) {
+      return url.trim().replaceFirst(RegExp(r'/+$'), '');
     }
-    return url;
+    return kIsWeb ? 'http://localhost:5000/api' : 'http://10.0.2.2:5000/api';
   }
 
   static const String login = '/auth/login';

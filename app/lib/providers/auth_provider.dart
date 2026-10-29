@@ -32,6 +32,15 @@ class AuthProvider extends ChangeNotifier {
     return saved == 'MERCHANT' || saved == 'OWNER' || saved == 'BUSINESS_OWNER' || saved == 'ADMIN';
   }
 
+  void updateBusiness(Map<String, dynamic> business) {
+    if (_user == null) return;
+
+    final userData = _user!.toJson();
+    userData['business'] = business;
+    _user = User.fromJson(userData);
+    notifyListeners();
+  }
+
   // Check auth status on app start (Splash Screen)
   Future<void> checkAuthStatus() async {
     _isLoading = true;
