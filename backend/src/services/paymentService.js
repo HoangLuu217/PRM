@@ -155,6 +155,9 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
     foodOrder.paymentStatus = 'PAID';
     foodOrder.status = 'CONFIRMED';
     await foodOrder.save();
+    if (foodOrder.bookingId) {
+      await Booking.findByIdAndUpdate(foodOrder.bookingId, { status: 'CONFIRMED', depositStatus: 'PAID' });
+    }
   }
 
   // 2. Update Booking
@@ -221,61 +224,13 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     order = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  // If DB already marks as paid
-  if (transaction?.status === 'PAID' || order?.paymentStatus === 'PAID') {
-    return {
-      orderCode,
-      status: 'PAID',
-      isPaid: true,
-      paidAt: transaction?.paidAt || order?.updatedAt || new Date(),
-    };
-  }
-
-  let payosInfo = null;
-  if (numericCode > 0) {
-    try {
-      payosInfo = await getPayOSPaymentInfo(numericCode);
-    } catch (err) {
-      console.warn('Query PayOS payment info error:', err.message);
-    }
-  }
-
-  const isPayOSPaid = payosInfo && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED');
-
-  // Dev / Testing Simulation Auto-Confirm Mode:
-  // Since local development environment (localhost) cannot receive real bank webhooks,
-  // in development mode, after 4 seconds of displaying QR, auto-confirm payment for testing flow!
-  const isDevTest = process.env.NODE_ENV === 'development';
-  const createdTime = transaction?.createdAt || order?.createdAt || new Date();
-  const secondsSinceCreation = (Date.now() - new Date(createdTime).getTime()) / 1000;
-  const shouldAutoConfirmDev = isDevTest && secondsSinceCreation >= 4;
-
-  if (isPayOSPaid || shouldAutoConfirmDev) {
-    if (transaction) {
-      transaction.status = 'PAID';
-      transaction.paidAt = new Date();
-      await transaction.save();
-      if (transaction.bookingId) {
-        await Booking.findByIdAndUpdate(transaction.bookingId, { depositStatus: 'PAID', status: 'CONFIRMED' });
-      }
-    }
-    if (order) {
-      order.paymentStatus = 'PAID';
-      order.status = 'CONFIRMED';
-      await order.save();
-    }
-    return {
-      orderCode,
-      status: 'PAID',
-      isPaid: true,
-      paidAt: new Date(),
-    };
-  }
+  const isPaid = (transaction?.status === 'PAID') || (order?.paymentStatus === 'PAID');
 
   return {
     orderCode,
-    status: transaction?.status || order?.paymentStatus || 'PENDING',
-    isPaid: false,
+    status: isPaid ? 'PAID' : 'PENDING',
+    isPaid,
+    paidAt: transaction?.paidAt || order?.updatedAt,
   };
 };
 

@@ -67,13 +67,15 @@ export const createPayOSPaymentLink = async ({
   if (payOSInstance) {
     try {
       let paymentLink = null;
-      if (payOSInstance.paymentRequests && typeof payOSInstance.paymentRequests.create === 'function') {
-        // PayOS SDK v2.x
-        paymentLink = await payOSInstance.paymentRequests.create(paymentData);
-      } else if (typeof payOSInstance.createPaymentLink === 'function') {
-        // PayOS SDK v1.x
-        paymentLink = await payOSInstance.createPaymentLink(paymentData);
-      }
+      const payosPromise = (payOSInstance.paymentRequests && typeof payOSInstance.paymentRequests.create === 'function')
+        ? payOSInstance.paymentRequests.create(paymentData)
+        : payOSInstance.createPaymentLink(paymentData);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('PayOS SDK timeout after 5s')), 5000)
+      );
+
+      paymentLink = await Promise.race([payosPromise, timeoutPromise]);
 
       if (paymentLink) {
         return {

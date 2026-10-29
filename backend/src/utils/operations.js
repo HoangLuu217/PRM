@@ -7,9 +7,14 @@ export const fail = (statusCode, message) => {
 };
 export const validateIds = (req, res, next) => {
   for (const source of [req.params, req.query, req.body]) {
+    if (!source) continue;
     for (const key of ['id', 'businessId', 'branchId', 'tableId', 'bookingId', 'preOrderId']) {
-      if (source?.[key] !== undefined && !mongoose.isObjectIdOrHexString(source[key])) {
-        return res.status(400).json({ success: false, message: key + ' must be a valid ObjectId' });
+      if (source[key] === '' || source[key] === null || source[key] === 'null' || source[key] === 'undefined') {
+        delete source[key];
+      } else if (source[key] !== undefined) {
+        if (!mongoose.isObjectIdOrHexString(source[key])) {
+          return res.status(400).json({ success: false, message: key + ' must be a valid ObjectId' });
+        }
       }
     }
   }

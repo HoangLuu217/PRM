@@ -3,9 +3,13 @@ import 'package:provider/provider.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../providers/favorite_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../auth/login_screen.dart';
 import '../../auth/profile_screen.dart';
+import '../cart/cart_screen.dart';
+import '../favorites_screen.dart';
 import '../notification/customer_notification_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
@@ -458,7 +462,120 @@ class HomeFeedTab extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
+
+          // Nút Quán yêu thích có badge
+          Consumer<FavoriteProvider>(
+            builder: (context, favProvider, _) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.favorite_rounded, color: Color(0xFFEF4444), size: 22),
+                    tooltip: 'Quán yêu thích',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    onPressed: () {
+                      final auth = context.read<AuthProvider>();
+                      if (!auth.isAuthenticated) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Vui lòng đăng nhập để xem danh sách yêu thích'),
+                            action: SnackBarAction(
+                              label: 'Đăng nhập',
+                              textColor: Colors.amber,
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              ),
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                      );
+                    },
+                  ),
+                  if (favProvider.count > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '${favProvider.count}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 4),
+
+          // Nút Giỏ Hàng ngoài Trang chủ có badge đếm số lượng món
+          Consumer<CartProvider>(
+            builder: (context, cartProvider, _) {
+              final count = cartProvider.totalQuantity;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF0F172A), size: 22),
+                    tooltip: 'Giỏ hàng của bạn',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartScreen()),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF97316),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 4),
 
           // Nút Chuông Thông Báo (Member 5)
           Consumer<NotificationProvider>(

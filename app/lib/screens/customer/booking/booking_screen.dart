@@ -4,14 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../models/booking_model.dart';
+import '../../../models/product_model.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/booking_provider.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../providers/table_provider.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/order_service.dart';
 import '../../../services/notification_service.dart';
 import '../../auth/login_screen.dart';
+import '../checkout/checkout_screen.dart';
 import '../widgets/restaurant_modals.dart';
 import 'my_bookings_screen.dart';
 
@@ -247,6 +250,7 @@ class _BookingScreenState extends State<BookingScreen> {
     }
 
     final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
     final res = await bookingProvider.createBooking(
       businessId: widget.restaurant.id,
@@ -261,7 +265,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (res['success'] == true) {
       final bookingCode = res['bookingCode'] ?? 'Đã xác nhận';
-
       // Bắn Heads-up Banner thông báo trực tiếp ra ngoài máy điện thoại
       NotificationService().showBookingSuccessNotification(
         bookingCode: bookingCode,
@@ -271,34 +274,61 @@ class _BookingScreenState extends State<BookingScreen> {
       );
       final booking = res['booking'] as BookingModel?;
       final bookingId = booking?.id;
+      final hasDishes = _dishesCount > 0 || (cartProvider.itemCount > 0 && cartProvider.businessId == widget.restaurant.id);
 
-      // Nếu khách có chọn món trước, tạo đơn món gắn với booking này
-      if (_dishesCount > 0 && bookingId != null) {
-        final List<Map<String, dynamic>> orderItems = [];
+      // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider
+      if (_dishesCount > 0) {
         for (final p in _menuProducts) {
           final id = (p['_id'] ?? p['id'] ?? '').toString();
           final qty = _selectedDishQuantities[id] ?? 0;
           if (qty > 0) {
-            orderItems.add({
-              'productId': id,
-              'quantity': qty,
-              'selectedOptions': [],
-            });
+            final prodModel = ProductModel(
+              id: id,
+              category: p['category']?.toString() ?? 'Món ăn',
+              name: p['name']?.toString() ?? 'Món ăn',
+              description: p['description']?.toString() ?? '',
+              price: (p['price'] as num?)?.toDouble() ?? 0.0,
+              imageUrl: p['imageUrl']?.toString() ?? '',
+            );
+            cartProvider.addItem(
+              product: prodModel,
+              targetBusinessId: widget.restaurant.id,
+              targetBusinessName: widget.restaurant.name,
+              targetBranchId: widget.restaurant.branchId,
+              quantity: qty,
+            );
           }
-        }
-        if (orderItems.isNotEmpty) {
-          await OrderService().createOrder(
-            businessId: widget.restaurant.id,
-            branchId: widget.restaurant.branchId,
-            bookingId: bookingId,
-            items: orderItems,
-            note: 'Đặt trước lúc $_selectedTime ngày $_dateString',
-          );
         }
       }
 
       if (!mounted) return;
 
+      // NẾU CÓ ĐẶT MÓN ÁN -> BẮT BUỘC CHUYỂN THẲNG SANG MÀN HÌNH THANH TOÁN MÓN
+      if (hasDishes) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF10B981),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Đặt bàn #$bookingCode thành công! Đang chuyển sang thanh toán món...'),
+                ),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+        );
+        return;
+      }
+
+      // NẾU CHỈ ĐẶT BÀN KHÔNG CHỌN MÓN -> HIỂN THỊ THÔNG BÁO THÀNH CÔNG THƯỜNG
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -330,9 +360,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                _dishesCount > 0
-                    ? 'Nhà hàng ${widget.restaurant.name} sẽ chuẩn bị bàn và $_dishesCount món ăn (${_formatCurrency(_dishesTotal)}) cho bạn vào lúc $_selectedTime ngày $_dateString.'
-                    : 'Nhà hàng ${widget.restaurant.name} sẽ chuẩn bị bàn cho bạn vào lúc $_selectedTime ngày $_dateString.',
+                'Nhà hàng ${widget.restaurant.name} sẽ chuẩn bị bàn cho bạn vào lúc $_selectedTime ngày $_dateString.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
               ),

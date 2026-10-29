@@ -5,10 +5,13 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../models/booking_model.dart';
 import '../../../models/order_model.dart';
+import '../../../models/product_model.dart';
 import '../../../providers/booking_provider.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../services/booking_service.dart';
-import '../widgets/restaurant_modals.dart';
 import '../../../services/order_service.dart';
+import '../checkout/checkout_screen.dart';
+import '../widgets/restaurant_modals.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final BookingModel booking;
@@ -446,50 +449,48 @@ class _AddDishesModalSheetState extends State<_AddDishesModalSheet> {
 
     setState(() => _isSubmitting = true);
 
-    final List<Map<String, dynamic>> orderItems = [];
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
     for (final p in _products) {
       final id = (p['_id'] ?? p['id'] ?? '').toString();
       final qty = _selectedQuantities[id] ?? 0;
       if (qty > 0) {
-        orderItems.add({
-          'productId': id,
-          'quantity': qty,
-          'selectedOptions': [],
-        });
+        final prodModel = ProductModel(
+          id: id,
+          category: p['category']?.toString() ?? 'Món ăn',
+          name: p['name']?.toString() ?? 'Món ăn',
+          description: p['description']?.toString() ?? '',
+          price: (p['price'] as num?)?.toDouble() ?? 0.0,
+          imageUrl: p['imageUrl']?.toString() ?? '',
+        );
+        cartProvider.addItem(
+          product: prodModel,
+          targetBusinessId: widget.booking.businessId,
+          targetBusinessName: widget.booking.businessName,
+          targetBranchId: widget.booking.branchId,
+          quantity: qty,
+        );
       }
     }
-
-    final res = await OrderService().createOrder(
-      businessId: widget.booking.businessId,
-      branchId: widget.booking.branchId,
-      bookingId: widget.booking.id,
-      tableId: widget.booking.tableId,
-      items: orderItems,
-      note: 'Thực khách chọn thêm món cho đơn #${widget.booking.bookingCode}',
-    );
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    if (res['success'] == true) {
-      widget.onDishesAdded();
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message'] ?? 'Đã thêm món vào đơn đặt bàn thành công!'),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message'] ?? 'Thêm món thất bại'),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    widget.onDishesAdded();
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã chọn món! Chuyển sang màn hình thanh toán...'),
+        backgroundColor: Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+    );
   }
 
   @override
