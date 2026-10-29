@@ -25,7 +25,7 @@ class CheckoutService {
           headers: _headers(token),
           body: jsonEncode(orderPayload),
         )
-        .timeout(const Duration(seconds: 12));
+        .timeout(const Duration(seconds: 25));
 
     final body = jsonDecode(response.body);
     if (response.statusCode == 201 || response.statusCode == 200) {
