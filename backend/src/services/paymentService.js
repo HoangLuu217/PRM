@@ -243,7 +243,9 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     }
   }
 
-  const isPayOSPaid = payosInfo && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED');
+  const isPayOSPaid = payosInfo
+    && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED')
+    && (Number(payosInfo.amountPaid) > 0 || (Array.isArray(payosInfo.transactions) && payosInfo.transactions.length > 0));
 
   if (isPayOSPaid) {
     if (transaction) {
