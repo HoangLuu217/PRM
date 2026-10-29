@@ -170,17 +170,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final checkoutItems = cartProvider.activeItems;
-      final payload = {
-        'businessId': cartProvider.businessId ?? _activeBooking!.businessId,
-        if (cartProvider.branchId != null) 'branchId': cartProvider.branchId,
-        if (cartProvider.branchId == null && _activeBooking!.branchId != null) 'branchId': _activeBooking!.branchId,
+
+      final effectiveBusinessId = (cartProvider.businessId != null && cartProvider.businessId!.isNotEmpty)
+          ? cartProvider.businessId!
+          : _activeBooking!.businessId;
+
+      final effectiveBranchId = (cartProvider.branchId != null && cartProvider.branchId!.isNotEmpty)
+          ? cartProvider.branchId
+          : (_activeBooking!.branchId != null && _activeBooking!.branchId!.isNotEmpty ? _activeBooking!.branchId : null);
+
+      final payload = <String, dynamic>{
+        'businessId': effectiveBusinessId,
         'bookingId': _activeBooking!.id,
-        if (_activeBooking!.tableId != null) 'tableId': _activeBooking!.tableId,
         'orderType': _selectedOrderType,
         'paymentMethod': _selectedPaymentMethod,
         'note': _noteController.text.trim(),
         'items': checkoutItems.map((item) => item.toJson()).toList(),
       };
+
+      if (effectiveBranchId != null && effectiveBranchId.isNotEmpty) {
+        payload['branchId'] = effectiveBranchId;
+      }
+      if (_activeBooking!.tableId != null && _activeBooking!.tableId!.isNotEmpty) {
+        payload['tableId'] = _activeBooking!.tableId;
+      }
 
       final order = await _checkoutService.createOrder(payload, authProvider.token!);
 
