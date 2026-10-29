@@ -200,7 +200,7 @@ export const createOrder = async (req, res) => {
 
     let existingOrder = null;
     if (resolvedBookingId) {
-      existingOrder = await Order.findOne({ bookingId: resolvedBookingId, status: { $in: ['PENDING', 'CONFIRMED'] } });
+      existingOrder = await Order.findOne({ bookingId: resolvedBookingId, paymentStatus: 'PENDING', status: 'PENDING' });
     }
 
     if (existingOrder && existingOrder.status === 'PENDING') {
