@@ -11,6 +11,7 @@ class CheckoutService {
   Map<String, String> _headers(String token) {
     return {
       'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
       'Authorization': 'Bearer $token',
     };
   }

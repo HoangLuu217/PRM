@@ -9,7 +9,10 @@ class ProductService {
   ProductService({String? baseUrl}) : baseUrl = baseUrl ?? ApiConstants.baseUrl;
 
   Map<String, String> _headers([String? token]) {
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
+    };
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }

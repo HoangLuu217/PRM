@@ -1305,8 +1305,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
               // Body Content
               Expanded(
-                child: _selectedTab == 4
-                    ? _buildTab4ChatSkeleton()
+                child: (_selectedTab == 1 || _selectedTab == 4)
+                    ? _buildCurrentTabContent(user)
                     : SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         padding: const EdgeInsets.all(28),
@@ -1476,8 +1476,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ],
         ),
         Expanded(
-          child: _selectedTab == 4
-              ? _buildTab4ChatSkeleton()
+          child: (_selectedTab == 1 || _selectedTab == 4)
+              ? _buildCurrentTabContent(user)
               : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.all(16),

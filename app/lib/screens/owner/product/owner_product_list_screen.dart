@@ -27,6 +27,14 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
     });
   }
 
+  @override
+  void didUpdateWidget(covariant OwnerProductListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.businessId != widget.businessId) {
+      _loadProducts();
+    }
+  }
+
   String? get _resolvedBusinessId {
     if (widget.businessId != null && widget.businessId!.isNotEmpty) {
       return widget.businessId;
@@ -191,8 +199,36 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
           Expanded(
             child: productProvider.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : productProvider.filteredProducts.isEmpty
+                : productProvider.errorMessage != null && productProvider.errorMessage!.isNotEmpty
                     ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Lỗi khi tải dữ liệu: ${productProvider.errorMessage}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 14, color: Colors.redAccent),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: _loadProducts,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Thử lại'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : productProvider.filteredProducts.isEmpty
+                        ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

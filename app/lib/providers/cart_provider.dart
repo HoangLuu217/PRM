@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../database/cart_database_helper.dart';
 import '../models/cart_item_model.dart';
 import '../models/product_model.dart';
 import '../services/cart_service.dart';
@@ -10,9 +11,12 @@ enum AddToCartResult {
 
 class CartProvider with ChangeNotifier {
   final CartService _cartService;
+  final CartDatabaseHelper _dbHelper = CartDatabaseHelper();
 
   CartProvider({CartService? cartService})
-      : _cartService = cartService ?? CartService();
+      : _cartService = cartService ?? CartService() {
+    loadCartFromDatabase();
+  }
 
   String? _businessId;
   String? _businessName;
@@ -35,6 +39,21 @@ class CartProvider with ChangeNotifier {
 
   double get subtotal => _items.fold(0.0, (sum, i) => sum + i.itemSubtotal);
 
+  /// Load cart items & metadata directly from SQLite on device
+  Future<void> loadCartFromDatabase() async {
+    try {
+      final meta = await _dbHelper.getMetadata();
+      _businessId = meta.businessId;
+      _businessName = meta.businessName;
+      _branchId = meta.branchId;
+
+      _items = await _dbHelper.getAllCartItems();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[CartProvider SQLite Load Error]: $e');
+    }
+  }
+
   /// Check if adding a product from targetBusinessId conflicts with existing cart
   bool canAddFromBusiness(String targetBusinessId) {
     if (_items.isEmpty || _businessId == null) return true;
@@ -44,16 +63,16 @@ class CartProvider with ChangeNotifier {
   /// Set target business info
   void setBusinessInfo(String busId, String busName, {String? brId}) {
     if (_businessId != busId && _items.isNotEmpty) {
-      // Different business
       return;
     }
     _businessId = busId;
     _businessName = busName;
     if (brId != null) _branchId = brId;
+    _dbHelper.setMetadata(busId, busName, brId: brId);
     notifyListeners();
   }
 
-  /// Add item to cart with options, sizes, quantity
+  /// Add item to cart with options, sizes, quantity (Saves to SQLite)
   AddToCartResult addItem({
     required ProductModel product,
     required String targetBusinessId,
@@ -96,11 +115,19 @@ class CartProvider with ChangeNotifier {
       _items.add(newItem);
     }
 
+    // Persist to SQLite
+    _dbHelper.saveCartItem(
+      item: newItem,
+      busId: targetBusinessId,
+      busName: targetBusinessName,
+      brId: targetBranchId,
+    );
+
     notifyListeners();
     return AddToCartResult.success;
   }
 
-  /// Update quantity for item at index
+  /// Update quantity for item at index (Saves to SQLite)
   void updateQuantity(int index, int newQuantity) {
     if (index < 0 || index >= _items.length) return;
 
@@ -108,14 +135,17 @@ class CartProvider with ChangeNotifier {
       removeItem(index);
     } else {
       _items[index] = _items[index].copyWith(quantity: newQuantity);
+      _dbHelper.updateItemQuantity(index, newQuantity);
       notifyListeners();
     }
   }
 
-  /// Remove item at index
+  /// Remove item at index (Deletes from SQLite)
   void removeItem(int index) {
     if (index < 0 || index >= _items.length) return;
     _items.removeAt(index);
+    _dbHelper.deleteCartItemByIndex(index);
+
     if (_items.isEmpty) {
       _businessId = null;
       _businessName = null;
@@ -124,7 +154,7 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Clear all items in cart
+  /// Clear all items in cart (Deletes from SQLite)
   void clearCart({String? token}) {
     if (_branchId != null && token != null && token.isNotEmpty) {
       _cartService.clearCart(_branchId!, token).catchError((_) => false);
@@ -133,10 +163,11 @@ class CartProvider with ChangeNotifier {
     _businessId = null;
     _businessName = null;
     _branchId = null;
+    _dbHelper.clearCart();
     notifyListeners();
   }
 
-  /// Force reset cart for new business
+  /// Force reset cart for new business (Clears SQLite & saves new item)
   void resetCartForNewBusiness(
     String busId,
     String busName, {
@@ -150,6 +181,7 @@ class CartProvider with ChangeNotifier {
     _businessId = busId;
     _businessName = busName;
     _branchId = brId;
+    _dbHelper.clearCart();
 
     addItem(
       product: product,

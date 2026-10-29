@@ -571,6 +571,7 @@ export const onboardBusiness = async (req, res) => {
       business.name = businessName;
       business.description = description?.trim() || business.description;
       business.categories = [selectedCategory];
+      business.status = 'APPROVED'; // Ensure business status is APPROVED on onboard
       if (logoUrl) business.logoUrl = logoUrl;
       if (coverImageUrl) business.coverImageUrl = coverImageUrl;
       if (googleMapsUrl !== undefined) business.googleMapsUrl = googleMapsUrl.trim();
@@ -665,6 +666,8 @@ export const onboardBusiness = async (req, res) => {
       req.user.role = 'MERCHANT';
       await req.user.save();
     }
+
+    emitBusinessUpdate(business);
 
     res.status(201).json({
       success: true,
