@@ -93,7 +93,10 @@ class ReviewService {
   Future<Map<String, dynamic>> syncGoogleReviews(String businessId, {String? googleMapsUrl}) async {
     try {
       final headers = await _getHeaders();
-      final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.businesses}/$businessId/sync-google-reviews');
+      final targetId = businessId.trim();
+      final uri = targetId.isNotEmpty
+          ? Uri.parse('//sync-google-reviews')
+          : Uri.parse('/sync-google-reviews');
 
       final body = <String, dynamic>{};
       if (googleMapsUrl != null && googleMapsUrl.trim().isNotEmpty) {
@@ -104,7 +107,15 @@ class ReviewService {
           .post(uri, headers: headers, body: jsonEncode(body))
           .timeout(const Duration(seconds: 25));
 
-      final data = jsonDecode(utf8.decode(res.bodyBytes));
+      final rawBody = utf8.decode(res.bodyBytes).trim();
+      if (!rawBody.startsWith('{')) {
+        return {
+          'success': false,
+          'message': 'Không thể kết nối tới dịch vụ đồng bộ (Mã lỗi: ). Vui lòng hoàn tất hồ sơ quán trước.',
+        };
+      }
+
+      final data = jsonDecode(rawBody);
       if (res.statusCode == 200 && data['success'] == true) {
         return {
           'success': true,

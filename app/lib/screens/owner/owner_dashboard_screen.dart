@@ -388,7 +388,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   Future<void> _handleSyncGoogleReviews(String businessId, String? googleMapsUrl, {String? businessName}) async {
-    if (businessId.isEmpty) return;
+    if (businessId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tài khoản chưa có cơ sở quán ăn. Vui lòng hoàn tất tạo hồ sơ quán trước khi đồng bộ Google Maps.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      _openOnboardingForm();
+      return;
+    }
     if (googleMapsUrl == null || googleMapsUrl.trim().isEmpty) {
       _showGoogleMapsSyncPromptDialog(businessId, currentUrl: googleMapsUrl, businessName: businessName);
       return;
@@ -1074,7 +1083,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               final isWide = constraints.maxWidth > 760;
               final col1 = _buildFConnectRatingMetricCard(avgScore, totalFConnectReviews, countVerified);
               final col2 = _buildRatingDistributionCard(totalFConnectReviews, count5, count4, count3, count2, count1);
-              final col3 = _buildGoogleRatingMetricCard(gRating, gTotal, googleMapsUrl, googleReviews.length, onAddLink: () => _showGoogleMapsSyncPromptDialog(businessId, currentUrl: googleMapsUrl, businessName: biz?['name']?.toString()));
+              final col3 = _buildGoogleRatingMetricCard(gRating, gTotal, googleMapsUrl, googleReviews.length, onAddLink: () {
+                if (businessId.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tài khoản chưa có cơ sở quán ăn. Vui lòng hoàn tất tạo hồ sơ quán trước khi gắn link.'),
+                      backgroundColor: Color(0xFFEF4444),
+                    ),
+                  );
+                  _openOnboardingForm();
+                  return;
+                }
+                _showGoogleMapsSyncPromptDialog(businessId, currentUrl: googleMapsUrl, businessName: biz?['name']?.toString());
+              });
 
               if (isWide) {
                 return Row(
