@@ -19,7 +19,7 @@ class FakeFavoriteService extends FavoriteService {
   Future<Set<String>> getFavoriteIds() async => initialFavorites.map((r) => r.id).toSet();
 
   @override
-  Future<Map<String, dynamic>> addFavorite(String businessId) async => {'success': true};
+  Future<Map<String, dynamic>> addFavorite(dynamic restaurantOrId) async => {'success': true};
 
   @override
   Future<Map<String, dynamic>> removeFavorite(String businessId) async => {'success': true};

@@ -467,7 +467,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     final tabs = [
       {'title': 'Thông tin', 'icon': Icons.info_outline_rounded},
       {'title': 'Thực đơn (${_menuItems.length})', 'icon': Icons.restaurant_menu_rounded},
-      {'title': 'Bài viết (1)', 'icon': Icons.menu_book_rounded},
       {'title': 'Đánh giá (${widget.restaurant.totalReviews})', 'icon': Icons.star_border_rounded},
     ];
 
@@ -530,8 +529,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       case 1:
         return _buildMenuTabContent();
       case 2:
-        return _buildArticlesTabContent();
-      case 3:
         return _buildReviewsTabContent(r);
       default:
         return _buildInfoTabContent(r);
@@ -540,17 +537,42 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   // 1. Tab THÔNG TIN QUÁN (Giới thiệu, Điểm nổi bật & Tiện ích, Bản đồ định vị)
   Widget _buildInfoTabContent(RestaurantModel r) {
-    final featuresList = [
-      'Thanh toán chuyển khoản / QR',
-      'Wifi tốc độ cao',
-      'Chỗ để xe máy miễn phí',
-      'Chỗ để ô tô rộng rãi',
-      'Không gian ngoài trời / Sân vườn',
-      'Thanh toán thẻ (POS)',
-      'Xuất hóa đơn VAT',
-      'Ghế trẻ em',
-      ...r.vibes,
-    ];
+    final featuresList = <String>[];
+    if (r.features.isNotEmpty) featuresList.addAll(r.features);
+    if (r.spaceTags.isNotEmpty) featuresList.addAll(r.spaceTags);
+    if (r.vibes.isNotEmpty) featuresList.addAll(r.vibes);
+    if (r.purposes.isNotEmpty) featuresList.addAll(r.purposes);
+
+    // Ánh xạ tiện ích từ chi nhánh (Branch amenities) sang tiếng Việt
+    final Map<String, String> amenityLabels = {
+      'WIFI': 'Wifi miễn phí',
+      'AIR_CONDITIONING': 'Điều hòa / Máy lạnh',
+      'AIR_CONDITIONER': 'Điều hòa / Máy lạnh',
+      'PARKING': 'Chỗ để xe rộng rãi',
+      'PRIVATE_ROOM': 'Phòng riêng VIP',
+      'OUTDOOR_SEATING': 'Không gian ngoài trời',
+      'SEA_VIEW': 'View biển tuyệt đẹp',
+      'RIVER_VIEW': 'View sông thoáng mát',
+      'CREDIT_CARD': 'Thanh toán thẻ',
+      'ELEVATOR': 'Thang máy',
+      'POWER_OUTLETS': 'Ổ cắm điện',
+    };
+
+    for (final a in r.amenities) {
+      final label = amenityLabels[a] ?? a;
+      if (!featuresList.contains(label)) {
+        featuresList.add(label);
+      }
+    }
+
+    if (featuresList.isEmpty) {
+      featuresList.addAll([
+        'Thanh toán chuyển khoản / QR',
+        'Wifi tốc độ cao',
+        'Chỗ để xe máy miễn phí',
+        'Không gian thoáng mát',
+      ]);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -849,49 +871,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     );
   }
 
-  // 3. Tab BÀI VIẾT REVIEW
-  Widget _buildArticlesTabContent() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              widget.restaurant.coverImageUrl ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Khám phá trải nghiệm ẩm thực đỉnh cao tại ${widget.restaurant.name}',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Bởi Ban Biên Tập FConnect • 4 phút đọc',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${widget.restaurant.name} là một trong những điểm đến ẩm thực tiêu biểu tại Đà Nẵng, mang đến hương vị chuẩn mực và không gian phục vụ chuyên nghiệp...',
-            style: const TextStyle(color: Color(0xFF475569), fontSize: 13, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 4. Tab ĐÁNH GIÁ (Reviews)
+  // 3. Tab ĐÁNH GIÁ (Reviews)
   Widget _buildReviewsTabContent(RestaurantModel r) {
     return Column(
       children: [

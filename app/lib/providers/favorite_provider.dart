@@ -110,10 +110,10 @@ class FavoriteProvider extends ChangeNotifier {
       );
     }
 
-    // 2. Gửi request đồng bộ Backend
+    // 2. Gửi request đồng bộ SQLite Local
     final res = wasFavorite
         ? await _favoriteService.removeFavorite(businessId)
-        : await _favoriteService.addFavorite(businessId);
+        : await _favoriteService.addFavorite(restaurant);
 
     // 3. Nếu thất bại, rollback lại trạng thái cũ
     if (res['success'] != true) {

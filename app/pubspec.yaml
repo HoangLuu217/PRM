@@ -35,6 +35,8 @@ dependencies:
   provider: ^6.1.2
   http: ^1.2.0
   shared_preferences: ^2.2.2
+  sqflite: ^2.3.0
+  path: ^1.8.3
   google_sign_in: ^6.2.2
   supabase_flutter: ^2.18.0
   flutter_dotenv: ^5.2.1

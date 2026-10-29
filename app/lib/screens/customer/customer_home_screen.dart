@@ -6,8 +6,6 @@ import '../../providers/favorite_provider.dart';
 import '../../services/location_service.dart';
 import '../../services/restaurant_service.dart';
 import '../auth/profile_screen.dart';
-import 'tabs/ai_sommelier_tab.dart';
-import 'tabs/articles_tab.dart';
 import 'tabs/food_map_tab.dart';
 import 'tabs/home_feed_tab.dart';
 import 'widgets/restaurant_modals.dart';
@@ -242,28 +240,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               onShowDetails: (r) => RestaurantModals.showDetails(context, r),
             ),
 
-            // Tab 1: Bài viết ẩm thực
-            const ArticlesTab(),
-
-            // Tab 2: Bản đồ ẩm thực (OpenStreetMap & Satellite)
+            // Tab 1: Bản đồ ẩm thực (OpenStreetMap & Satellite)
             FoodMapTab(
               restaurants: _filteredRestaurants,
               onShowBooking: (r) => RestaurantModals.showBooking(context, r, restaurantService: _restaurantService),
               onShowDetails: (r) => RestaurantModals.showDetails(context, r),
             ),
 
-            // Tab 3: Trợ lý AI gợi ý
-            AiSommelierTab(
-              onExploreRecommendations: () {
-                setState(() {
-                  _sortByAi = true;
-                  _currentTabIndex = 0;
-                });
-                _loadRestaurants();
-              },
-            ),
-
-            // Tab 4: Cá nhân (Profile)
+            // Tab 2: Cá nhân (Profile)
             const ProfileScreen(),
           ],
         ),
@@ -273,7 +257,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   // ==========================================
-  // BOTTOM NAVIGATION BAR (5 TABS CHUẨN UI)
+  // BOTTOM NAVIGATION BAR (3 TABS CHUẨN)
   // ==========================================
   Widget _buildBottomNavigationBar() {
     return Container(
@@ -311,19 +295,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             label: 'Trang chủ',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_rounded, size: 21),
-            activeIcon: Icon(Icons.menu_book_rounded, size: 23, color: Color(0xFF0072FF)),
-            label: 'Bài viết',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.location_on_outlined, size: 22),
             activeIcon: Icon(Icons.location_on, size: 24, color: Color(0xFF0072FF)),
             label: 'Bản đồ',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.auto_awesome_outlined, size: 22),
-            activeIcon: Icon(Icons.auto_awesome, size: 24, color: Color(0xFF0072FF)),
-            label: 'AI gợi ý',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline_rounded, size: 22),
