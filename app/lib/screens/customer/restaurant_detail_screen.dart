@@ -7,6 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/restaurant_model.dart';
+import '../../models/product_model.dart';
+import '../../providers/product_provider.dart';
+import '../../providers/favorite_provider.dart';
 import '../../models/review_model.dart';
 import '../../services/review_service.dart';
 import '../../providers/auth_provider.dart';
@@ -41,6 +44,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   void initState() {
     super.initState();
     _selectedTabIndex = widget.initialTabIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ProductProvider>(context, listen: false).fetchProducts(businessId: widget.restaurant.id);
+      Provider.of<FavoriteProvider>(context, listen: false).loadFavoriteIds();
+    });
     _loadMenuProducts();
     _loadReviews();
   }

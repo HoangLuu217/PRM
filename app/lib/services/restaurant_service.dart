@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../core/constants/api_constants.dart';
 import '../models/restaurant_model.dart';
 import 'auth_service.dart';
@@ -22,6 +24,17 @@ class RestaurantService {
     'Thức Ăn Nhanh': 'FAST_FOOD',
     'Bar & Pub': 'BAR',
   };
+
+  Map<String, String> _headers([String? token]) {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
+    };
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
 
   // 1. Lấy danh sách quán ăn từ Backend REST API (Kết nối trực tiếp MongoDB Atlas qua Express Server)
   Future<List<RestaurantModel>> getRestaurants({
@@ -53,7 +66,10 @@ class RestaurantService {
       }
 
       // Danh mục
-      if (category != null && category != 'ALL' && category != 'Tất cả' && category != 'Danh mục') {
+      if (category != null &&
+          category != 'ALL' &&
+          category != 'Tất cả' &&
+          category != 'Danh mục') {
         final mapped = _categoryMap[category];
         if (mapped != null) {
           queryParams['category'] = mapped;
@@ -63,12 +79,18 @@ class RestaurantService {
       }
 
       // Không gian
-      if (vibe != null && vibe.isNotEmpty && vibe != 'Tất cả' && vibe != 'Không gian') {
+      if (vibe != null &&
+          vibe.isNotEmpty &&
+          vibe != 'Tất cả' &&
+          vibe != 'Không gian') {
         queryParams['vibe'] = vibe;
       }
 
       // Mục đích bữa ăn
-      if (purpose != null && purpose.isNotEmpty && purpose != 'Tất cả' && purpose != 'Mục đích') {
+      if (purpose != null &&
+          purpose.isNotEmpty &&
+          purpose != 'Tất cả' &&
+          purpose != 'Mục đích') {
         queryParams['purpose'] = purpose;
       }
 
@@ -77,23 +99,31 @@ class RestaurantService {
 
       debugPrint('[RestaurantService] -> Gọi API: $uri');
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
 
       debugPrint('[RestaurantService] <- Nhận mã HTTP: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final list = (data['data'] as List<dynamic>?) ?? (data is List ? data : null);
+        final list =
+            (data['data'] as List<dynamic>?) ?? (data is List ? data : null);
 
         if (list != null) {
           final items = list
-              .map((item) => RestaurantModel.fromJson(item as Map<String, dynamic>))
+              .map(
+                (item) =>
+                    RestaurantModel.fromJson(item as Map<String, dynamic>),
+              )
               .toList();
-          debugPrint('[RestaurantService] -> Tải thành công ${items.length} quán ăn từ API!');
+          debugPrint(
+            '[RestaurantService] -> Tải thành công ${items.length} quán ăn từ API!',
+          );
           return items;
         }
       } else {
-        debugPrint('[RestaurantService Error]: HTTP ${response.statusCode} - ${response.body}');
+        debugPrint(
+          '[RestaurantService Error]: HTTP ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       debugPrint('[RestaurantService API Error]: $e');
@@ -114,27 +144,30 @@ class RestaurantService {
       final token = await _authService.getToken();
       final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.bookings}');
 
-      final response = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'businessId': businessId,
-          'bookingDate': bookingDate,
-          'startTime': startTime,
-          'guestCount': guestCount,
-          'note': note ?? 'Đặt bàn qua ứng dụng FConnect Mobile',
-        }),
-      ).timeout(const Duration(seconds: 8));
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'businessId': businessId,
+              'bookingDate': bookingDate,
+              'startTime': startTime,
+              'guestCount': guestCount,
+              'note': note ?? 'Đặt bàn qua ứng dụng FConnect Mobile',
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
-          'bookingCode': data['data']?['bookingCode'] ??
+          'bookingCode':
+              data['data']?['bookingCode'] ??
               data['booking']?['bookingCode'] ??
               'FCB${DateTime.now().millisecondsSinceEpoch}',
           'message': data['message'] ?? 'Đặt bàn thành công!',
@@ -160,9 +193,8 @@ class RestaurantService {
     required String category,
     String? description,
     required String city,
-    required String district,
+    required String ward,
     required String street,
-    String? ward,
     String? googleMapsUrl,
     required int minPrice,
     required int maxPrice,
@@ -172,7 +204,9 @@ class RestaurantService {
   }) async {
     try {
       final token = await _authService.getToken();
-      final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.onboardBusiness}');
+      final uri = Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.onboardBusiness}',
+      );
 
       final body = {
         'name': name.trim(),
@@ -181,16 +215,12 @@ class RestaurantService {
         'description': description?.trim() ?? '',
         'businessAddress': {
           'street': street.trim(),
-          'ward': ward?.trim() ?? '',
-          'district': district.trim(),
+          'ward': ward.trim(),
           'city': city.trim(),
         },
         if (googleMapsUrl != null && googleMapsUrl.trim().isNotEmpty)
           'googleMapsUrl': googleMapsUrl.trim(),
-        'priceRange': {
-          'min': minPrice,
-          'max': maxPrice,
-        },
+        'priceRange': {'min': minPrice, 'max': maxPrice},
         'vibes': vibes,
         'purposes': purposes,
         if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),

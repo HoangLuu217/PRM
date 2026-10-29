@@ -23,6 +23,7 @@ export const getProducts = async (req, res) => {
       const menuIds = menus.map((m) => m._id);
       const branchIds = branches.map((b) => b._id);
       query.$or = [
+        { businessId },
         { menuId: { $in: menuIds } },
         { branchId: { $in: branchIds } },
       ];
@@ -64,21 +65,45 @@ export const getProductById = async (req, res) => {
 // @access  Private (Owner/Staff)
 export const createProduct = async (req, res) => {
   try {
-    const { menuId, branchId, category, name, description, price, imageUrl, sizes, options } = req.body;
+    const { menuId, branchId, businessId, category, name, description, price, imageUrl, sizes, options } = req.body;
 
-    // Check Business Subscription Menu Item Limits
     let targetBusiness = null;
+    let resolvedMenuId = menuId;
+    let resolvedBusinessId = businessId;
+
     if (branchId) {
       const br = await Branch.findById(branchId).populate('businessId');
       targetBusiness = br?.businessId;
-    } else if (menuId) {
-      const mn = await Menu.findById(menuId).populate('businessId');
+      if (targetBusiness && !resolvedBusinessId) {
+        resolvedBusinessId = targetBusiness._id || targetBusiness;
+      }
+    } else if (resolvedMenuId) {
+      const mn = await Menu.findById(resolvedMenuId).populate('businessId');
       targetBusiness = mn?.businessId;
+      if (targetBusiness && !resolvedBusinessId) {
+        resolvedBusinessId = targetBusiness._id || targetBusiness;
+      }
+    } else if (resolvedBusinessId) {
+      targetBusiness = await Business.findById(resolvedBusinessId);
+    }
+
+    // Auto find or create Menu if missing
+    if (!resolvedMenuId && resolvedBusinessId) {
+      let activeMenu = await Menu.findOne({ businessId: resolvedBusinessId, status: 'ACTIVE' });
+      if (!activeMenu) {
+        activeMenu = await Menu.create({
+          businessId: resolvedBusinessId,
+          branchId: branchId || undefined,
+          name: 'Thực đơn chính',
+          status: 'ACTIVE',
+        });
+      }
+      resolvedMenuId = activeMenu._id;
     }
 
     if (targetBusiness) {
-      const maxMenuItems = targetBusiness.subscription?.features?.maxMenuItems || 15;
-      const countQuery = branchId ? { branchId } : (menuId ? { menuId } : {});
+      const maxMenuItems = targetBusiness.subscription?.features?.maxMenuItems || 50;
+      const countQuery = resolvedMenuId ? { menuId: resolvedMenuId } : (resolvedBusinessId ? { businessId: resolvedBusinessId } : {});
       const currentProductsCount = await Product.countDocuments(countQuery);
 
       if (currentProductsCount >= maxMenuItems) {
@@ -99,13 +124,14 @@ export const createProduct = async (req, res) => {
     }
 
     const product = await Product.create({
-      menuId,
+      menuId: resolvedMenuId,
+      businessId: resolvedBusinessId,
       branchId,
-      category,
+      category: category || '',
       name,
-      description,
+      description: description || '',
       price: basePrice,
-      imageUrl: '',
+      imageUrl: imageUrl || '',
       sizes: sizes || [],
       options: options || [],
     });
@@ -201,7 +227,6 @@ export const createBatchProducts = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const updateData = { ...req.body };
-    updateData.imageUrl = '';
     if (updateData.sizes && updateData.sizes.length > 0) {
       if (!updateData.price || Number(updateData.price) === 0) {
         const defaultSize = updateData.sizes.find((s) => s.isDefault) || updateData.sizes[0];

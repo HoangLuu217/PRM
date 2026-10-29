@@ -76,8 +76,8 @@ const buildBranchCityFilter = (city) => {
     $or: keywords.flatMap((kw) => [
       { 'address.city': { $regex: kw, $options: 'i' } },
       { 'address.district': { $regex: kw, $options: 'i' } },
-      { 'address.street': { $regex: kw, $options: 'i' } },
       { 'address.ward': { $regex: kw, $options: 'i' } },
+      { 'address.street': { $regex: kw, $options: 'i' } },
     ]),
   };
 };
@@ -732,7 +732,11 @@ export const getAINearMeRecommendations = async (user, {
         ward: br.address?.ward || '',
         district: br.address?.district || '',
         city: br.address?.city || city,
-        fullAddress: [br.address?.street, br.address?.district, br.address?.city].filter(Boolean).join(', ') || bus.name,
+        fullAddress: [
+          br.address?.street,
+          br.address?.ward || br.address?.district,
+          br.address?.city,
+        ].filter(Boolean).join(', ') || bus.name,
       },
       phone: br.phone || '0901234567',
       coordinates: mapCoords,
@@ -842,6 +846,4 @@ export const getAINearMeRecommendations = async (user, {
     geminiInsight: geminiInsight || aiTip,
   };
 };
-
-
 

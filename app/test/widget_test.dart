@@ -6,7 +6,6 @@ void main() {
   testWidgets('App smoke test - initializes and renders SplashScreen', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.byType(SplashScreen), findsOneWidget);
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
   });
 }

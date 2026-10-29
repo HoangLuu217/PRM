@@ -8,6 +8,9 @@ class RestaurantModel {
   final String? primaryCategoryName;
   final List<String> vibes;
   final List<String> purposes;
+  final List<String> features;
+  final List<String> spaceTags;
+  final List<String> amenities;
   final int minPrice;
   final int maxPrice;
   final double? _rating;
@@ -42,6 +45,9 @@ class RestaurantModel {
     this.primaryCategoryName,
     this.vibes = const [],
     this.purposes = const [],
+    this.features = const [],
+    this.spaceTags = const [],
+    this.amenities = const [],
     this.minPrice = 50000,
     this.maxPrice = 300000,
     double? rating,
@@ -61,42 +67,66 @@ class RestaurantModel {
     this.isBookingEnabled = true,
     double? latitude,
     double? longitude,
-  })  : _rating = rating ?? 4.8,
-        _latitude = latitude ?? 16.0544,
-        _longitude = longitude ?? 108.2022;
+  }) : _rating = rating ?? 4.8,
+       _latitude = latitude ?? 16.0544,
+       _longitude = longitude ?? 108.2022;
+
+  static List<String> _parseStringList(dynamic listData) {
+    if (listData == null || listData is! List) return <String>[];
+    return listData
+        .where((e) => e != null)
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
 
   factory RestaurantModel.fromJson(Map<String, dynamic> json) {
     final priceRange = json['priceRange'] is Map ? json['priceRange'] : {};
-    final ratingSummary = json['ratingSummary'] is Map ? json['ratingSummary'] : {};
+    final ratingSummary = json['ratingSummary'] is Map
+        ? json['ratingSummary']
+        : {};
     final google = json['googleRating'] is Map ? json['googleRating'] : {};
 
     // 1. Phân giải địa chỉ, toạ độ GPS và số điện thoại từ addressText hoặc branches
     String addr = json['addressText']?.toString() ?? '';
-    String dist = 'Hải Châu';
+    String dist = '';
     String cty = 'Đà Nẵng';
     String? phn;
     double lat = 16.0544; // Mặc định trung tâm Đà Nẵng
     double lng = 108.2022;
 
-    final primaryBranch = json['primaryBranch'] is Map ? json['primaryBranch'] : null;
+    final primaryBranch = json['primaryBranch'] is Map
+        ? json['primaryBranch']
+        : null;
     final branches = json['branches'] is List ? json['branches'] as List : null;
-    final targetBranch = primaryBranch ?? (branches != null && branches.isNotEmpty ? branches[0] : null);
+    final targetBranch =
+        primaryBranch ??
+        (branches != null && branches.isNotEmpty ? branches[0] : null);
 
     if (targetBranch is Map) {
-      if (addr.isEmpty && targetBranch['address'] is Map) {
+      if (targetBranch['address'] is Map) {
         final a = targetBranch['address'];
         final street = a['street']?.toString() ?? '';
         final ward = a['ward']?.toString() ?? '';
         final district = a['district']?.toString() ?? '';
-        final parts = [street, ward, district].where((s) => s.isNotEmpty).toList();
-        addr = parts.isNotEmpty ? parts.join(', ') : 'Đà Nẵng';
-        dist = a['district']?.toString() ?? dist;
+        final parts = [
+          street,
+          ward.isNotEmpty ? ward : district,
+          a['city']?.toString() ?? '',
+        ].where((s) => s.isNotEmpty).toList();
+        if (parts.isNotEmpty) {
+          addr = parts.join(', ');
+        } else if (addr.isEmpty) {
+          addr = 'Đà Nẵng';
+        }
+        dist = ward.isNotEmpty ? ward : district;
         cty = a['city']?.toString() ?? cty;
       }
       phn = targetBranch['phone']?.toString();
 
       // Parse coordinates GeoJSON: [longitude, latitude]
-      if (targetBranch['location'] is Map && targetBranch['location']['coordinates'] is List) {
+      if (targetBranch['location'] is Map &&
+          targetBranch['location']['coordinates'] is List) {
         final coords = targetBranch['location']['coordinates'] as List;
         if (coords.length >= 2) {
           final pLng = (coords[0] as num?)?.toDouble();
@@ -136,11 +166,12 @@ class RestaurantModel {
     }
 
     // 2. Danh mục
-    final rawCats = (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final rawCats = _parseStringList(json['categories']);
     final categoryDisplayName = json['category']?.toString();
 
     // 3. AI Score
-    final aiScore = (json['matchPercentage'] as num?)?.toDouble() ??
+    final aiScore =
+        (json['matchPercentage'] as num?)?.toDouble() ??
         (json['personalizedScore'] as num?)?.toDouble() ??
         (json['aiScore'] as num?)?.toDouble() ??
         (json['popularityScore'] as num?)?.toDouble() ??
@@ -151,11 +182,15 @@ class RestaurantModel {
       name: json['name']?.toString() ?? 'Quán ăn ngon',
       description: json['description']?.toString() ?? '',
       logoUrl: json['logoUrl']?.toString(),
-      coverImageUrl: json['coverImageUrl']?.toString() ?? json['imageUrl']?.toString(),
+      coverImageUrl:
+          json['coverImageUrl']?.toString() ?? json['imageUrl']?.toString(),
       categories: rawCats,
       primaryCategoryName: categoryDisplayName,
-      vibes: (json['vibes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      purposes: (json['purposes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      vibes: _parseStringList(json['vibes']),
+      purposes: _parseStringList(json['purposes']),
+      features: _parseStringList(json['features']),
+      spaceTags: _parseStringList(json['spaceTags']),
+      amenities: _parseStringList(targetBranch is Map ? targetBranch['amenities'] : null),
       minPrice: (priceRange['min'] as num?)?.toInt() ?? 50000,
       maxPrice: (priceRange['max'] as num?)?.toInt() ?? 300000,
       rating: (ratingSummary['average'] as num?)?.toDouble() ?? 4.8,
@@ -168,13 +203,29 @@ class RestaurantModel {
       phone: phn ?? json['phone']?.toString(),
       aiMatchScore: aiScore,
       recommendationReason: json['recommendationReason']?.toString(),
-      openTime: json['openTime']?.toString() ??
-          (targetBranch is Map ? (targetBranch['openTime']?.toString() ?? (targetBranch['openingHours'] is List && (targetBranch['openingHours'] as List).isNotEmpty ? targetBranch['openingHours'][0]['open']?.toString() : null)) : null) ??
+      openTime:
+          json['openTime']?.toString() ??
+          (targetBranch is Map
+              ? (targetBranch['openTime']?.toString() ??
+                    (targetBranch['openingHours'] is List &&
+                            (targetBranch['openingHours'] as List).isNotEmpty
+                        ? targetBranch['openingHours'][0]['open']?.toString()
+                        : null))
+              : null) ??
           '07:00',
-      closeTime: json['closeTime']?.toString() ??
-          (targetBranch is Map ? (targetBranch['closeTime']?.toString() ?? (targetBranch['openingHours'] is List && (targetBranch['openingHours'] as List).isNotEmpty ? targetBranch['openingHours'][0]['close']?.toString() : null)) : null) ??
+      closeTime:
+          json['closeTime']?.toString() ??
+          (targetBranch is Map
+              ? (targetBranch['closeTime']?.toString() ??
+                    (targetBranch['openingHours'] is List &&
+                            (targetBranch['openingHours'] as List).isNotEmpty
+                        ? targetBranch['openingHours'][0]['close']?.toString()
+                        : null))
+              : null) ??
           '22:00',
-      branchId: targetBranch is Map ? (targetBranch['_id'] ?? targetBranch['id'])?.toString() : json['branchId']?.toString(),
+      branchId: targetBranch is Map
+          ? (targetBranch['_id'] ?? targetBranch['id'])?.toString()
+          : json['branchId']?.toString(),
       isBookingEnabled: json['isBookingEnabled'] != false,
       latitude: lat,
       longitude: lng,
@@ -217,5 +268,43 @@ class RestaurantModel {
     final minK = (minPrice / 1000).round();
     final maxK = (maxPrice / 1000).round();
     return '${minK}k - ${maxK}k';
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'name': name,
+      'description': description,
+      'logoUrl': logoUrl,
+      'coverImageUrl': coverImageUrl,
+      'categories': categories,
+      'category': primaryCategoryName,
+      'vibes': vibes,
+      'purposes': purposes,
+      'features': features,
+      'spaceTags': spaceTags,
+      'priceRange': {
+        'min': minPrice,
+        'max': maxPrice,
+      },
+      'ratingSummary': {
+        'average': _rating,
+        'totalReviews': totalReviews,
+      },
+      'googleRating': {
+        'rating': googleRating,
+        'userRatingsTotal': googleTotalReviews,
+      },
+      'addressText': address,
+      'phone': phone,
+      'aiScore': aiMatchScore,
+      'recommendationReason': recommendationReason,
+      'openTime': openTime,
+      'closeTime': closeTime,
+      'branchId': branchId,
+      'isBookingEnabled': isBookingEnabled,
+      'latitude': _latitude,
+      'longitude': _longitude,
+    };
   }
 }

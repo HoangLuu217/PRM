@@ -18,6 +18,7 @@ export const getBranches = async (req, res) => {
       query.$or = [
         { 'address.city': { $regex: cleanCity, $options: 'i' } },
         { 'address.street': { $regex: cleanCity, $options: 'i' } },
+        { 'address.ward': { $regex: cleanCity, $options: 'i' } },
         { 'address.district': { $regex: cleanCity, $options: 'i' } },
       ];
     }

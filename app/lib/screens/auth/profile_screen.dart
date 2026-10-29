@@ -6,11 +6,13 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/favorite_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
 import '../customer/chat/customer_chat_inbox_screen.dart';
+import '../customer/favorites_screen.dart';
 import '../customer/notification/customer_notification_screen.dart';
 import '../customer/order/my_orders_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
@@ -85,6 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _loadUserData() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    Provider.of<FavoriteProvider>(context, listen: false).loadFavorites();
     if (authProvider.user == null) {
       authProvider.checkAuthStatus().then((_) {
         if (mounted && authProvider.user != null) {
@@ -705,6 +708,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.logout();
+    if (mounted) {
+      Provider.of<FavoriteProvider>(context, listen: false).clear();
+    }
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -763,20 +769,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 20),
 
                       // 3. Section 1: OUTLET & BUSINESS (or ACTIVITY & PLACES for Customer)
-                      _buildSectionHeader(isOwner ? 'OUTLET & BUSINESS' : 'ACTIVITY & PLACES'),
+                      _buildSectionHeader(isOwner ? 'CƠ SỞ & DOANH NGHIỆP' : 'HOẠT ĐỘNG & ĐỊA ĐIỂM'),
                       const SizedBox(height: 8),
                       isOwner ? _buildOwnerBusinessGroup(user) : _buildCustomerActivityGroup(user),
                       const SizedBox(height: 20),
 
                       // 4. Section 2: OPERATIONS & COMMS (or PREFERENCES & COMMS for Customer)
-                      _buildSectionHeader(isOwner ? 'OPERATIONS & COMMS' : 'PREFERENCES & COMMS'),
+                      _buildSectionHeader(isOwner ? 'VẬN HÀNH & TƯƠNG TÁC' : 'SỞ THÍCH & TƯƠNG TÁC'),
                       const SizedBox(height: 8),
                       isOwner ? _buildOwnerOperationsGroup(user) : _buildCustomerPreferencesGroup(user),
                       const SizedBox(height: 20),
 
                       // 5. Section 3: ACCOUNT & SECURITY (For Owner)
                       if (isOwner) ...[
-                        _buildSectionHeader('ACCOUNT & SECURITY'),
+                        _buildSectionHeader('TÀI KHOẢN & BẢO MẬT'),
                         const SizedBox(height: 8),
                         _buildOwnerSecurityGroup(user),
                         const SizedBox(height: 20),
@@ -800,7 +806,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              isOwner ? 'Designed for seamless restaurant operations' : 'Designed with precision for seamless dining',
+                              isOwner ? 'Nền tảng tối ưu vận hành nhà hàng thông minh' : 'Trải nghiệm ẩm thực thông minh & tiện lợi',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.blueGrey.shade300,
@@ -982,6 +988,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 2a. Stats Row for Customer (Completed Visits & Favorite Spots)
   Widget _buildCustomerStatsRow() {
+    final favCount = context.watch<FavoriteProvider>().count;
     return Row(
       children: [
         Expanded(
@@ -990,17 +997,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             iconBg: const Color(0xFFEFF6FF),
             iconColor: const Color(0xFF3B82F6),
             value: '12',
-            label: 'Completed Visits',
+            label: 'Lượt trải nghiệm',
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _buildStatCard(
-            icon: Icons.favorite_rounded,
-            iconBg: const Color(0xFFECFDF5),
-            iconColor: const Color(0xFF10B981),
-            value: '8',
-            label: 'Favorite Spots',
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+              );
+            },
+            child: _buildStatCard(
+              icon: Icons.favorite_rounded,
+              iconBg: const Color(0xFFECFDF5),
+              iconColor: const Color(0xFF10B981),
+              value: '$favCount',
+              label: 'Địa điểm yêu thích',
+            ),
           ),
         ),
       ],
@@ -1021,7 +1036,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             iconBg: const Color(0xFFFEF3C7),
             iconColor: const Color(0xFFD97706),
             value: '$rating ★',
-            label: 'Rating Score',
+            label: 'Điểm đánh giá',
           ),
         ),
         const SizedBox(width: 12),
@@ -1031,7 +1046,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             iconBg: const Color(0xFFEFF6FF),
             iconColor: const Color(0xFF2563EB),
             value: '18',
-            label: 'Bookings Today',
+            label: 'Đơn đặt hôm nay',
           ),
         ),
       ],
@@ -1118,7 +1133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.storefront_rounded,
         iconBg: const Color(0xFFFFF7ED),
         iconColor: const Color(0xFFEA580C),
-        title: 'Restaurant Profile',
+        title: 'Hồ sơ nhà hàng',
         subtitle: businessName,
         onTap: () => _openEditProfileModal(user, true),
       ),
@@ -1126,8 +1141,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.location_on_outlined,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        title: 'Outlet & Branches',
-        subtitle: 'Da Nang locations & Google Maps',
+        title: 'Chi nhánh & Vị trí',
+        subtitle: 'Danh sách cơ sở & Google Maps',
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Quản lý chi nhánh & vị trí (Member 2)')),
@@ -1138,16 +1153,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.schedule_rounded,
         iconBg: const Color(0xFFF0FDF4),
         iconColor: const Color(0xFF10B981),
-        title: 'Operating Hours & Price',
-        subtitle: 'Open 09:00 - 23:00 daily',
+        title: 'Giờ mở cửa & Bảng giá',
+        subtitle: 'Mở cửa 09:00 - 23:00 hàng ngày',
         onTap: () => _openEditProfileModal(user, true),
       ),
       _buildGroupItem(
         icon: Icons.account_balance_wallet_outlined,
         iconBg: const Color(0xFFFDF4FF),
         iconColor: const Color(0xFFC026D3),
-        title: 'Banking & Payout',
-        subtitle: 'QR Code deposit & billing account',
+        title: 'Tài khoản thanh toán',
+        subtitle: 'Tài khoản nhận tiền & Mã QR',
         isLast: true,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1165,19 +1180,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.person_outline_rounded,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        title: 'Personal Information',
-        subtitle: 'Manage personal details',
+        title: 'Thông tin cá nhân',
+        subtitle: 'Quản lý thông tin chi tiết',
         onTap: () => _openEditProfileModal(user, false),
       ),
       _buildGroupItem(
         icon: Icons.favorite_border_rounded,
         iconBg: const Color(0xFFFFF1F2),
         iconColor: const Color(0xFFF43F5E),
-        title: 'My Favorites',
-        subtitle: 'Saved dining spots & cafes',
+        title: 'Danh sách yêu thích',
+        subtitle: 'Quán ăn & cà phê đã lưu',
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tính năng Quán yêu thích (Member 2)')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FavoritesScreen()),
           );
         },
       ),
@@ -1185,8 +1201,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.calendar_today_outlined,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF3B82F6),
-        title: 'My Bookings',
-        subtitle: 'Upcoming & past reservations',
+        title: 'Lịch đặt bàn của tôi',
+        subtitle: 'Lịch sử & trạng thái đặt bàn',
         onTap: () {
           Navigator.push(
             context,
@@ -1198,8 +1214,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.receipt_long_outlined,
         iconBg: const Color(0xFFF0FDF4),
         iconColor: const Color(0xFF10B981),
-        title: 'My Orders',
-        subtitle: 'Food & drink orders',
+        title: 'Đơn hàng của tôi',
+        subtitle: 'Đơn đặt món ăn & thức uống',
         isLast: true,
         onTap: () {
           Navigator.push(
@@ -1218,8 +1234,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.notifications_active_outlined,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        title: 'Booking Alerts & Bells',
-        subtitle: 'Realtime customer reservation push',
+        title: 'Thông báo đặt bàn',
+        subtitle: 'Cảnh báo lượt đặt bàn thời gian thực',
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Cài đặt chuông thông báo đặt bàn')),
@@ -1230,8 +1246,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.chat_bubble_outline_rounded,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        title: 'Customer Inquiries & Chat',
-        subtitle: 'Direct messages with guests',
+        title: 'Tư vấn khách hàng',
+        subtitle: 'Trò chuyện trực tiếp với khách',
         badgeNumber: 1,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1243,8 +1259,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.badge_outlined,
         iconBg: const Color(0xFFFEF3C7),
         iconColor: const Color(0xFFD97706),
-        title: 'Staff Access & Roles',
-        subtitle: 'Manage waiters and cashier staff',
+        title: 'Quản lý nhân viên',
+        subtitle: 'Phân quyền thu ngân & phục vụ',
         isLast: true,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1262,8 +1278,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.notifications_none_rounded,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        title: 'Notifications',
-        subtitle: 'Xem thông báo & kiểm tra Push Notification',
+        title: 'Thông báo',
+        subtitle: 'Xem thông báo & tin tức mới',
         onTap: () {
           Navigator.push(
             context,
@@ -1278,7 +1294,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.forum_rounded,
             iconBg: const Color(0xFFEFF6FF),
             iconColor: const Color(0xFF2563EB),
-            title: 'Chat',
+            title: 'Trò chuyện',
             subtitle: 'Nhắn tin trực tiếp với các nhà hàng',
             badgeNumber: unread > 0 ? unread : null,
             onTap: () {
@@ -1296,8 +1312,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.settings_outlined,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        title: 'Settings',
-        subtitle: 'App preferences & security',
+        title: 'Cài đặt',
+        subtitle: 'Tùy chọn ứng dụng & bảo mật',
         isLast: true,
         onTap: () => _openEditProfileModal(user, false),
       ),
@@ -1311,16 +1327,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.lock_outline_rounded,
         iconBg: const Color(0xFFF1F5F9),
         iconColor: const Color(0xFF475569),
-        title: 'Security & Password',
-        subtitle: 'Update owner login password',
+        title: 'Bảo mật & Mật khẩu',
+        subtitle: 'Cập nhật mật khẩu tài khoản',
         onTap: _showChangePasswordDialog,
       ),
       _buildGroupItem(
         icon: Icons.headset_mic_outlined,
         iconBg: const Color(0xFFF0FDF4),
         iconColor: const Color(0xFF10B981),
-        title: 'Merchant Support 24/7',
-        subtitle: 'Direct hotline & partner agreements',
+        title: 'Hỗ trợ đối tác 24/7',
+        subtitle: 'Hotline & hỗ trợ đối tác FConnect',
         isLast: true,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1502,7 +1518,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: 14),
               const Expanded(
                 child: Text(
-                  'Logout',
+                  'Đăng xuất',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

@@ -43,6 +43,9 @@ class BookingProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
     }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
 
     try {
       _ownerBookings = await _bookingService.getOwnerBookings(
@@ -52,9 +55,7 @@ class BookingProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
-      if (!silent) {
-        _isLoading = false;
-      }
+      _isLoading = false;
       notifyListeners();
     }
   }

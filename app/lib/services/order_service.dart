@@ -12,6 +12,7 @@ class OrderService {
     final token = await _authService.getToken();
     return {
       'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }

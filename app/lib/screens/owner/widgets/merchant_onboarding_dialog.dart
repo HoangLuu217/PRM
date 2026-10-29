@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../providers/auth_provider.dart';
 import '../../../providers/user_provider.dart';
+import '../../../services/administrative_division_service.dart';
 import '../../../services/restaurant_service.dart';
 
 class MerchantOnboardingDialog extends StatefulWidget {
   final VoidCallback? onCompleted;
+  final AdministrativeDivisionService? administrativeDivisionService;
 
   const MerchantOnboardingDialog({
     super.key,
     this.onCompleted,
+    this.administrativeDivisionService,
   });
 
   static Future<bool?> show(BuildContext context, {VoidCallback? onCompleted}) {
@@ -21,12 +25,14 @@ class MerchantOnboardingDialog extends StatefulWidget {
   }
 
   @override
-  State<MerchantOnboardingDialog> createState() => _MerchantOnboardingDialogState();
+  State<MerchantOnboardingDialog> createState() =>
+      _MerchantOnboardingDialogState();
 }
 
 class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
   final _formKey = GlobalKey<FormState>();
   final _restaurantService = RestaurantService();
+  late final AdministrativeDivisionService _administrativeDivisionService;
 
   late TextEditingController _nameController;
   late TextEditingController _descController;
@@ -37,10 +43,20 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
   late TextEditingController _phoneController;
 
   String _selectedCategory = 'RESTAURANT';
-  String _selectedCity = 'Thành phố Đà Nẵng';
-  String _selectedDistrict = 'Quận Hải Châu';
+  List<AdministrativeDivision> _provinces = [];
+  List<AdministrativeDivision> _wards = [];
+  AdministrativeDivision? _selectedProvince;
+  AdministrativeDivision? _selectedWard;
+  String? _savedProvinceName;
+  String? _savedWardName;
+  bool _isLoadingProvinces = true;
+  bool _isLoadingWards = false;
+  String? _locationError;
 
-  final List<String> _selectedVibes = ['Yên tĩnh / Làm việc', 'Ấm cúng / Gia đình'];
+  final List<String> _selectedVibes = [
+    'Yên tĩnh / Làm việc',
+    'Ấm cúng / Gia đình',
+  ];
   final List<String> _selectedPurposes = ['Gặp gỡ bạn bè', 'Bữa ăn gia đình'];
 
   bool _isSubmitting = false;
@@ -56,16 +72,6 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
     'BAR': 'Bar & Pub',
     'OTHER': 'Mô hình kinh doanh khác',
   };
-
-  final List<String> _districts = const [
-    'Quận Hải Châu',
-    'Quận Sơn Trà',
-    'Quận Thanh Khê',
-    'Quận Ngũ Hành Sơn',
-    'Quận Cẩm Lệ',
-    'Quận Liên Chiểu',
-    'Huyện Hòa Vang',
-  ];
 
   final List<String> _availableVibes = const [
     'Yên tĩnh / Làm việc',
@@ -90,15 +96,44 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
   @override
   void initState() {
     super.initState();
+    _administrativeDivisionService =
+        widget.administrativeDivisionService ?? AdministrativeDivisionService();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
     final biz = user?.business;
+    final primaryBranch = biz?['primaryBranch'];
+    final branchAddress =
+        primaryBranch is Map && primaryBranch['address'] is Map
+        ? Map<String, dynamic>.from(primaryBranch['address'] as Map)
+        : null;
+    final businessAddress = biz?['address'] is Map
+        ? Map<String, dynamic>.from(biz!['address'] as Map)
+        : null;
+    final branchHasAddress = branchAddress != null &&
+        ['street', 'ward', 'district', 'city'].any(
+          (field) => branchAddress[field]?.toString().trim().isNotEmpty == true,
+        );
+    final savedAddress = branchHasAddress
+        ? branchAddress
+        : businessAddress ?? branchAddress;
 
-    _nameController = TextEditingController(text: biz?['name']?.toString() ?? '');
-    _descController = TextEditingController(text: biz?['description']?.toString() ?? '');
-    _streetController = TextEditingController(text: biz?['address']?['street']?.toString() ?? '');
-    _googleMapsController = TextEditingController(text: biz?['googleMapsUrl']?.toString() ?? '');
-    _phoneController = TextEditingController(text: user?.phone ?? biz?['phone']?.toString() ?? '');
+    _nameController = TextEditingController(
+      text: biz?['name']?.toString() ?? '',
+    );
+    _descController = TextEditingController(
+      text: biz?['description']?.toString() ?? '',
+    );
+    _streetController = TextEditingController(
+      text: savedAddress?['street']?.toString() ?? '',
+    );
+    _googleMapsController = TextEditingController(
+      text: biz?['googleMapsUrl']?.toString() ?? '',
+    );
+    _phoneController = TextEditingController(
+      text: user?.phone ?? biz?['phone']?.toString() ?? '',
+    );
+    _savedProvinceName = savedAddress?['city']?.toString();
+    _savedWardName = savedAddress?['ward']?.toString();
 
     final minP = biz?['priceRange']?['min'] ?? 20000;
     final maxP = biz?['priceRange']?['max'] ?? 100000;
@@ -122,10 +157,14 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
         }
       }
     }
+    _loadProvinces();
   }
 
   @override
   void dispose() {
+    if (widget.administrativeDivisionService == null) {
+      _administrativeDivisionService.close();
+    }
     _nameController.dispose();
     _descController.dispose();
     _streetController.dispose();
@@ -134,6 +173,66 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
     _maxPriceController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProvinces() async {
+    setState(() {
+      _isLoadingProvinces = true;
+      _locationError = null;
+    });
+
+    try {
+      final provinces = await _administrativeDivisionService.fetchProvinces();
+      final selectedProvince =
+          provinces.where((province) {
+            return province.name == _savedProvinceName;
+          }).firstOrNull ??
+          provinces.where((province) => province.code == 48).firstOrNull ??
+          provinces.first;
+
+      if (!mounted) return;
+      setState(() {
+        _provinces = provinces;
+        _selectedProvince = selectedProvince;
+        _isLoadingProvinces = false;
+      });
+      await _loadWards(selectedProvince);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingProvinces = false;
+        _locationError = error.toString();
+      });
+    }
+  }
+
+  Future<void> _loadWards(AdministrativeDivision province) async {
+    setState(() {
+      _isLoadingWards = true;
+      _wards = [];
+      _selectedWard = null;
+      _locationError = null;
+    });
+
+    try {
+      final wards = await _administrativeDivisionService.fetchWards(
+        province.code,
+      );
+      if (!mounted) return;
+      setState(() {
+        _wards = wards;
+        _selectedWard = wards.where((ward) {
+          return ward.name == _savedWardName;
+        }).firstOrNull;
+        _isLoadingWards = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingWards = false;
+        _locationError = error.toString();
+      });
+    }
   }
 
   String _formatVnd(String text) {
@@ -153,8 +252,8 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
       name: _nameController.text.trim(),
       category: _selectedCategory,
       description: _descController.text.trim(),
-      city: _selectedCity,
-      district: _selectedDistrict,
+      city: _selectedProvince?.name ?? '',
+      ward: _selectedWard?.name ?? '',
       street: _streetController.text.trim(),
       googleMapsUrl: _googleMapsController.text.trim(),
       minPrice: minPrice,
@@ -173,6 +272,18 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await authProvider.checkAuthStatus();
       await userProvider.fetchProfile();
+      final responseData = result['data'];
+      if (responseData is Map && responseData['business'] is Map) {
+        final savedBusiness = Map<String, dynamic>.from(
+          responseData['business'] as Map,
+        );
+        final savedBranch = responseData['branch'];
+        if (savedBranch is Map) {
+          savedBusiness['primaryBranch'] ??= savedBranch;
+          savedBusiness['address'] ??= savedBranch['address'];
+        }
+        authProvider.updateBusiness(savedBusiness);
+      }
 
       if (!mounted) return;
 
@@ -183,13 +294,18 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
               const Icon(Icons.check_circle_rounded, color: Colors.white),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(result['message'] ?? 'Đã lưu và kích hoạt hồ sơ quán thành công!'),
+                child: Text(
+                  result['message'] ??
+                      'Đã lưu và kích hoạt hồ sơ quán thành công!',
+                ),
               ),
             ],
           ),
           backgroundColor: const Color(0xFF10B981),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
 
@@ -203,13 +319,17 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
               const Icon(Icons.error_outline_rounded, color: Colors.white),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(result['message'] ?? 'Không thể lưu thông tin quán'),
+                child: Text(
+                  result['message'] ?? 'Không thể lưu thông tin quán',
+                ),
               ),
             ],
           ),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -247,7 +367,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                   title: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(20),
@@ -256,7 +379,11 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF2563EB)),
+                            Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 14,
+                              color: Color(0xFF2563EB),
+                            ),
                             SizedBox(width: 6),
                             Text(
                               'BƯỚC 2: HOÀN THIỆN HỒ SƠ QUÁN',
@@ -274,7 +401,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                   ),
                   actions: [
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF64748B),
+                      ),
                       tooltip: 'Đóng',
                       onPressed: () => Navigator.of(context).pop(false),
                     ),
@@ -285,7 +415,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                   key: _formKey,
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -311,7 +444,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         const SizedBox(height: 20),
 
                         // 1. Tên Quán / Thương hiệu F&B *
-                        _buildSectionLabel('Tên Quán / Thương hiệu F&B', isRequired: true),
+                        _buildSectionLabel(
+                          'Tên Quán / Thương hiệu F&B',
+                          isRequired: true,
+                        ),
                         TextFormField(
                           controller: _nameController,
                           decoration: _inputDecoration(
@@ -328,7 +464,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         const SizedBox(height: 16),
 
                         // 2. Mô hình kinh doanh F&B *
-                        _buildSectionLabel('Mô hình kinh doanh F&B', isRequired: true),
+                        _buildSectionLabel(
+                          'Mô hình kinh doanh F&B',
+                          isRequired: true,
+                        ),
                         DropdownButtonFormField<String>(
                           initialValue: _selectedCategory,
                           isExpanded: true,
@@ -341,7 +480,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                               value: e.key,
                               child: Text(
                                 e.value,
-                                style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF1E293B),
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             );
@@ -365,27 +507,52 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 4. Tỉnh / Thành phố & Quận / Huyện
+                        // 4. Tỉnh / Thành phố & Phường / Xã
                         Row(
                           children: [
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildSectionLabel('Tỉnh / Thành phố', isRequired: true),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _selectedCity,
+                                  _buildSectionLabel(
+                                    'Tỉnh / Thành phố',
+                                    isRequired: true,
+                                  ),
+                                  DropdownButtonFormField<int>(
+                                    key: ValueKey(_selectedProvince?.code),
+                                    initialValue: _selectedProvince?.code,
                                     isExpanded: true,
-                                    decoration: _inputDecoration(hintText: 'Chọn thành phố'),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'Thành phố Đà Nẵng',
-                                        child: Text('Thành phố Đà Nẵng', style: TextStyle(fontSize: 13.5)),
-                                      ),
-                                    ],
+                                    decoration: _inputDecoration(
+                                      hintText: _isLoadingProvinces
+                                          ? 'Đang tải tỉnh/thành...'
+                                          : 'Chọn tỉnh/thành',
+                                    ),
+                                    items: _provinces.map((province) {
+                                      return DropdownMenuItem(
+                                        value: province.code,
+                                        child: Text(
+                                          province.name,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }).toList(),
                                     onChanged: (v) {
-                                      if (v != null) setState(() => _selectedCity = v);
+                                      if (v == null) return;
+                                      final province = _provinces.firstWhere(
+                                        (item) => item.code == v,
+                                      );
+                                      setState(() {
+                                        _selectedProvince = province;
+                                        _savedWardName = null;
+                                      });
+                                      _loadWards(province);
                                     },
+                                    validator: (value) => value == null
+                                        ? 'Vui lòng chọn tỉnh/thành'
+                                        : null,
                                   ),
                                 ],
                               ),
@@ -395,30 +562,84 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildSectionLabel('Quận / Huyện', isRequired: true),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _selectedDistrict,
+                                  _buildSectionLabel(
+                                    'Phường / Xã',
+                                    isRequired: true,
+                                  ),
+                                  DropdownButtonFormField<int>(
+                                    key: ValueKey(
+                                      '${_selectedProvince?.code}-${_selectedWard?.code}',
+                                    ),
+                                    initialValue: _selectedWard?.code,
                                     isExpanded: true,
-                                    decoration: _inputDecoration(hintText: 'Chọn quận/huyện'),
-                                    items: _districts.map((d) {
+                                    decoration: _inputDecoration(
+                                      hintText: _isLoadingWards
+                                          ? 'Đang tải phường/xã...'
+                                          : 'Chọn phường/xã',
+                                    ),
+                                    items: _wards.map((ward) {
                                       return DropdownMenuItem(
-                                        value: d,
-                                        child: Text(d, style: const TextStyle(fontSize: 13.5)),
+                                        value: ward.code,
+                                        child: Text(
+                                          ward.name,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       );
                                     }).toList(),
-                                    onChanged: (v) {
-                                      if (v != null) setState(() => _selectedDistrict = v);
-                                    },
+                                    onChanged: _isLoadingWards
+                                        ? null
+                                        : (v) {
+                                            if (v == null) return;
+                                            setState(() {
+                                              _selectedWard = _wards.firstWhere(
+                                                (item) => item.code == v,
+                                              );
+                                            });
+                                          },
+                                    validator: (value) => value == null
+                                        ? 'Vui lòng chọn phường/xã'
+                                        : null,
                                   ),
                                 ],
                               ),
                             ),
                           ],
                         ),
+                        if (_locationError != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _locationError!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFDC2626),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed:
+                                    _isLoadingProvinces || _isLoadingWards
+                                    ? null
+                                    : _selectedProvince == null
+                                    ? _loadProvinces
+                                    : () => _loadWards(_selectedProvince!),
+                                child: const Text('Thử lại'),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 16),
 
                         // 5. Địa chỉ cụ thể *
-                        _buildSectionLabel('Địa chỉ cụ thể (Số nhà, tên đường, phường/xã)', isRequired: true),
+                        _buildSectionLabel(
+                          'Địa chỉ cụ thể (Số nhà, tên đường, phường/xã)',
+                          isRequired: true,
+                        ),
                         TextFormField(
                           controller: _streetController,
                           decoration: _inputDecoration(
@@ -488,7 +709,11 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: _buildSectionLabel('💵 Khoảng giá phục vụ (VNĐ)')),
+                            Expanded(
+                              child: _buildSectionLabel(
+                                '💵 Khoảng giá phục vụ (VNĐ)',
+                              ),
+                            ),
                             Text(
                               '${_formatVnd(_minPriceController.text)} – ${_formatVnd(_maxPriceController.text)}',
                               style: const TextStyle(
@@ -511,13 +736,21 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                             ),
                             const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 10),
-                              child: Text('—', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
+                              child: Text(
+                                '—',
+                                style: TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                             Expanded(
                               child: TextFormField(
                                 controller: _maxPriceController,
                                 keyboardType: TextInputType.number,
-                                decoration: _inputDecoration(hintText: '100000'),
+                                decoration: _inputDecoration(
+                                  hintText: '100000',
+                                ),
                                 onChanged: (v) => setState(() {}),
                               ),
                             ),
@@ -529,10 +762,17 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: _buildSectionLabel('🌿 Không gian / Vibe của quán')),
+                            Expanded(
+                              child: _buildSectionLabel(
+                                '🌿 Không gian / Vibe của quán',
+                              ),
+                            ),
                             const Text(
                               'Chọn các đặc trưng phù hợp',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF0284C7)),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0284C7),
+                              ),
                             ),
                           ],
                         ),
@@ -555,12 +795,19 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                               borderRadius: BorderRadius.circular(20),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                                  color: isSelected
+                                      ? const Color(0xFFF0FDF4)
+                                      : const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: isSelected ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+                                    color: isSelected
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFCBD5E1),
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -570,7 +817,9 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                                     Text(
                                       isSelected ? '✓ ' : '+ ',
                                       style: TextStyle(
-                                        color: isSelected ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                        color: isSelected
+                                            ? const Color(0xFF059669)
+                                            : const Color(0xFF64748B),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
                                       ),
@@ -578,8 +827,12 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                                     Text(
                                       vibe,
                                       style: TextStyle(
-                                        color: isSelected ? const Color(0xFF065F46) : const Color(0xFF334155),
-                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                        color: isSelected
+                                            ? const Color(0xFF065F46)
+                                            : const Color(0xFF334155),
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
                                         fontSize: 12.5,
                                       ),
                                     ),
@@ -595,10 +848,17 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: _buildSectionLabel('🎯 Mục đích sử dụng phù hợp')),
+                            Expanded(
+                              child: _buildSectionLabel(
+                                '🎯 Mục đích sử dụng phù hợp',
+                              ),
+                            ),
                             const Text(
                               'Dịp khách thường ghé quán',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF8B5CF6)),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF8B5CF6),
+                              ),
                             ),
                           ],
                         ),
@@ -607,7 +867,9 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                           spacing: 8,
                           runSpacing: 8,
                           children: _availablePurposes.map((purpose) {
-                            final isSelected = _selectedPurposes.contains(purpose);
+                            final isSelected = _selectedPurposes.contains(
+                              purpose,
+                            );
                             return InkWell(
                               onTap: () {
                                 setState(() {
@@ -621,12 +883,19 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                               borderRadius: BorderRadius.circular(20),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFFF5F3FF) : const Color(0xFFF8FAFC),
+                                  color: isSelected
+                                      ? const Color(0xFFF5F3FF)
+                                      : const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: isSelected ? const Color(0xFF8B5CF6) : const Color(0xFFCBD5E1),
+                                    color: isSelected
+                                        ? const Color(0xFF8B5CF6)
+                                        : const Color(0xFFCBD5E1),
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -636,7 +905,9 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                                     Text(
                                       isSelected ? '✓ ' : '+ ',
                                       style: TextStyle(
-                                        color: isSelected ? const Color(0xFF7C3AED) : const Color(0xFF64748B),
+                                        color: isSelected
+                                            ? const Color(0xFF7C3AED)
+                                            : const Color(0xFF64748B),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
                                       ),
@@ -644,8 +915,12 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                                     Text(
                                       purpose,
                                       style: TextStyle(
-                                        color: isSelected ? const Color(0xFF6D28D9) : const Color(0xFF334155),
-                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                        color: isSelected
+                                            ? const Color(0xFF6D28D9)
+                                            : const Color(0xFF334155),
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
                                         fontSize: 12.5,
                                       ),
                                     ),
@@ -664,14 +939,25 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                             Expanded(
                               flex: 4,
                               child: OutlinedButton.icon(
-                                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
-                                icon: const Icon(Icons.schedule_rounded, size: 16),
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : () => Navigator.of(context).pop(false),
+                                icon: const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 16,
+                                ),
                                 label: const Text('Để sau'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: const Color(0xFF475569),
-                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  side: const BorderSide(
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                 ),
                               ),
                             ),
@@ -686,23 +972,34 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                                   backgroundColor: const Color(0xFF2563EB),
                                   foregroundColor: Colors.white,
                                   elevation: 2,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                 ),
                                 child: _isSubmitting
                                     ? const SizedBox(
                                         height: 20,
                                         width: 20,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
                                       )
                                     : const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(Icons.check_rounded, size: 18),
                                           SizedBox(width: 6),
                                           Text(
                                             'Lưu & Kích Hoạt Ngay',
-                                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -738,7 +1035,10 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
               ? const [
                   TextSpan(
                     text: ' *',
-                    style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ]
               : null,
@@ -754,7 +1054,9 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
     return InputDecoration(
       hintText: hintText,
       hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-      prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 18, color: const Color(0xFF64748B)) : null,
+      prefixIcon: prefixIcon != null
+          ? Icon(prefixIcon, size: 18, color: const Color(0xFF64748B))
+          : null,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

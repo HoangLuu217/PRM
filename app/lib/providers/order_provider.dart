@@ -45,6 +45,9 @@ class OrderProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
     }
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
 
     try {
       _ownerOrders = await _orderService.getOwnerOrders(
@@ -54,9 +57,7 @@ class OrderProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
-      if (!silent) {
-        _isLoading = false;
-      }
+      _isLoading = false;
       notifyListeners();
     }
   }

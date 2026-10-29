@@ -1,4 +1,4 @@
-import { Business, Branch, Review, UserInteraction } from '../models/index.js';
+import { Business, Branch, Review, UserInteraction, Menu, Product } from '../models/index.js';
 import { emitBusinessUpdate } from '../socket.js';
 import googleMapsService from '../services/googleMapsService.js';
 import { personalizeBusinesses } from '../services/recommendationService.js';
@@ -51,6 +51,7 @@ export const getBusinesses = async (req, res) => {
         $or: [
           { 'address.city': { $regex: cleanCity, $options: 'i' } },
           { 'address.street': { $regex: cleanCity, $options: 'i' } },
+          { 'address.ward': { $regex: cleanCity, $options: 'i' } },
           { 'address.district': { $regex: cleanCity, $options: 'i' } },
         ],
       });
@@ -246,8 +247,9 @@ export const getBusinesses = async (req, res) => {
       b.primaryBranch = closestBranch || bBranches[0] || null;
       if (b.primaryBranch?.address) {
         const street = b.primaryBranch.address.street || '';
-        const district = b.primaryBranch.address.district || '';
-        b.addressText = [street, district].filter(Boolean).join(', ');
+        const ward = b.primaryBranch.address.ward || b.primaryBranch.address.district || '';
+        const city = b.primaryBranch.address.city || '';
+        b.addressText = [street, ward, city].filter(Boolean).join(', ');
       } else {
         b.addressText = '';
       }
@@ -555,6 +557,17 @@ export const onboardBusiness = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập tên quán / thương hiệu F&B' });
     }
 
+    if (
+      !businessAddress?.street?.trim() ||
+      !businessAddress?.ward?.trim() ||
+      !businessAddress?.city?.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp địa chỉ, phường/xã và tỉnh/thành hợp lệ.',
+      });
+    }
+
     const businessName = name.trim();
     const rawSlug = businessName
       .toLowerCase()
@@ -571,6 +584,7 @@ export const onboardBusiness = async (req, res) => {
       business.name = businessName;
       business.description = description?.trim() || business.description;
       business.categories = [selectedCategory];
+      business.status = 'APPROVED'; // Ensure business status is APPROVED on onboard
       if (logoUrl) business.logoUrl = logoUrl;
       if (coverImageUrl) business.coverImageUrl = coverImageUrl;
       if (googleMapsUrl !== undefined) business.googleMapsUrl = googleMapsUrl.trim();
@@ -624,10 +638,10 @@ export const onboardBusiness = async (req, res) => {
     if (branch) {
       branch.name = `${businessName} - Chi nhánh chính`;
       branch.address = {
-        street: businessAddress?.street?.trim() || branch.address?.street || 'Trụ sở chính',
-        ward: businessAddress?.ward?.trim() || branch.address?.ward || '',
-        district: businessAddress?.district?.trim() || branch.address?.district || 'Hải Châu',
-        city: businessAddress?.city?.trim() || branch.address?.city || 'Thành phố Đà Nẵng',
+        street: businessAddress.street.trim(),
+        ward: businessAddress.ward.trim(),
+        district: '',
+        city: businessAddress.city.trim(),
       };
       if (googleMapsUrl) {
         branch.location = {
@@ -645,10 +659,10 @@ export const onboardBusiness = async (req, res) => {
         businessId: business._id,
         name: `${businessName} - Chi nhánh chính`,
         address: {
-          street: businessAddress?.street?.trim() || 'Trụ sở chính',
-          ward: businessAddress?.ward?.trim() || '',
-          district: businessAddress?.district?.trim() || 'Hải Châu',
-          city: businessAddress?.city?.trim() || 'Thành phố Đà Nẵng',
+          street: businessAddress.street.trim(),
+          ward: businessAddress.ward.trim(),
+          district: '',
+          city: businessAddress.city.trim(),
         },
         location: {
           type: 'Point',
@@ -666,11 +680,17 @@ export const onboardBusiness = async (req, res) => {
       await req.user.save();
     }
 
+    emitBusinessUpdate(business);
+
     res.status(201).json({
       success: true,
       message: 'Khởi tạo thông tin quán F&B thành công!',
       data: {
-        business,
+        business: {
+          ...business.toObject(),
+          address: branch.address,
+          primaryBranch: branch,
+        },
         branch,
       },
     });
@@ -706,7 +726,11 @@ export const syncGoogleReviews = async (req, res) => {
     // Get primary branch address if available
     const primaryBranch = await Branch.findOne({ businessId: business._id });
     const addressStr = primaryBranch
-      ? `${primaryBranch.address?.street || ''}, ${primaryBranch.address?.district || ''}, ${primaryBranch.address?.city || ''}`
+      ? [
+          primaryBranch.address?.street,
+          primaryBranch.address?.ward || primaryBranch.address?.district,
+          primaryBranch.address?.city,
+        ].filter(Boolean).join(', ')
       : '';
 
     const syncResult = await googleMapsService.fetchGooglePlaceReviews({
@@ -785,4 +809,70 @@ export const syncGoogleReviews = async (req, res) => {
   }
 };
 
+// @desc    Get menu and products for a business
+// @route   GET /api/businesses/:id/menu
+// @access  Public
+export const getBusinessMenu = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const business = await Business.findById(businessId).select('name logoUrl coverImageUrl');
+    if (!business) {
+      return res.status(404).json({ success: false, message: 'Doanh nghiệp không tồn tại' });
+    }
 
+    // Find active menus or find any menu
+    let menu = await Menu.findOne({ businessId, status: 'ACTIVE' });
+    if (!menu) {
+      menu = await Menu.findOne({ businessId });
+    }
+    if (!menu) {
+      // Auto-create default active menu for this business
+      menu = await Menu.create({
+        businessId,
+        name: 'Thực đơn chính',
+        description: 'Thực đơn món ăn & đồ uống của quán',
+        status: 'ACTIVE',
+      });
+    }
+
+    // Get all branches of business
+    const branches = await Branch.find({ businessId }).select('_id name');
+    const branchIds = branches.map((b) => b._id);
+
+    // Find products
+    const products = await Product.find({
+      $or: [
+        { menuId: menu._id },
+        { branchId: { $in: branchIds } },
+      ],
+      isAvailable: true,
+    }).sort({ category: 1, name: 1 });
+
+    const categories = ['Tất cả', ...new Set(products.map((p) => p.category).filter(Boolean))];
+
+    res.json({
+      success: true,
+      data: {
+        menu: {
+          _id: menu._id,
+          id: menu._id,
+          name: menu.name,
+          description: menu.description,
+          status: menu.status,
+          businessId: menu.businessId,
+        },
+        business: {
+          _id: business._id,
+          id: business._id,
+          name: business.name,
+          logoUrl: business.logoUrl,
+        },
+        categories,
+        products,
+        totalProducts: products.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

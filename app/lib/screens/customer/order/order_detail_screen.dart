@@ -63,22 +63,7 @@ class OrderDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => OrderTrackingScreen(order: order)),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0072FF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      elevation: 0,
-                    ),
-                    child: const Text('Tiến độ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  ),
+
                 ],
               ),
             ),
@@ -103,16 +88,22 @@ class OrderDetailScreen extends StatelessWidget {
                     children: [
                       const Icon(Icons.table_restaurant_outlined, size: 16, color: Color(0xFF0072FF)),
                       const SizedBox(width: 6),
-                      Text(
-                        order.tableName != null ? 'Bàn: ${order.tableName}' : 'Chưa xếp bàn cụ thể',
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                      Flexible(
+                        child: Text(
+                          order.tableName != null ? 'Bàn: ${order.tableName}' : 'Chưa xếp bàn cụ thể',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       const Icon(Icons.room_service_outlined, size: 16, color: Color(0xFF10B981)),
                       const SizedBox(width: 6),
-                      Text(
-                        order.orderTypeLabel,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                      Flexible(
+                        child: Text(
+                          order.orderTypeLabel,
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),

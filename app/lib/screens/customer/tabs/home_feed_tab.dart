@@ -25,6 +25,7 @@ class HomeFeedTab extends StatelessWidget {
   final VoidCallback onToggleSortByAi;
   final TextEditingController searchController;
   final VoidCallback onSearch;
+  final ValueChanged<String>? onSearchChanged;
   final VoidCallback onResetFilters;
   final Function(RestaurantModel)? onShowBooking;
   final Function(RestaurantModel)? onShowDetails;
@@ -46,6 +47,7 @@ class HomeFeedTab extends StatelessWidget {
     required this.onToggleSortByAi,
     required this.searchController,
     required this.onSearch,
+    this.onSearchChanged,
     required this.onResetFilters,
     this.onShowBooking,
     this.onShowDetails,

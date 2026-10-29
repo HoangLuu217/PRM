@@ -20,6 +20,7 @@ import '../../providers/table_provider.dart';
 import '../../providers/user_provider.dart';
 import '../auth/login_screen.dart';
 import '../auth/profile_screen.dart';
+import 'product/owner_product_list_screen.dart';
 import '../customer/customer_home_screen.dart';
 import 'owner_booking_screen.dart';
 import 'owner_order_screen.dart';
@@ -2539,7 +2540,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       case 0:
         return _buildTab0DashboardSkeleton();
       case 1:
-        return _buildTab1MenuSkeleton();
+        final bizId = user?.business?['_id']?.toString() ?? user?.business?['id']?.toString();
+        return OwnerProductListScreen(businessId: bizId);
       case 2:
         return _buildTab2BookingSkeleton();
       case 3:

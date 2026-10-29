@@ -2,9 +2,17 @@ import mongoose from 'mongoose';
 
 const selectedOptionSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    value: { type: String, required: true },
+    name: { type: String, default: '' },
+    value: { type: String, default: '' },
     additionalPrice: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const selectedSizeSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
   },
   { _id: false }
 );
@@ -22,9 +30,9 @@ const cartItemSchema = new mongoose.Schema(
       min: 1,
       default: 1,
     },
+    selectedSize: selectedSizeSchema,
     selectedOptions: [selectedOptionSchema],
-  },
-  { _id: false }
+  }
 );
 
 const cartSchema = new mongoose.Schema(
