@@ -9,7 +9,7 @@ import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/favorite_provider.dart';
-import 'providers/notification_provider.dart'
+import 'providers/notification_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/table_provider.dart';
 import 'providers/user_provider.dart';

@@ -8,7 +8,7 @@ import '../../../providers/notification_provider.dart';
 import '../../auth/login_screen.dart';
 import '../../auth/profile_screen.dart';
 import '../favorites_screen.dart';
-import '../notification/customer_notification_screen.dart'
+import '../notification/customer_notification_screen.dart';
 import '../widgets/restaurant_modals.dart';
 
 class HomeFeedTab extends StatelessWidget {

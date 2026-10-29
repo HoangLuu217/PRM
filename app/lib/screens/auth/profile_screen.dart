@@ -13,7 +13,7 @@ import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
 import '../customer/chat/customer_chat_inbox_screen.dart';
 import '../customer/favorites_screen.dart';
-import '../customer/notification/customer_notification_screen.dart'
+import '../customer/notification/customer_notification_screen.dart';
 import '../customer/order/my_orders_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
