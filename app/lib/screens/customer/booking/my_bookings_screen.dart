@@ -267,19 +267,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                     ),
                   ],
                 ),
-                if (b.tableName != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.table_restaurant, size: 15, color: Color(0xFF10B981)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Bàn: ${b.tableName}',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5, color: Color(0xFF10B981)),
-                      ),
-                    ],
-                  ),
-                ],
+
                 if (b.canCustomerCancel) ...[
                   const SizedBox(height: 12),
                   Row(

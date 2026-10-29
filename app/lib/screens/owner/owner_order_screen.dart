@@ -120,48 +120,89 @@ class _OwnerOrderScreenState extends State<OwnerOrderScreen>
           tabs: _tabs.map((title) => Tab(text: title)).toList(),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: List.generate(_tabs.length, (tabIndex) {
-          final filtered = _filterOrders(orderProvider.ownerOrders, tabIndex);
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: TabBarView(
+            controller: _tabController,
+            children: List.generate(_tabs.length, (tabIndex) {
+              final filtered = _filterOrders(orderProvider.ownerOrders, tabIndex);
 
-          if (orderProvider.isLoading && orderProvider.ownerOrders.isEmpty) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)));
-          }
+              if (orderProvider.isLoading && orderProvider.ownerOrders.isEmpty) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF0072FF)));
+              }
 
-          if (filtered.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: () async => _loadOrders(),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                  Center(
-                    child: Column(
-                      children: [
-                        const Icon(Icons.receipt_long_outlined, size: 48, color: Color(0xFF94A3B8)),
-                        const SizedBox(height: 12),
-                        const Text('Không có đơn hàng nào trong mục này', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                      ],
-                    ),
+              if (filtered.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: () async => _loadOrders(),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.receipt_long_outlined, size: 48, color: Color(0xFF94A3B8)),
+                            const SizedBox(height: 12),
+                            const Text('Không có đơn hàng nào trong mục này',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }
+                );
+              }
 
-          return RefreshIndicator(
-            onRefresh: () async => _loadOrders(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filtered.length,
-              itemBuilder: (ctx, i) {
-                final order = filtered[i];
-                return _buildOwnerOrderCard(order);
-              },
-            ),
-          );
-        }),
+              return RefreshIndicator(
+                onRefresh: () async => _loadOrders(),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 850;
+                    if (isDesktop) {
+                      final rows = <Widget>[];
+                      for (int i = 0; i < filtered.length; i += 2) {
+                        final o1 = filtered[i];
+                        final o2 = (i + 1 < filtered.length) ? filtered[i + 1] : null;
+                        rows.add(
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(child: _buildOwnerOrderCard(o1)),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: o2 != null
+                                        ? _buildOwnerOrderCard(o2)
+                                        : const SizedBox(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return ListView(
+                        padding: const EdgeInsets.all(20),
+                        children: rows,
+                      );
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) {
+                        final order = filtered[i];
+                        return _buildOwnerOrderCard(order);
+                      },
+                    );
+                  },
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
