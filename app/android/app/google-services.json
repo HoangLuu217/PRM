@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "32129138162",
+    "project_id": "prm-fconnect-notification",
+    "storage_bucket": "prm-fconnect-notification.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:32129138162:android:f0113fc2133f8593c13f6b",
+        "android_client_info": {
+          "package_name": "com.example.prm_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVbaZKVu3kwFdR3KAG87WPfAhWmXVfKTw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

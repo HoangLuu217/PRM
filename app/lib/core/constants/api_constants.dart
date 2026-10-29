@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
-  // Lấy Base URL duy nhất từ file .env, tự động chuyển 10.0.2.2 thành localhost nếu chạy Web
+  // Lấy Base URL: nếu chạy Web thì luôn trỏ thẳng localhost:5000, nếu Mobile thì đọc từ .env
   static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:5000/api';
+    }
     final url = dotenv.isInitialized ? (dotenv.env['API_BASE_URL'] ?? '') : '';
-    if (kIsWeb && url.contains('10.0.2.2')) {
-      return url.replaceAll('10.0.2.2', 'localhost');
+    if (url.isEmpty) {
+      return 'http://10.0.2.2:5000/api';
     }
     return url;
   }

@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
@@ -5,11 +7,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_constants.dart';
 import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
+import 'providers/chat_provider.dart';
 import 'providers/favorite_provider.dart';
+import 'providers/notification_provider.dart'
 import 'providers/order_provider.dart';
 import 'providers/table_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/auth/splash_screen.dart';
+import 'services/notification_service.dart';
 import 'services/supabase_auth_service.dart';
 
 void main() async {
@@ -34,6 +39,22 @@ void main() async {
     }
   }
 
+  // 3. Khởi tạo Firebase Core cho Mobile
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      debugPrint('[Firebase Init Error]: $e');
+    }
+  }
+
+  // 4. Khởi tạo Firebase Notification Service
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('[NotificationService Init Error]: $e');
+  }
+
   runApp(const MyApp());
 }
 
@@ -50,6 +71,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => TableProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: MaterialApp(
         title: 'FConnect F&B Platform',

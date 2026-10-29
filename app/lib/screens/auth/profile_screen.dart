@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import '../../core/constants/api_constants.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
 import '../customer/booking/my_bookings_screen.dart';
+import '../customer/chat/customer_chat_screen.dart';
+import '../customer/chat/customer_chat_inbox_screen.dart';
 import '../customer/favorites_screen.dart';
+import '../customer/notification/customer_notification_screen.dart'
 import '../customer/order/my_orders_screen.dart';
 import '../owner/owner_dashboard_screen.dart';
 import 'login_screen.dart';
@@ -75,6 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _loadUserData();
       Provider.of<BookingProvider>(context, listen: false).fetchMyBookings();
       Provider.of<OrderProvider>(context, listen: false).fetchMyOrders();
+      Provider.of<ChatProvider>(context, listen: false).fetchConversations(silent: true);
     });
   }
 
@@ -1272,23 +1279,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
         title: 'Notifications',
-        subtitle: 'Push & booking alerts',
+        subtitle: 'Xem thông báo & kiểm tra Push Notification',
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tính năng Thông báo')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerNotificationScreen()),
           );
         },
       ),
-      _buildGroupItem(
-        icon: Icons.chat_bubble_outline_rounded,
-        iconBg: const Color(0xFFEFF6FF),
-        iconColor: const Color(0xFF2563EB),
-        title: 'Chat',
-        subtitle: 'Direct messages with places',
-        badgeNumber: 1,
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tính năng Chat trực tiếp')),
+      Consumer<ChatProvider>(
+        builder: (context, chatProv, _) {
+          final unread = chatProv.conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+          return _buildGroupItem(
+            icon: Icons.forum_rounded,
+            iconBg: const Color(0xFFEFF6FF),
+            iconColor: const Color(0xFF2563EB),
+            title: 'Chat',
+            subtitle: 'Nhắn tin trực tiếp với các nhà hàng',
+            badgeNumber: unread > 0 ? unread : null,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CustomerChatInboxScreen(),
+                ),
+              );
+            },
           );
         },
       ),

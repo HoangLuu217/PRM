@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../auth/login_screen.dart';
 import 'booking/booking_screen.dart';
+import 'chat/customer_chat_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final RestaurantModel restaurant;
@@ -323,6 +324,23 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                 ),
                 Row(
                   children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.black.withValues(alpha: 0.45),
+                      radius: 18,
+                      child: IconButton(
+                        icon: const Icon(Icons.forum_rounded, color: Colors.white, size: 17),
+                        tooltip: 'Chat với quán',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CustomerChatScreen(restaurant: r),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     CircleAvatar(
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
@@ -992,6 +1010,28 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       ),
       child: Row(
         children: [
+          // Nút Chat với quán
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.forum_rounded, color: Color(0xFF0072FF), size: 20),
+              tooltip: 'Chat với quán',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CustomerChatScreen(restaurant: r),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+
           // Nút gọi điện thoại
           Expanded(
             flex: 4,
