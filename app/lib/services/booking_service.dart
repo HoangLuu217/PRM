@@ -212,20 +212,44 @@ class BookingService {
     }
   }
 
-  /// 8. Kiểm tra trạng thái thanh toán PayOS theo orderCode
+  /// 8. Kiểm tra trạng thái thanh toán PayOS thực tế theo orderCode
   Future<bool> checkPaymentStatus(dynamic orderCode) async {
+    final numericOrderCode = int.tryParse(orderCode.toString().replaceAll(RegExp(r'\D'), '')) ?? orderCode;
     try {
-      final headers = await _getHeaders();
-      final uri = Uri.parse('${ApiConstants.baseUrl}/payments/status/$orderCode');
+      final payosHeaders = {
+        'Content-Type': 'application/json',
+        'x-client-id': 'c172f8ec-7822-48e6-898b-0d46564270e8',
+        'x-api-key': 'e951b88d-c3ae-4776-b2fc-db9c6ef61788',
+      };
+      final payosUri = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$numericOrderCode');
+      final payosRes = await http.get(payosUri, headers: payosHeaders).timeout(const Duration(seconds: 6));
+      if (payosRes.statusCode == 200) {
+        final body = jsonDecode(payosRes.body);
+        final data = body['data'];
+        if (body['code'] == '00' && data is Map<String, dynamic>) {
+          final status = (data['status'] ?? '').toString().toUpperCase();
+          final amountPaid = (data['amountPaid'] as num?)?.toInt() ?? 0;
+          final transactions = data['transactions'] as List<dynamic>?;
+          final isReallyPaid =
+              status == 'PAID' || amountPaid > 0 || (transactions != null && transactions.isNotEmpty);
 
-      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 5));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        return data['data']?['isPaid'] == true || data['data']?['status'] == 'PAID';
+          if (isReallyPaid) {
+            final headers = await _getHeaders();
+            final uri = Uri.parse('${ApiConstants.baseUrl}/payments/status/$orderCode');
+            await http.get(uri, headers: headers).timeout(const Duration(seconds: 5));
+            return true;
+          }
+          return false;
+        }
       }
     } catch (e) {
       debugPrint('[checkPaymentStatus Error]: $e');
     }
     return false;
+  }
+
+  /// 9. Xác nhận đã chuyển khoản cọc bàn (chỉ xác nhận khi PayOS đã nhận được tiền thật)
+  Future<bool> confirmDepositPayment(dynamic orderCode) async {
+    return await checkPaymentStatus(orderCode);
   }
 }

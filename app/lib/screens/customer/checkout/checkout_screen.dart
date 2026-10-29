@@ -207,7 +207,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
 
       if (_selectedPaymentMethod == 'PAYOS_QR') {
-        _showPayOSQRModal(order);
+        await _showPayOSQRModal(order);
       } else if (_selectedPaymentMethod == 'MOMO') {
         _showMoMoPaymentModal(order);
       } else if (_selectedPaymentMethod == 'CARD') {
@@ -233,17 +233,56 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  /// Modal Thanh toán Chuyển khoản VietQR / PayOS
-  void _showPayOSQRModal(OrderModel order) {
-    final amount = order.total > 0 ? order.total : 50000;
+  /// Modal Thanh toán Chuyển khoản VietQR / PayOS (Kết nối trực tiếp cổng PayOS MBBank)
+  Future<void> _showPayOSQRModal(OrderModel order) async {
+    final amount = order.total > 0 ? order.total : 2000;
     final orderCode = order.orderCode;
-    final memo = 'DAT MON $orderCode';
-    // Thay đổi thông tin ngân hàng thực tế từ backend PayOS Service (MBBank: 1021072004 - LUONG DANG HOANG LUU)
-    final qrUrl =
-        'https://api.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent("LUONG DANG HOANG LUU")}';
+    final defaultMemo = 'DAT MON $orderCode';
+
+    final payosData = await _checkoutService.createPayOSPaymentRequest(
+      orderCode: orderCode,
+      amount: amount,
+      description: defaultMemo,
+    );
+
+    if (!mounted) return;
+
+    final qrUrl = payosData['qrUrl']!;
+    final accNo = payosData['accountNumber']!;
+    final accName = payosData['accountName']!;
+    final memo = payosData['description']!;
 
     Timer? pollTimer;
     bool isPaymentSuccess = false;
+    bool isConfirming = false;
+    String? paymentErrorMessage;
+
+    void onPaidVerified(BuildContext modalCtx, StateSetter setModalState) {
+      if (isPaymentSuccess) return;
+      pollTimer?.cancel();
+      if (modalCtx.mounted) {
+        setModalState(() {
+          isPaymentSuccess = true;
+          isConfirming = false;
+        });
+      }
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (!mounted) return;
+        if (modalCtx.mounted) Navigator.pop(modalCtx);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+          (route) => route.isFirst,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thanh toán thành công! Đơn hàng #$orderCode đã được gửi đến nhà bếp 🎉'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      });
+    }
 
     showModalBottomSheet(
       context: context,
@@ -253,7 +292,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       enableDrag: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
-          // Khởi tạo Polling Timer tự động kiểm tra biến động giao dịch từ Backend / PayOS Webhook
+          // Tự động kiểm tra trạng thái thực tế từ cổng PayOS mỗi 3 giây:
+          // Chỉ khi người dùng thực sự chuyển khoản qua ngân hàng (PayOS trả về PAID) mới tự động chuyển trang!
           pollTimer ??= Timer.periodic(const Duration(seconds: 3), (timer) async {
             if (isPaymentSuccess) {
               timer.cancel();
@@ -263,28 +303,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             if (authProvider.token == null) return;
             final isPaid = await _checkoutService.checkPaymentStatus(orderCode, authProvider.token!);
             if (isPaid && ctx.mounted) {
-              timer.cancel();
-              setModalState(() {
-                isPaymentSuccess = true;
-              });
-
-              // Tự động đóng modal và đưa khách sang màn hình Đơn hàng sau 1.5 giây
-              Future.delayed(const Duration(milliseconds: 1500), () {
-                if (!mounted) return;
-                Navigator.pop(ctx);
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-                  (route) => route.isFirst,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Thanh toán thành công! Đơn hàng #$orderCode đã được gửi đến nhà bếp 🎉'),
-                    backgroundColor: const Color(0xFF10B981),
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
-              });
+              onPaidVerified(ctx, setModalState);
             }
           });
 
@@ -392,9 +411,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       children: [
                         _buildCopyableRow('Ngân hàng:', 'MBBank (Quân Đội)', 'MBBank'),
                         const Divider(height: 12),
-                        _buildCopyableRow('Số tài khoản:', '1021072004', '1021072004'),
+                        _buildCopyableRow('Số tài khoản:', accNo, accNo),
                         const Divider(height: 12),
-                        _buildCopyableRow('Chủ tài khoản:', 'LUONG DANG HOANG LUU', 'LUONG DANG HOANG LUU'),
+                        _buildCopyableRow('Chủ tài khoản:', accName, accName),
                         const Divider(height: 12),
                         _buildCopyableRow('Nội dung CK:', memo, memo),
                       ],
@@ -428,18 +447,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
+                        color: paymentErrorMessage != null ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
+                        border: Border.all(
+                          color: paymentErrorMessage != null ? const Color(0xFFFCA5A5) : const Color(0xFFFDE68A),
+                        ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706))),
-                          SizedBox(width: 8),
-                          Text(
-                            'Đang chờ giao dịch ngân hàng thực tế...',
-                            style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600),
+                          if (paymentErrorMessage != null)
+                            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18)
+                          else
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706)),
+                            ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              paymentErrorMessage ?? 'Đang chờ bạn quét mã chuyển khoản...',
+                              style: TextStyle(
+                                color: paymentErrorMessage != null ? const Color(0xFFDC2626) : const Color(0xFFB45309),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                       ),
@@ -455,35 +490,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
-                        onPressed: () async {
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          if (authProvider.token == null) return;
-                          final ok = await _checkoutService.confirmManualPayment(orderCode, authProvider.token!);
-                          if (ok && ctx.mounted) {
-                            pollTimer?.cancel();
-                            setModalState(() {
-                              isPaymentSuccess = true;
-                            });
-                            Future.delayed(const Duration(milliseconds: 1200), () {
-                              if (!mounted) return;
-                              Navigator.pop(ctx);
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
-                                (route) => route.isFirst,
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Thanh toán thành công! Đơn hàng #$orderCode đã được gửi đến nhà bếp 🎉'),
-                                  backgroundColor: const Color(0xFF10B981),
-                                  duration: const Duration(seconds: 4),
-                                ),
-                              );
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-                        label: const Text('Xác nhận đã chuyển khoản thành công', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                        onPressed: isConfirming
+                            ? null
+                            : () async {
+                                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                if (authProvider.token == null) return;
+                                setModalState(() {
+                                  isConfirming = true;
+                                  paymentErrorMessage = null;
+                                });
+                                final ok = await _checkoutService.confirmManualPayment(orderCode, authProvider.token!);
+                                if (ctx.mounted) {
+                                  setModalState(() {
+                                    isConfirming = false;
+                                  });
+                                }
+                                if (ok && ctx.mounted) {
+                                  onPaidVerified(ctx, setModalState);
+                                } else if (ctx.mounted) {
+                                  setModalState(() {
+                                    paymentErrorMessage =
+                                        'Chưa nhận được tiền chuyển khoản! Vui lòng quét mã QR thanh toán trước.';
+                                  });
+                                }
+                              },
+                        icon: isConfirming
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.check_circle_outline_rounded, size: 18),
+                        label: Text(
+                          isConfirming ? 'Đang kiểm tra giao dịch PayOS...' : 'Xác nhận đã chuyển khoản thành công',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
