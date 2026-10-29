@@ -429,13 +429,26 @@ export const getUserProfile = async (req, res) => {
 
     if (user) {
       const userBusiness = await Business.findOne({ ownerId: user._id });
+      const primaryBranch = userBusiness
+        ? await Branch.findOne({ businessId: userBusiness._id, status: 'ACTIVE' })
+        : null;
+      const businessData = userBusiness?.toObject();
+      const branchAddress = primaryBranch?.address?.toObject
+        ? primaryBranch.address.toObject()
+        : primaryBranch?.address;
       await syncMerchantRole(user, userBusiness);
       res.json({
         success: true,
         data: {
           ...user.toObject(),
           role: user.role,
-          business: userBusiness,
+          business: businessData
+            ? {
+                ...businessData,
+                address: branchAddress || businessData.address || null,
+                primaryBranch,
+              }
+            : null,
           hasBusiness: Boolean(userBusiness),
         },
       });
@@ -458,6 +471,15 @@ export const updateUserProfile = async (req, res) => {
       user.fullName = req.body.fullName || user.fullName;
       user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
       user.avatarUrl = req.body.avatarUrl !== undefined ? req.body.avatarUrl : user.avatarUrl;
+
+      if (req.body.email && req.body.email.toLowerCase().trim() !== user.email) {
+        const cleanEmail = req.body.email.toLowerCase().trim();
+        const emailExists = await User.findOne({ email: cleanEmail, _id: { $ne: user._id } });
+        if (emailExists) {
+          return res.status(400).json({ success: false, message: 'Email này đã được sử dụng bởi tài khoản khác' });
+        }
+        user.email = cleanEmail;
+      }
 
       // Handle password change with optional verification
       if (req.body.newPassword) {

@@ -383,10 +383,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   void _showStorefrontPreview(Map<String, dynamic>? biz, User? user) {
     final businessName = biz?['name']?.toString() ?? 'Nhà Hàng Của Bạn';
     final categoryName = biz?['category']?.toString() ?? 'F&B Restaurant';
-    final district = biz?['address']?['district']?.toString() ?? biz?['district']?.toString() ?? 'Hải Châu';
-    final city = biz?['address']?['city']?.toString() ?? biz?['city']?.toString() ?? 'Đà Nẵng';
-    final street = biz?['address']?['street']?.toString() ?? 'Chi nhánh chính';
-    final addressFull = '$street, $district, $city';
+    final primaryBranch = biz?['primaryBranch'];
+    final branchAddress = primaryBranch is Map && primaryBranch['address'] is Map
+        ? primaryBranch['address']
+        : biz?['address'];
+    final ward = branchAddress?['ward']?.toString() ??
+        branchAddress?['district']?.toString() ??
+        biz?['district']?.toString() ??
+        'Hải Châu';
+    final city = branchAddress?['city']?.toString() ??
+        biz?['city']?.toString() ??
+        'Đà Nẵng';
+    final street = branchAddress?['street']?.toString() ?? 'Chi nhánh chính';
+    final addressFull = [street, ward, city]
+        .where((part) => part.trim().isNotEmpty)
+        .join(', ');
     final minPrice = biz?['priceRange']?['min'] ?? 20000;
     final maxPrice = biz?['priceRange']?['max'] ?? 100000;
     final priceText = '${(minPrice / 1000).toInt()}k – ${(maxPrice / 1000).toInt()}k VNĐ';
@@ -932,6 +943,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   void _showEditOwnerAccountDialog(User? user) {
     final nameController = TextEditingController(text: user?.fullName ?? '');
+    final emailController = TextEditingController(text: user?.email ?? '');
     final phoneController = TextEditingController(text: user?.phone ?? '');
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
@@ -967,6 +979,23 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Color(0xFF0F172A)),
+                  decoration: InputDecoration(
+                    labelText: 'Địa chỉ Email',
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
+                    if (!v.contains('@') || !v.contains('.')) return 'Email không đúng định dạng';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
                   controller: phoneController,
                   style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
@@ -996,6 +1025,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
                         final success = await authProvider.updateProfile({
                           'fullName': nameController.text.trim(),
+                          'email': emailController.text.trim(),
                           'phone': phoneController.text.trim(),
                         });
 
@@ -1281,15 +1311,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         const SizedBox(width: 14),
                         // Avatar -> Hồ sơ cá nhân
                         Tooltip(
-                          message: 'Xem hồ sơ cá nhân',
+                          message: 'Chỉnh sửa hồ sơ cá nhân',
                           child: InkWell(
                             borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                              );
-                            },
+                            onTap: () => _showEditOwnerAccountDialog(user),
                             child: CircleAvatar(
                               radius: 18,
                               backgroundColor: const Color(0xFF2563EB),
@@ -1463,13 +1488,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.person_outline_rounded, color: Color(0xFF64748B)),
-              tooltip: 'Hồ sơ',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                );
-              },
+              tooltip: 'Sửa hồ sơ',
+              onPressed: () => _showEditOwnerAccountDialog(user),
             ),
             IconButton(
               icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
@@ -1595,14 +1615,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         'Hệ thống quán ẩm thực chất lượng cao, phục vụ các món ăn và đồ uống tinh hoa tại Đà Nẵng.';
 
     final categoryName = biz?['category']?.toString() ?? 'Nhà hàng ẩm thực';
-    final district = biz?['address']?['district']?.toString() ??
+    final primaryBranch = biz?['primaryBranch'];
+    final branchAddress = primaryBranch is Map && primaryBranch['address'] is Map
+        ? primaryBranch['address']
+        : biz?['address'];
+    final ward = branchAddress?['ward']?.toString() ??
+        branchAddress?['district']?.toString() ??
         biz?['district']?.toString() ??
         'Hải Châu';
-    final city = biz?['address']?['city']?.toString() ??
+    final city = branchAddress?['city']?.toString() ??
         biz?['city']?.toString() ??
         'Đà Nẵng';
-    final street = biz?['address']?['street']?.toString() ?? 'Chi nhánh chính';
-    final addressFull = street.isNotEmpty ? '$street, $district, $city' : '$district, $city';
+    final street = branchAddress?['street']?.toString() ?? 'Chi nhánh chính';
+    final addressFull = [street, ward, city]
+        .where((part) => part.trim().isNotEmpty)
+        .join(', ');
     final phone = biz?['phone']?.toString() ?? user?.phone ?? '0901234567';
     final googleMapsUrl = biz?['googleMapsUrl']?.toString() ?? '';
 
@@ -1697,23 +1724,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFBFDBFE)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.bolt_rounded, color: Color(0xFF2563EB), size: 15),
-                              SizedBox(width: 4),
-                              Text('Đặt bàn nhanh', style: TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -1785,7 +1795,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                   const Icon(Icons.location_on_outlined, color: Color(0xFF64748B), size: 15),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '$district, $city',
+                                    '$ward, $city',
                                     style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
                                   ),
                                 ],
@@ -1811,26 +1821,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 2,
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => _showStorefrontPreview(biz, user),
-                          icon: const Icon(Icons.remove_red_eye_rounded, size: 17, color: Color(0xFF2563EB)),
-                          label: const Text('Xem trước', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => _showQrCodeDialog(biz),
-                          icon: const Icon(Icons.qr_code_rounded, size: 17, color: Color(0xFF2563EB)),
-                          label: const Text('QR Menu bàn', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ],
@@ -2046,20 +2036,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           ),
                         )).toList(),
                       ),
-                      const SizedBox(height: 16),
-
-                      const Text('Tiện ích phục vụ tại quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 10,
-                        children: [
-                          _buildAmenityBadge(Icons.wifi_rounded, 'Wifi tốc độ cao'),
-                          _buildAmenityBadge(Icons.ac_unit_rounded, 'Máy lạnh / Điều hòa'),
-                          _buildAmenityBadge(Icons.local_parking_rounded, 'Bãi đỗ xe rộng rãi'),
-                          _buildAmenityBadge(Icons.credit_card_rounded, 'Thanh toán thẻ / QR'),
-                        ],
-                      ),
                     ],
                   ),
                 ),
@@ -2114,34 +2090,44 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       const SizedBox(height: 18),
 
                       // User Identity Tile
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 26,
-                            backgroundColor: const Color(0xFF2563EB),
-                            child: Text(
-                              (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
-                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user?.fullName ?? 'Chủ Quán Đối Tác',
-                                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold),
+                      InkWell(
+                        onTap: () => _showEditOwnerAccountDialog(user),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                          child: Row(
+                            children: [
+                              Tooltip(
+                                message: 'Bấm để chỉnh sửa hồ sơ',
+                                child: CircleAvatar(
+                                  radius: 26,
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  child: Text(
+                                    (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  user?.email ?? 'chưa cập nhật email',
-                                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user?.fullName ?? 'Chủ Quán Đối Tác',
+                                      style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      user?.email ?? 'chưa cập nhật email',
+                                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 18),
                       const Divider(color: Color(0xFFE2E8F0)),
