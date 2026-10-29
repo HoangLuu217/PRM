@@ -243,9 +243,14 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     }
   }
 
+  const targetAmount = order?.total || transaction?.amount || 1000;
+  const hasRealBankTransaction = Array.isArray(payosInfo?.transactions)
+    && payosInfo.transactions.length > 0
+    && payosInfo.transactions.some((t) => Number(t.amount || t.amountPaid || 0) >= targetAmount);
+
   const isPayOSPaid = payosInfo
     && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED')
-    && (Number(payosInfo.amountPaid) > 0 || (Array.isArray(payosInfo.transactions) && payosInfo.transactions.length > 0));
+    && hasRealBankTransaction;
 
   if (isPayOSPaid) {
     if (transaction) {
