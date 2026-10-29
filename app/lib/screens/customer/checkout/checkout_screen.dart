@@ -169,6 +169,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     try {
+      final checkoutItems = cartProvider.activeItems;
       final payload = {
         'businessId': cartProvider.businessId ?? _activeBooking!.businessId,
         if (cartProvider.branchId != null) 'branchId': cartProvider.branchId,
@@ -178,13 +179,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'orderType': _selectedOrderType,
         'paymentMethod': _selectedPaymentMethod,
         'note': _noteController.text.trim(),
-        'items': cartProvider.items.map((item) => item.toJson()).toList(),
+        'items': checkoutItems.map((item) => item.toJson()).toList(),
       };
 
       final order = await _checkoutService.createOrder(payload, authProvider.token!);
 
-      // Clear cart on backend & local
-      cartProvider.clearCart(token: authProvider.token);
+      // Clear cart for this specific business
+      if (cartProvider.businessId != null) {
+        cartProvider.clearCartForBusiness(cartProvider.businessId!);
+      } else {
+        cartProvider.clearCart(token: authProvider.token);
+      }
 
       if (!mounted) return;
 
@@ -644,6 +649,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
+    final checkoutItems = cartProvider.activeItems;
+    final checkoutSubtotal = cartProvider.activeSubtotal;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -837,10 +844,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: cartProvider.items.length,
+                      itemCount: checkoutItems.length,
                       separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       itemBuilder: (ctx, idx) {
-                        final item = cartProvider.items[idx];
+                        final item = checkoutItems[idx];
                         return Material(
                           color: Colors.transparent,
                           child: ListTile(
@@ -881,8 +888,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                   // Price Summary
                   PriceSummary(
-                    subtotal: cartProvider.subtotal,
-                    total: cartProvider.subtotal,
+                    subtotal: checkoutSubtotal,
+                    total: checkoutSubtotal,
                   ),
                   const SizedBox(height: 24),
 
@@ -901,7 +908,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       child: _isSubmitting
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
-                              'Xác nhận & Thanh toán • ${_formatPrice(cartProvider.subtotal)}',
+                              'Xác nhận & Thanh toán • ${_formatPrice(checkoutSubtotal)}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

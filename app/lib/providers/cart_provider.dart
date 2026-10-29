@@ -56,6 +56,15 @@ class CartProvider with ChangeNotifier {
 
   double get subtotal => _items.fold(0.0, (sum, i) => sum + i.itemSubtotal);
 
+  /// Returns items belonging to the currently active selected restaurant (_businessId)
+  List<CartItemModel> get activeItems {
+    if (_businessId == null || _businessId!.isEmpty) return items;
+    final list = _items.where((i) => i.businessId == _businessId || i.businessId == null).toList();
+    return list.isNotEmpty ? list : items;
+  }
+
+  double get activeSubtotal => activeItems.fold(0.0, (sum, i) => sum + i.itemSubtotal);
+
   /// Return cart items grouped by Restaurant
   List<CartGroup> get groups {
     final Map<String, List<CartItemModel>> map = {};
