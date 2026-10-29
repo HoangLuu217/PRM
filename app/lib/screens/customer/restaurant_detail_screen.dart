@@ -403,45 +403,20 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
-                                    action: SnackBarAction(
-                                      label: 'Đăng nhập',
-                                      textColor: Colors.amber,
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              favProvider.toggleFavorite(widget.restaurant, auth.token);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                            tooltip: isFav ? 'Bỏ yêu thích' : 'Thêm vào yêu thích',
-                            onPressed: () {
-                              final auth = context.read<AuthProvider>();
-                              if (!auth.isAuthenticated) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
-                                    action: SnackBarAction(
-                                      label: 'Đăng nhập',
-                                      textColor: Colors.amber,
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                      ),
-                                    ),
                                     behavior: SnackBarBehavior.floating,
+                                    action: SnackBarAction(
+                                      label: 'Đăng nhập',
+                                      textColor: Colors.amber,
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                      ),
+                                    ),
                                   ),
                                 );
                                 return;
                               }
-                              favProvider.toggleFavorite(widget.restaurant, context: context);
+                              favProvider.toggleFavorite(widget.restaurant, token: auth.token, context: context);
                             },
                           ),
                         );
@@ -928,11 +903,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       businessId: widget.restaurant.id,
                       businessName: widget.restaurant.name,
                     ),
-                  ),
-                );
-              },
-            );
-          })
                   ),
                 );
               },

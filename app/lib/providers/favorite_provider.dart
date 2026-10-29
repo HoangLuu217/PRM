@@ -64,7 +64,7 @@ class FavoriteProvider extends ChangeNotifier {
   }
 
   /// Bật / Tắt yêu thích một quán ăn (Hỗ trợ Optimistic UI update tức thì)
-  Future<bool> toggleFavorite(RestaurantModel restaurant, {BuildContext? context}) async {
+  Future<bool> toggleFavorite(RestaurantModel restaurant, {String? token, BuildContext? context}) async {
     final businessId = restaurant.id;
     final wasFavorite = _favoriteIds.contains(businessId);
 
