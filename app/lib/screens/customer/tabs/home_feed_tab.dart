@@ -759,9 +759,21 @@ class HomeFeedTab extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            if (onShowDetails != null) {
+              onShowDetails!(r);
+            } else {
+              RestaurantModals.showDetails(context, r);
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           // A. Ảnh bìa nhà hàng kèm Badge
           Stack(
             children: [
@@ -913,21 +925,38 @@ class HomeFeedTab extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
 
-                // Rating FConnect
-                Row(
-                  children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
-                    const SizedBox(width: 3),
-                    Text(
-                      r.rating.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                // Rating FConnect (Bấm vào để xem đánh giá ngay)
+                InkWell(
+                  onTap: () {
+                    RestaurantModals.showDetails(context, r, initialTabIndex: 3);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 17),
+                        const SizedBox(width: 3),
+                        Text(
+                          r.rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '(${r.totalReviews} đánh giá • Xem nhận xét)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF0072FF),
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF0072FF)),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '(${r.totalReviews} đánh giá FConnect)',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 6),
 
@@ -1032,6 +1061,8 @@ class HomeFeedTab extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

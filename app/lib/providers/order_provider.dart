@@ -39,10 +39,12 @@ class OrderProvider with ChangeNotifier {
   }
 
   /// Tải danh sách đơn hàng cho Chủ quán
-  Future<void> fetchOwnerOrders({String? status, String? orderType}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  Future<void> fetchOwnerOrders({String? status, String? orderType, bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       _ownerOrders = await _orderService.getOwnerOrders(
@@ -52,7 +54,9 @@ class OrderProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
-      _isLoading = false;
+      if (!silent) {
+        _isLoading = false;
+      }
       notifyListeners();
     }
   }

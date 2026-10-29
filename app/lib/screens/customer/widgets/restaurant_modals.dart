@@ -249,11 +249,11 @@ class RestaurantModals {
   }
 
   /// Mở màn hình Xem chi tiết quán ăn chuẩn phong cách FConnect
-  static void showDetails(BuildContext context, RestaurantModel r) {
+  static void showDetails(BuildContext context, RestaurantModel r, {int initialTabIndex = 0}) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RestaurantDetailScreen(restaurant: r),
+        builder: (_) => RestaurantDetailScreen(restaurant: r, initialTabIndex: initialTabIndex),
       ),
     );
   }

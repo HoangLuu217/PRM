@@ -9,6 +9,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/file_picker_helper.dart';
 import '../../models/user_model.dart';
 import '../../models/booking_model.dart';
+import '../../models/review_model.dart';
+import '../../services/review_service.dart';
 import '../../models/notification_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
@@ -61,11 +63,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Timer? _chatPollingTimer;
   Timer? _notifPollingTimer;
+  Timer? _dashboardPollingTimer;
+  final ReviewService _reviewService = ReviewService();
+  List<ReviewModel> _businessReviews = [];
+  bool _isLoadingReviews = false;
+  int _selectedReviewRatingFilter = 0; // 0 = Tất cả, 5, 4, 3, 2, 1
+  bool _isSyncingGoogleReviews = false;
+  bool _showGoogleReviewsOnly = false;
 
   @override
   void dispose() {
     _chatPollingTimer?.cancel();
     _notifPollingTimer?.cancel();
+    _dashboardPollingTimer?.cancel();
     _searchHeaderController?.dispose();
     _ownerChatMessageController.dispose();
     _ownerChatScrollController.dispose();
@@ -83,6 +93,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       _notifPollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
         if (mounted) {
           Provider.of<NotificationProvider>(context, listen: false).fetchNotifications(silent: true);
+        }
+      });
+      // Realtime polling cho Dashboard (Đơn hàng, Đặt bàn, Đánh giá không cần F5)
+      _dashboardPollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (mounted) {
+          _silentRefreshDashboard();
         }
       });
       if (_selectedTab == 4) {
@@ -103,6 +119,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       });
     } else {
       _chatPollingTimer?.cancel();
+    }
+    if (index == 5) {
+      _fetchBusinessReviews(showLoading: true);
     }
   }
 
@@ -319,6 +338,214 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     Provider.of<TableProvider>(context, listen: false).fetchTables(branchId: branchId);
     Provider.of<OrderProvider>(context, listen: false).fetchOwnerOrders();
     _fetchRealOwnerConversations();
+    _fetchBusinessReviews();
+  }
+
+  /// Cập nhật ngầm định kỳ toàn bộ dữ liệu Dashboard để realtime không cần F5
+  void _silentRefreshDashboard() {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    final biz = user?.business;
+    final businessId = (biz?['_id'] ?? biz?['id'])?.toString();
+
+    Provider.of<BookingProvider>(context, listen: false).fetchOwnerBookings(silent: true);
+    Provider.of<OrderProvider>(context, listen: false).fetchOwnerOrders(silent: true);
+
+    if (businessId != null && businessId.isNotEmpty) {
+      _reviewService.getBusinessReviews(businessId).then((revs) {
+        if (mounted) {
+          setState(() {
+            _businessReviews = revs;
+          });
+        }
+      }).catchError((_) {});
+    }
+  }
+
+  Future<void> _fetchBusinessReviews({bool showLoading = false}) async {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    final biz = user?.business;
+    final businessId = (biz?['_id'] ?? biz?['id'])?.toString();
+    if (businessId == null || businessId.isEmpty) return;
+
+    if (showLoading && mounted) {
+      setState(() => _isLoadingReviews = true);
+    }
+
+    try {
+      final reviews = await _reviewService.getBusinessReviews(businessId);
+      if (mounted) {
+        setState(() {
+          _businessReviews = reviews;
+          _isLoadingReviews = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingReviews = false);
+      }
+    }
+  }
+
+  Future<void> _handleSyncGoogleReviews(String businessId, String? googleMapsUrl, {String? businessName}) async {
+    if (businessId.isEmpty) return;
+    if (googleMapsUrl == null || googleMapsUrl.trim().isEmpty) {
+      _showGoogleMapsSyncPromptDialog(businessId, currentUrl: googleMapsUrl, businessName: businessName);
+      return;
+    }
+    await _performSyncGoogleReviews(businessId, googleMapsUrl);
+  }
+
+  void _showGoogleMapsSyncPromptDialog(String businessId, {String? currentUrl, String? businessName}) {
+    final urlCtrl = TextEditingController(text: currentUrl ?? '');
+    final name = (businessName != null && businessName.trim().isNotEmpty) ? businessName.trim() : 'Highlands Coffee';
+    final suggestedUrl = 'https://www.google.com/maps/search/?api=1&query=' + Uri.encodeComponent(name + ' Da Nang');
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.share_location_rounded, color: Color(0xFF2563EB), size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Đồng Bộ Đánh Giá Google Maps',
+                  style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Dán liên kết Google Maps của quán để hệ thống tự động đồng bộ điểm số và các đánh giá thực tế từ Google Places:',
+                  style: TextStyle(color: Color(0xFF475569), fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: urlCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Liên kết Google Maps',
+                    hintText: 'https://maps.app.goo.gl/... hoặc https://google.com/maps/place/...',
+                    hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
+                    prefixIcon: const Icon(Icons.link_rounded, color: Color(0xFF2563EB), size: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () {
+                    urlCtrl.text = suggestedUrl;
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFF16A34A), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Điền link tự động theo tên quán: "' + name + '"',
+                            style: const TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('Hủy', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                final input = urlCtrl.text.trim();
+                if (input.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vui lòng dán liên kết Google Maps trước khi đồng bộ.')),
+                  );
+                  return;
+                }
+                Navigator.pop(dlgCtx);
+                _performSyncGoogleReviews(businessId, input);
+              },
+              icon: const Icon(Icons.sync_rounded, size: 16),
+              label: const Text('Bắt đầu đồng bộ', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF059669),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performSyncGoogleReviews(String businessId, String targetUrl) async {
+    setState(() => _isSyncingGoogleReviews = true);
+
+    try {
+      final res = await _reviewService.syncGoogleReviews(businessId, googleMapsUrl: targetUrl);
+      if (mounted) {
+        setState(() => _isSyncingGoogleReviews = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message'] ?? 'Đồng bộ hoàn tất'),
+            backgroundColor: res['success'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+          ),
+        );
+        if (res['success'] == true) {
+          await Provider.of<AuthProvider>(context, listen: false).checkAuthStatus();
+          _fetchBusinessReviews();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSyncingGoogleReviews = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi kết nối đồng bộ: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
   }
 
   void _checkAndPromptOnboarding() {
@@ -679,6 +906,756 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       ),
     );
   }
+
+  // =========================================================================
+  // CARD D: QUẢN LÝ ĐÁNH GIÁ & UY TÍN TỪ THỰC KHÁCH (100% Real Data & Google Maps Sync)
+  // =========================================================================
+  Widget _buildReviewsManagementSection(Map<String, dynamic>? biz, User? user) {
+    final businessId = (biz?['_id'] ?? biz?['id'])?.toString() ?? '';
+    final googleMapsUrl = biz?['googleMapsUrl']?.toString() ?? '';
+    final googleRating = biz?['googleRating'];
+    final rawGoogleReviews = biz?['googleReviews'];
+    final List<Map<String, dynamic>> googleReviews = [];
+    if (rawGoogleReviews is List) {
+      for (final r in rawGoogleReviews) {
+        if (r is Map) googleReviews.add(Map<String, dynamic>.from(r));
+      }
+    }
+
+    final totalFConnectReviews = _businessReviews.length;
+    final avgScore = totalFConnectReviews > 0
+        ? (_businessReviews.fold<double>(0.0, (sum, r) => sum + r.rating) / totalFConnectReviews)
+        : ((biz?['ratingSummary']?['average'] as num?)?.toDouble() ?? 5.0);
+
+    final count5 = _businessReviews.where((r) => r.rating.round() == 5).length;
+    final count4 = _businessReviews.where((r) => r.rating.round() == 4).length;
+    final count3 = _businessReviews.where((r) => r.rating.round() == 3).length;
+    final count2 = _businessReviews.where((r) => r.rating.round() == 2).length;
+    final count1 = _businessReviews.where((r) => r.rating.round() == 1).length;
+    final countVerified = _businessReviews.where((r) => r.isVerified).length;
+
+    final gRating = (googleRating?['rating'] as num?)?.toDouble() ?? 0.0;
+    final gTotal = (googleRating?['userRatingsTotal'] as num?)?.toInt() ?? 0;
+
+    final filteredFConnectReviews = _selectedReviewRatingFilter == 0
+        ? _businessReviews
+        : (_selectedReviewRatingFilter == 99
+            ? _businessReviews.where((r) => r.isVerified).toList()
+            : _businessReviews.where((r) => r.rating.round() == _selectedReviewRatingFilter).toList());
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Header Bar: Tiêu đề + Nút Đồng bộ Google Maps
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'ĐÁNH GIÁ & UY TÍN TỪ THỰC KHÁCH',
+                          style: TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: Text(
+                            '$totalFConnectReviews Đánh giá',
+                            style: const TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Phản hồi 100% thực tế từ khách hàng trải nghiệm ẩm thực & đồng bộ dữ liệu đánh giá từ Google Maps.',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Nút đồng bộ Google Maps
+              ElevatedButton.icon(
+                onPressed: _isSyncingGoogleReviews
+                    ? null
+                    : () => _handleSyncGoogleReviews(businessId, googleMapsUrl, businessName: biz?['name']?.toString()),
+                icon: _isSyncingGoogleReviews
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 16),
+                label: Text(
+                  _isSyncingGoogleReviews ? 'Đang đồng bộ...' : 'Đồng bộ Google Maps',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () => _fetchBusinessReviews(showLoading: true),
+                tooltip: 'Tải lại danh sách đánh giá',
+                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 16),
+
+          // 2. Metrics Overview Banner
+          LayoutBuilder(
+            builder: (ctx, constraints) {
+              final isWide = constraints.maxWidth > 760;
+              final col1 = _buildFConnectRatingMetricCard(avgScore, totalFConnectReviews, countVerified);
+              final col2 = _buildRatingDistributionCard(totalFConnectReviews, count5, count4, count3, count2, count1);
+              final col3 = _buildGoogleRatingMetricCard(gRating, gTotal, googleMapsUrl, googleReviews.length, onAddLink: () => _showGoogleMapsSyncPromptDialog(businessId, currentUrl: googleMapsUrl, businessName: biz?['name']?.toString()));
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: col1),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 4, child: col2),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 3, child: col3),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
+                    col1,
+                    const SizedBox(height: 14),
+                    col2,
+                    const SizedBox(height: 14),
+                    col3,
+                  ],
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 24),
+
+          // 3. Filter and Tab Switcher
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Bộ lọc sao
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildOwnerReviewFilterChip('Tất cả ($totalFConnectReviews)', 0, isGoogle: false),
+                      const SizedBox(width: 8),
+                      _buildOwnerReviewFilterChip('5 Sao ($count5)', 5, isGoogle: false),
+                      const SizedBox(width: 8),
+                      _buildOwnerReviewFilterChip('4 Sao ($count4)', 4, isGoogle: false),
+                      const SizedBox(width: 8),
+                      _buildOwnerReviewFilterChip('3 Sao ($count3)', 3, isGoogle: false),
+                      const SizedBox(width: 8),
+                      _buildOwnerReviewFilterChip('≤ 2 Sao (${count2 + count1})', 2, isGoogle: false),
+                      const SizedBox(width: 8),
+                      _buildOwnerReviewFilterChip('✓ Đã xác thực ($countVerified)', 99, isGoogle: false),
+                      if (googleReviews.isNotEmpty) ...[
+                        const SizedBox(width: 14),
+                        Container(width: 1, height: 24, color: const Color(0xFFCBD5E1)),
+                        const SizedBox(width: 14),
+                        _buildOwnerReviewFilterChip('Google Maps (${googleReviews.length})', -1, isGoogle: true),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // 4. Danh sách đánh giá
+          if (_isLoadingReviews) ...[
+            Container(
+              padding: const EdgeInsets.all(40),
+              alignment: Alignment.center,
+              child: const Column(
+                children: [
+                  CircularProgressIndicator(strokeWidth: 2.5),
+                  SizedBox(height: 14),
+                  Text('Đang tải danh sách đánh giá từ máy chủ...', style: TextStyle(color: Color(0xFF64748B), fontSize: 13.5)),
+                ],
+              ),
+            ),
+          ] else if (_showGoogleReviewsOnly) ...[
+            if (googleReviews.isEmpty)
+              _buildEmptyReviewsState('Chưa có đánh giá Google Maps nào được đồng bộ. Bấm nút "Đồng bộ Google Maps" phía trên để tải đánh giá.')
+            else
+              ...googleReviews.map((g) => _buildGoogleReviewItemCard(g)),
+          ] else ...[
+            if (filteredFConnectReviews.isEmpty)
+              _buildEmptyReviewsState('Không có đánh giá nào phù hợp với bộ lọc hiện tại.')
+            else
+              ...filteredFConnectReviews.map((rev) => _buildOwnerReviewItemCard(rev)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFConnectRatingMetricCard(double avg, int total, int verified) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.storefront_rounded, color: Color(0xFF2563EB), size: 18),
+              SizedBox(width: 6),
+              Text('FConnect Trực Tiếp', style: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.bold, fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                avg.toStringAsFixed(1),
+                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(width: 4),
+              const Text('/ 5.0', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8))),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: List.generate(
+              5,
+              (i) => Icon(
+                i < avg.floor()
+                    ? Icons.star_rounded
+                    : (i < avg ? Icons.star_half_rounded : Icons.star_outline_rounded),
+                color: const Color(0xFFFBBF24),
+                size: 18,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$total lượt đánh giá thực tế từ khách hàng',
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFECFDF5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 13),
+                const SizedBox(width: 4),
+                Text('$verified đánh giá có hóa đơn/đặt bàn thực', style: const TextStyle(color: Color(0xFF059669), fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRatingDistributionCard(int total, int c5, int c4, int c3, int c2, int c1) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Phân Bổ Tỷ Lệ Đánh Giá', style: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.bold, fontSize: 13)),
+          const SizedBox(height: 12),
+          _buildRatingBarRow('5 ★', c5, total),
+          const SizedBox(height: 6),
+          _buildRatingBarRow('4 ★', c4, total),
+          const SizedBox(height: 6),
+          _buildRatingBarRow('3 ★', c3, total),
+          const SizedBox(height: 6),
+          _buildRatingBarRow('2 ★', c2, total),
+          const SizedBox(height: 6),
+          _buildRatingBarRow('1 ★', c1, total),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRatingBarRow(String label, int count, int total) {
+    final ratio = total > 0 ? (count / total).clamp(0.0, 1.0) : 0.0;
+    return Row(
+      children: [
+        SizedBox(
+          width: 30,
+          child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 8,
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 32,
+          child: Text(
+            '$count',
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGoogleRatingMetricCard(double gRating, int gTotal, String gUrl, int gReviewsCount, {VoidCallback? onAddLink}) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: const Text('GOOGLE PLACES', style: TextStyle(color: Color(0xFFDC2626), fontSize: 10, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 6),
+              const Text('Google Maps', style: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.bold, fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                gRating > 0 ? gRating.toStringAsFixed(1) : 'Chưa có',
+                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+              ),
+              if (gRating > 0) ...[
+                const SizedBox(width: 4),
+                const Text('★', style: TextStyle(fontSize: 18, color: Color(0xFFFBBF24))),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            gTotal > 0 ? '$gTotal đánh giá trên Google Maps' : 'Chưa đồng bộ điểm Google Maps',
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(
+                gUrl.isNotEmpty ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                size: 14,
+                color: gUrl.isNotEmpty ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  gUrl.isNotEmpty ? 'Đã liên kết link Google Maps' : 'Chưa có link bản đồ Google',
+                  style: TextStyle(
+                    color: gUrl.isNotEmpty ? const Color(0xFF059669) : const Color(0xFF64748B),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (gUrl.isEmpty && onAddLink != null) ...[
+                InkWell(
+                  onTap: onAddLink,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      '+ Gắn link',
+                      style: TextStyle(color: Color(0xFF2563EB), fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOwnerReviewFilterChip(String label, int filterVal, {required bool isGoogle}) {
+    final isSelected = isGoogle
+        ? _showGoogleReviewsOnly
+        : (!_showGoogleReviewsOnly && _selectedReviewRatingFilter == filterVal);
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isGoogle) {
+            _showGoogleReviewsOnly = true;
+          } else {
+            _showGoogleReviewsOnly = false;
+            _selectedReviewRatingFilter = filterVal;
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF334155),
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOwnerReviewItemCard(ReviewModel rev) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFFDBEAFE),
+                backgroundImage: (rev.userAvatar.isNotEmpty && rev.userAvatar.startsWith('http'))
+                    ? NetworkImage(rev.userAvatar)
+                    : null,
+                child: (rev.userAvatar.isEmpty || !rev.userAvatar.startsWith('http'))
+                    ? Text(
+                        rev.userName.isNotEmpty ? rev.userName[0].toUpperCase() : 'U',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8), fontSize: 15),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            rev.userName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF0F172A)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (rev.isVerified) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 11),
+                                SizedBox(width: 3.5),
+                                Text('Đã trải nghiệm ẩm thực', style: TextStyle(color: Color(0xFF059669), fontSize: 10.5, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (rev.branchName != null && rev.branchName!.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              rev.branchName!,
+                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Row(
+                          children: List.generate(
+                            5,
+                            (i) => Icon(
+                              i < rev.rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                              color: const Color(0xFFFBBF24),
+                              size: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          rev.timeAgo,
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: const Text('HIỂN THỊ CÔNG KHAI', style: TextStyle(color: Color(0xFF2563EB), fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            rev.content,
+            style: const TextStyle(color: Color(0xFF334155), fontSize: 13.5, height: 1.5),
+          ),
+          if (rev.images.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: rev.images.map((img) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    img,
+                    width: 76,
+                    height: 76,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoogleReviewItemCard(Map<String, dynamic> g) {
+    final author = g['authorName']?.toString() ?? 'Khách hàng Google';
+    final photo = g['authorPhotoUrl']?.toString() ?? '';
+    final rating = (g['rating'] as num?)?.toDouble() ?? 5.0;
+    final text = g['text']?.toString() ?? '';
+    final timeDesc = g['relativeTimeDescription']?.toString() ?? 'Gần đây';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFFFEE2E2),
+                backgroundImage: photo.startsWith('http') ? NetworkImage(photo) : null,
+                child: !photo.startsWith('http')
+                    ? const Icon(Icons.person, color: Color(0xFFEF4444), size: 20)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            author,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('GOOGLE REVIEW', style: TextStyle(color: Color(0xFFDC2626), fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Row(
+                          children: List.generate(
+                            5,
+                            (i) => Icon(
+                              i < rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                              color: const Color(0xFFFBBF24),
+                              size: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(timeDesc, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(text, style: const TextStyle(color: Color(0xFF334155), fontSize: 13, height: 1.45)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyReviewsState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(36),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          const Icon(Icons.rate_review_outlined, size: 48, color: Color(0xFF94A3B8)),
+          const SizedBox(height: 10),
+          const Text(
+            'Chưa có dữ liệu đánh giá',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF334155)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _showQrCodeDialog(Map<String, dynamic>? biz) {
     final businessName = biz?['name']?.toString() ?? 'Nhà Hàng Đối Tác FConnect';
@@ -2191,24 +3168,31 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               ],
             );
 
-            if (isDesktopTwoCol) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 7, child: leftColumn),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 5, child: rightColumn),
-                ],
-              );
-            } else {
-              return Column(
-                children: [
-                  leftColumn,
-                  const SizedBox(height: 18),
-                  rightColumn,
-                ],
-              );
-            }
+            final mainGrid = isDesktopTwoCol
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 7, child: leftColumn),
+                      const SizedBox(width: 20),
+                      Expanded(flex: 5, child: rightColumn),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      leftColumn,
+                      const SizedBox(height: 18),
+                      rightColumn,
+                    ],
+                  );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                mainGrid,
+                const SizedBox(height: 24),
+                _buildReviewsManagementSection(biz, user),
+              ],
+            );
           },
         ),
       ],
@@ -2259,7 +3243,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     // Mặc định doanh thu chuẩn cho các tháng trong quá khứ nếu database chưa có đơn (T11, T12 chưa tới nên bằng 0)
     final defaultActualValues = [
       3950000, 5800000, 4150000, 3180000, 5080000, 3580000,
-      3920000, 6400000, 4200000, 3560000, 0, 0,
+      3920000, 6400000, 4200000, 0, 0, 0,
     ];
 
     // Gom doanh thu thực tế từ OrderProvider theo từng tháng trong năm
@@ -2269,10 +3253,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       if (month > currentMonth) return 0;
 
       final monthOrders = orderProvider.ownerOrders.where((o) {
-        if (o.status.toUpperCase() != 'COMPLETED' && o.status.toUpperCase() != 'SERVED') return false;
-        return o.createdAt != null && o.createdAt!.month == month;
+        final st = o.status.toUpperCase();
+        if (st != 'COMPLETED' && st != 'SERVED' && st != 'PAID') return false;
+        return o.createdAt != null && o.createdAt!.month == month && o.createdAt!.year == DateTime.now().year;
       });
       final realSum = monthOrders.fold<int>(0, (sum, o) => sum + o.total);
+
+      // Tháng hiện tại: 100% dữ liệu thực từ database! Chưa có đơn thanh toán thì = 0 đ!
+      if (month == currentMonth) {
+        return realSum;
+      }
       return realSum > 0 ? realSum : defaultActualValues[index];
     });
 
@@ -2315,40 +3305,55 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     );
   }
 
-  /// 1. Top 4 mục chỉ số hoạt động thực tế (Doanh thu hôm nay, Đặt bàn chờ, Bàn trống, Đặt bàn hôm nay)
+  /// 1. Top 3 mục chỉ số hoạt động thực tế (Doanh thu tháng này, Đặt bàn chờ duyệt, Đặt bàn hôm nay)
   Widget _buildTopMetricsRow() {
     final bookingProvider = Provider.of<BookingProvider>(context);
-    final tableProvider = Provider.of<TableProvider>(context);
     final orderProvider = Provider.of<OrderProvider>(context);
 
-    // Tính tổng doanh thu hôm nay từ các đơn đã thanh toán/hoàn thành
-    final todayRevenue = orderProvider.ownerOrders
-        .where((o) => o.status.toUpperCase() == 'COMPLETED' || o.status.toUpperCase() == 'SERVED')
-        .fold<int>(0, (sum, o) => sum + o.total);
-    final revenueStr = todayRevenue > 0
-        ? '${todayRevenue.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]},")} đ'
-        : '3,560,000 đ';
+    final now = DateTime.now();
+    final completedOrders = orderProvider.ownerOrders.where((o) {
+      final st = o.status.toUpperCase();
+      return st == 'COMPLETED' || st == 'SERVED' || st == 'PAID';
+    }).toList();
 
-    final pendingBookings = bookingProvider.pendingCount > 0
-        ? bookingProvider.pendingCount
-        : (bookingProvider.ownerBookings.isEmpty ? 2 : 0);
+    // Doanh thu hôm nay (chỉ tính các đơn hoàn thành trong ngày hôm nay)
+    final todayRevenue = completedOrders.where((o) {
+      if (o.createdAt == null) return false;
+      return o.createdAt!.year == now.year &&
+             o.createdAt!.month == now.month &&
+             o.createdAt!.day == now.day;
+    }).fold<int>(0, (sum, o) => sum + o.total);
 
-    final todayBookings = (bookingProvider.confirmedCount + bookingProvider.pendingCount) > 0
-        ? (bookingProvider.confirmedCount + bookingProvider.pendingCount)
-        : (bookingProvider.ownerBookings.isEmpty ? 5 : 0);
+    // Doanh thu tháng này (khớp 100% với cột Tháng ${now.month} trên biểu đồ)
+    final thisMonthRevenue = completedOrders.where((o) {
+      if (o.createdAt == null) return false;
+      return o.createdAt!.year == now.year &&
+             o.createdAt!.month == now.month;
+    }).fold<int>(0, (sum, o) => sum + o.total);
 
-    final freeTables = tableProvider.totalTables > 0
-        ? '${tableProvider.availableCount} / ${tableProvider.totalTables}'
-        : '8 / 12';
+    String fmtMoney(int amount) {
+      return '${amount.toString().replaceAllMapped(RegExp(r"(\\d{1,3})(?=(\\d{3})+(?!\\d))"), (m) => "${m[1]},")} đ';
+    }
+
+    // Đặt bàn chờ duyệt thực tế
+    final pendingBookings = bookingProvider.pendingCount;
+
+    // Đặt bàn hôm nay thực tế
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final todayBookings = bookingProvider.ownerBookings.where((b) {
+      if (b.isCancelled || b.isRejected) return false;
+      final d = b.bookingDate;
+      return d.contains(todayStr) || d.toLowerCase().contains('hôm nay');
+    }).length;
 
     final cards = [
       {
-        'title': 'Doanh thu hôm nay',
-        'value': revenueStr,
+        'title': 'Doanh thu tháng ${now.month}',
+        'value': fmtMoney(thisMonthRevenue),
         'icon': Icons.account_balance_wallet_rounded,
         'colors': [const Color(0xFF059669), const Color(0xFF10B981)],
         'shadow': const Color(0xFF10B981),
-        'tag': 'Hôm nay',
+        'tag': 'Hôm nay: ${fmtMoney(todayRevenue)}',
         'tagColor': const Color(0xFF059669),
         'tagBg': const Color(0xFFECFDF5),
       },
@@ -2358,19 +3363,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         'icon': Icons.calendar_month_rounded,
         'colors': [const Color(0xFF1D4ED8), const Color(0xFF3B82F6)],
         'shadow': const Color(0xFF2563EB),
-        'tag': 'Cần duyệt',
+        'tag': pendingBookings > 0 ? 'Cần duyệt ($pendingBookings)' : 'Đã xử lý xong',
         'tagColor': const Color(0xFF2563EB),
         'tagBg': const Color(0xFFEFF6FF),
-      },
-      {
-        'title': 'Bàn đang trống',
-        'value': freeTables,
-        'icon': Icons.table_bar_rounded,
-        'colors': [const Color(0xFF0284C7), const Color(0xFF38BDF8)],
-        'shadow': const Color(0xFF0284C7),
-        'tag': 'Trống',
-        'tagColor': const Color(0xFF0284C7),
-        'tagBg': const Color(0xFFF0F9FF),
       },
       {
         'title': 'Đặt bàn hôm nay',
@@ -2392,10 +3387,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: cards.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isWide ? 4 : 2,
+            crossAxisCount: isWide ? 3 : 1,
             crossAxisSpacing: 14,
             mainAxisSpacing: 14,
-            childAspectRatio: isWide ? 2.5 : 2.0,
+            childAspectRatio: isWide ? 3.0 : 2.2,
           ),
           itemBuilder: (context, index) {
             final c = cards[index];
@@ -2521,7 +3516,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       3920000, // T7
       6400000, // T8
       4200000, // T9
-      3560000, // T10
+      0,       // T10 (Thực tế từ Database)
       0,       // T11 (Chưa diễn ra)
       0,       // T12 (Chưa diễn ra)
     ];
@@ -2531,10 +3526,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       final month = index + 1;
       if (month > currentMonth) return 0;
       final monthOrders = orderProvider.ownerOrders.where((o) {
-        if (o.status.toUpperCase() != 'COMPLETED' && o.status.toUpperCase() != 'SERVED') return false;
-        return o.createdAt != null && o.createdAt!.month == month;
+        final st = o.status.toUpperCase();
+        if (st != 'COMPLETED' && st != 'SERVED' && st != 'PAID') return false;
+        return o.createdAt != null && o.createdAt!.month == month && o.createdAt!.year == DateTime.now().year;
       });
       final realSum = monthOrders.fold<int>(0, (sum, o) => sum + o.total);
+
+      // Tháng hiện tại: 100% dữ liệu thực từ database! Chưa có đơn thanh toán thì = 0 đ!
+      if (month == currentMonth) {
+        return realSum;
+      }
       return realSum > 0 ? realSum : defaultActualValues[index];
     });
 
@@ -2910,7 +3911,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildRevenueGrowthDetailsCard([List<int>? passedActualValues]) {
     final defaultActualValues = [
       3950000, 5800000, 4150000, 3180000, 5080000, 3580000,
-      3920000, 6400000, 4200000, 3560000, 0, 0,
+      3920000, 6400000, 4200000, 0, 0, 0,
     ];
     final actualValues = passedActualValues ?? defaultActualValues;
 
@@ -3028,7 +4029,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             }
             final isUp = rate >= 0;
             final sign = isUp ? '+' : '';
-            final rateStr = '$sign${rate.toStringAsFixed(1)}% so với T$prevM';
+            final rateStr = (val == 0 && m == curMonth)
+                ? 'Chưa có đơn'
+                : '$sign${rate.toStringAsFixed(1)}% so với T$prevM';
             String? boldSuffix;
             if (m == curMonth) {
               boldSuffix = '(Hiện tại)';
@@ -3150,91 +4153,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildRecentBookingsSection(BookingProvider bookingProvider) {
     final recentBookings = bookingProvider.ownerBookings;
 
-    // Danh sách đặt bàn hiển thị: ưu tiên dữ liệu thật từ Server, nếu DB chưa có thì cung cấp dữ liệu mẫu chân thực
-    final displayBookings = recentBookings.isNotEmpty
-        ? recentBookings
-        : [
-            BookingModel(
-              id: 'demo-bk-1',
-              userId: 'u1',
-              userName: 'Nguyễn Văn An',
-              userPhone: '0905 123 456',
-              businessId: 'b1',
-              businessName: 'Nhà Hàng FConnect',
-              branchId: 'br1',
-              tableId: 't1',
-              tableName: 'Bàn VIP 02 (Tầng 2)',
-              bookingCode: 'BK8821',
-              bookingDate: 'Hôm nay',
-              startTime: '19:00',
-              guestCount: 4,
-              status: 'CONFIRMED',
-            ),
-            BookingModel(
-              id: 'demo-bk-2',
-              userId: 'u2',
-              userName: 'Trần Thị Mai',
-              userPhone: '0912 888 999',
-              businessId: 'b1',
-              businessName: 'Nhà Hàng FConnect',
-              branchId: 'br1',
-              tableId: 't2',
-              tableName: 'Bàn Ngoài Trời 04',
-              bookingCode: 'BK8822',
-              bookingDate: 'Hôm nay',
-              startTime: '19:30',
-              guestCount: 2,
-              status: 'PENDING',
-            ),
-            BookingModel(
-              id: 'demo-bk-3',
-              userId: 'u3',
-              userName: 'Lê Hoàng Long',
-              userPhone: '0988 777 666',
-              businessId: 'b1',
-              businessName: 'Nhà Hàng FConnect',
-              branchId: 'br1',
-              tableId: 't3',
-              tableName: 'Bàn Gia Đình 01',
-              bookingCode: 'BK8823',
-              bookingDate: 'Hôm nay',
-              startTime: '20:00',
-              guestCount: 6,
-              status: 'CONFIRMED',
-            ),
-            BookingModel(
-              id: 'demo-bk-4',
-              userId: 'u4',
-              userName: 'Phạm Hương Giang',
-              userPhone: '0971 234 567',
-              businessId: 'b1',
-              businessName: 'Nhà Hàng FConnect',
-              branchId: 'br1',
-              tableId: null,
-              tableName: null,
-              bookingCode: 'BK8824',
-              bookingDate: 'Hôm nay',
-              startTime: '20:30',
-              guestCount: 3,
-              status: 'PENDING',
-            ),
-            BookingModel(
-              id: 'demo-bk-5',
-              userId: 'u5',
-              userName: 'Đỗ Tuấn Kiệt',
-              userPhone: '0935 678 910',
-              businessId: 'b1',
-              businessName: 'Nhà Hàng FConnect',
-              branchId: 'br1',
-              tableId: 't4',
-              tableName: 'Bàn Trung Tâm 08',
-              bookingCode: 'BK8825',
-              bookingDate: 'Hôm nay',
-              startTime: '18:00',
-              guestCount: 8,
-              status: 'CHECKED_IN',
-            ),
-          ];
+    // Danh sách đặt bàn hiển thị: 100% từ Server
+    final displayBookings = recentBookings;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -3307,7 +4227,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           const SizedBox(height: 6),
 
           // Danh sách lượt đặt bàn
-          ...displayBookings.take(5).map((booking) {
+          if (displayBookings.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(28),
+              alignment: Alignment.center,
+              child: const Column(
+                children: [
+                  Icon(Icons.calendar_today_outlined, size: 36, color: Color(0xFF94A3B8)),
+                  SizedBox(height: 8),
+                  Text('Chưa có lượt đặt bàn nào gần đây.', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                ],
+              ),
+            )
+          else
+            ...displayBookings.take(5).map((booking) {
               final isPending = booking.isPending;
               final isConfirmed = booking.isConfirmed;
               final isCheckedIn = booking.isCheckedIn;

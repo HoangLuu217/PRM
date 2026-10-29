@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/restaurant_model.dart';
+import '../../models/review_model.dart';
+import '../../services/review_service.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import 'booking/booking_screen.dart';
@@ -14,10 +16,12 @@ import 'chat/customer_chat_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final RestaurantModel restaurant;
+  final int initialTabIndex;
 
   const RestaurantDetailScreen({
     super.key,
     required this.restaurant,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -25,15 +29,36 @@ class RestaurantDetailScreen extends StatefulWidget {
 }
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
-  int _selectedTabIndex = 0;
+  late int _selectedTabIndex;
   bool _isFavorite = false;
   bool _isLoadingMenu = true;
   List<Map<String, dynamic>> _menuItems = [];
+  final ReviewService _reviewService = ReviewService();
+  List<ReviewModel> _realReviews = [];
+  bool _isLoadingReviews = true;
 
   @override
   void initState() {
     super.initState();
+    _selectedTabIndex = widget.initialTabIndex;
     _loadMenuProducts();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    try {
+      final reviews = await _reviewService.getBusinessReviews(widget.restaurant.id);
+      if (mounted) {
+        setState(() {
+          _realReviews = reviews;
+          _isLoadingReviews = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingReviews = false);
+      }
+    }
   }
 
   Future<void> _loadMenuProducts() async {
@@ -438,20 +463,35 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       r.displayCategory,
                       style: const TextStyle(color: Color(0xFFE2E8F0), fontSize: 12.5),
                     ),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 18),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${r.rating}',
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                    InkWell(
+                      onTap: () => setState(() => _selectedTabIndex = 3),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white24),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '(${r.totalReviews} đánh giá)',
-                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11.5),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 18),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${r.rating}',
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(${_realReviews.isNotEmpty ? _realReviews.length : r.totalReviews} đánh giá)',
+                              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11.5, decoration: TextDecoration.underline),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -469,7 +509,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       {'title': 'Thông tin', 'icon': Icons.info_outline_rounded},
       {'title': 'Thực đơn (${_menuItems.length})', 'icon': Icons.restaurant_menu_rounded},
       {'title': 'Bài viết (1)', 'icon': Icons.menu_book_rounded},
-      {'title': 'Đánh giá (${widget.restaurant.totalReviews})', 'icon': Icons.star_border_rounded},
+      {'title': 'Đánh giá (${_realReviews.isNotEmpty ? _realReviews.length : widget.restaurant.totalReviews})', 'icon': Icons.star_border_rounded},
     ];
 
     return Container(
@@ -740,6 +780,158 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 14),
+
+        // Card 4: Xem trước đánh giá từ thực khách
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x04000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 20),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Đánh giá thực khách (${_realReviews.isNotEmpty ? _realReviews.length : r.totalReviews})',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                    ],
+                  ),
+                  InkWell(
+                    onTap: () => setState(() => _selectedTabIndex = 3),
+                    child: const Row(
+                      children: [
+                        Text(
+                          'Xem tất cả',
+                          style: TextStyle(color: Color(0xFF0072FF), fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF0072FF)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      _realReviews.isNotEmpty
+                          ? (_realReviews.fold<double>(0.0, (s, e) => s + e.rating) / _realReviews.length).toStringAsFixed(1)
+                          : r.rating.toStringAsFixed(1),
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: List.generate(
+                            5,
+                            (i) => const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 16),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${_realReviews.isNotEmpty ? _realReviews.length : r.totalReviews} lượt đánh giá thực tế từ khách hàng',
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (_realReviews.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ..._realReviews.take(2).map((rev) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                rev.userName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
+                              ),
+                              if (rev.isVerified) ...[
+                                const SizedBox(width: 4),
+                                const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF10B981)),
+                              ],
+                            ],
+                          ),
+                          Row(
+                            children: List.generate(
+                              rev.rating.round().clamp(1, 5),
+                              (i) => const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        rev.content,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => setState(() => _selectedTabIndex = 3),
+                  icon: const Icon(Icons.rate_review_outlined, size: 16),
+                  label: Text(
+                    'Xem toàn bộ ${_realReviews.isNotEmpty ? _realReviews.length : r.totalReviews} đánh giá & Viết nhận xét',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0072FF),
+                    side: const BorderSide(color: Color(0xFF0072FF)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -891,108 +1083,514 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     );
   }
 
-  // 4. Tab ĐÁNH GIÁ (Reviews)
+  // 4. Tab ĐÁNH GIÁ (100% Real Reviews từ MongoDB)
+  int _customerReviewRatingFilter = 0; // 0 = Tất cả, 5, 4, 3, 2, 1
+
   Widget _buildReviewsTabContent(RestaurantModel r) {
+    final hasRealReviews = _realReviews.isNotEmpty;
+    final avgRating = hasRealReviews
+        ? (_realReviews.fold<double>(0.0, (sum, item) => sum + item.rating) / _realReviews.length)
+        : r.rating;
+    final displayRating = avgRating > 0 ? avgRating.toStringAsFixed(1) : r.rating.toStringAsFixed(1);
+    final totalCount = hasRealReviews ? _realReviews.length : r.totalReviews;
+    final verifiedCount = _realReviews.where((rev) => rev.isVerified).length;
+    final count5 = _realReviews.where((rev) => rev.rating.round() == 5).length;
+    final count4 = _realReviews.where((rev) => rev.rating.round() == 4).length;
+    final count3 = _realReviews.where((rev) => rev.rating.round() == 3).length;
+    final count2OrLess = _realReviews.where((rev) => rev.rating.round() <= 2).length;
+
+    // Lọc theo số sao nếu người dùng chọn
+    final filteredReviews = _customerReviewRatingFilter == 0
+        ? _realReviews
+        : _realReviews.where((rev) => rev.rating.round() == _customerReviewRatingFilter).toList();
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Tổng quan số sao
+        // Tổng quan điểm sao và hành động Đánh giá
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x06000000),
+                blurRadius: 10,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          child: Column(
             children: [
-              Column(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Text(
-                    '${r.rating}',
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  Column(
+                    children: [
+                      Text(
+                        displayRating,
+                        style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      ),
+                      Row(
+                        children: List.generate(
+                          5,
+                          (i) => Icon(
+                            i < avgRating.floor()
+                                ? Icons.star_rounded
+                                : (i < avgRating ? Icons.star_half_rounded : Icons.star_outline_rounded),
+                            color: const Color(0xFFFBBF24),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$totalCount lượt đánh giá thực tế',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (i) => const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 18),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${r.totalReviews} lượt đánh giá',
-                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                  Container(width: 1, height: 70, color: const Color(0xFFE2E8F0)),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Uy tín cộng đồng FConnect', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$verifiedCount đánh giá có xác thực',
+                            style: const TextStyle(color: Color(0xFF059669), fontSize: 11.5, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      const Text('Món ăn ngon • Không gian đẹp', style: TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+                    ],
                   ),
                 ],
               ),
-              Container(width: 1, height: 60, color: const Color(0xFFE2E8F0)),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('98% Thực khách hài lòng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  SizedBox(height: 4),
-                  Text('Vệ sinh an toàn: ★★★★★', style: TextStyle(color: Color(0xFF64748B), fontSize: 11)),
-                  Text('Chất lượng món: ★★★★★', style: TextStyle(color: Color(0xFF64748B), fontSize: 11)),
-                  Text('Phục vụ chu đáo: ★★★★★', style: TextStyle(color: Color(0xFF64748B), fontSize: 11)),
-                ],
+              const SizedBox(height: 16),
+              const Divider(color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 8),
+
+              // Nút Viết đánh giá cho khách hàng
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showAddReviewModal(r),
+                  icon: const Icon(Icons.rate_review_rounded, size: 18),
+                  label: const Text('Viết đánh giá cho quán này', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
-        // Các đánh giá thực tế
-        _buildSingleReviewItem('Nguyễn Hoàng Nam', 'Đồ ăn cực kỳ tươi ngon, phục vụ nhanh nhẹn và nhiệt tình.', '2 ngày trước', 5),
-        _buildSingleReviewItem('Trần Thanh Mai', 'Không gian thoáng mát, hải sản bắt tại bể ăn ngọt thịt.', '1 tuần trước', 5),
-        _buildSingleReviewItem('Lê Văn Hùng', 'Món ăn hợp khẩu vị, giá cả niêm yết rõ ràng. Sẽ quay lại!', '2 tuần trước', 4.5),
+        // Bộ lọc sao nhanh
+        if (_realReviews.isNotEmpty) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildCustomerFilterChip('Tất cả ($totalCount)', 0),
+                const SizedBox(width: 8),
+                _buildCustomerFilterChip('5 ★ ($count5)', 5),
+                const SizedBox(width: 8),
+                _buildCustomerFilterChip('4 ★ ($count4)', 4),
+                const SizedBox(width: 8),
+                _buildCustomerFilterChip('3 ★ ($count3)', 3),
+                const SizedBox(width: 8),
+                _buildCustomerFilterChip('≤ 2 ★ ($count2OrLess)', 2),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Danh sách đánh giá thực tế từ MongoDB
+        if (_isLoadingReviews) ...[
+          Container(
+            padding: const EdgeInsets.all(32),
+            alignment: Alignment.center,
+            child: const Column(
+              children: [
+                CircularProgressIndicator(strokeWidth: 2.5),
+                SizedBox(height: 12),
+                Text('Đang tải phản hồi từ thực khách...', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+              ],
+            ),
+          ),
+        ] else if (filteredReviews.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            alignment: Alignment.center,
+            child: Column(
+              children: [
+                const Icon(Icons.star_border_rounded, size: 48, color: Color(0xFF94A3B8)),
+                const SizedBox(height: 8),
+                const Text(
+                  'Chưa có đánh giá nào phù hợp',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF334155)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _customerReviewRatingFilter == 0
+                      ? 'Hãy là người đầu tiên trải nghiệm và chia sẻ cảm nhận!'
+                      : 'Không có đánh giá $_customerReviewRatingFilter sao nào.',
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          ...filteredReviews.map((rev) => _buildRealReviewCard(rev)),
+        ],
       ],
     );
   }
 
-  Widget _buildSingleReviewItem(String name, String comment, String date, double stars) {
+  Widget _buildCustomerFilterChip(String label, int ratingVal) {
+    final isSelected = _customerReviewRatingFilter == ratingVal;
+    return InkWell(
+      onTap: () => setState(() => _customerReviewRatingFilter = ratingVal),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2563EB) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF475569),
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRealReviewCard(ReviewModel rev) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x04000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    radius: 16,
-                    child: Text(name[0], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0072FF))),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                ],
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: const Color(0xFFEFF6FF),
+                backgroundImage: (rev.userAvatar.isNotEmpty && rev.userAvatar.startsWith('http'))
+                    ? NetworkImage(rev.userAvatar)
+                    : null,
+                child: (rev.userAvatar.isEmpty || !rev.userAvatar.startsWith('http'))
+                    ? Text(
+                        rev.userName.isNotEmpty ? rev.userName[0].toUpperCase() : 'U',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB), fontSize: 14),
+                      )
+                    : null,
               ),
-              Text(date, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            rev.userName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F172A)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (rev.isVerified) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 10),
+                                SizedBox(width: 3),
+                                Text('Đã dùng bữa', style: TextStyle(color: Color(0xFF059669), fontSize: 9.5, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Row(
+                          children: List.generate(
+                            5,
+                            (i) => Icon(
+                              i < rev.rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                              color: const Color(0xFFFBBF24),
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          rev.timeAgo,
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: List.generate(
-              5,
-              (i) => Icon(
-                i < stars.floor() ? Icons.star_rounded : Icons.star_half_rounded,
-                color: const Color(0xFFFBBF24),
-                size: 15,
-              ),
-            ),
+          const SizedBox(height: 10),
+          Text(
+            rev.content,
+            style: const TextStyle(color: Color(0xFF334155), fontSize: 13, height: 1.45),
           ),
-          const SizedBox(height: 6),
-          Text(comment, style: const TextStyle(color: Color(0xFF334155), fontSize: 12.5, height: 1.4)),
+          if (rev.images.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: rev.images.map((img) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    img,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  void _showAddReviewModal(RestaurantModel r) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng đăng nhập để gửi đánh giá cho quán.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      return;
+    }
+
+    double selectedStars = 5;
+    final commentCtrl = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Đánh giá ${r.name}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                        onPressed: () => Navigator.pop(modalCtx),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Bạn cảm thấy quán như thế nào?', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  const SizedBox(height: 10),
+
+                  // Bộ chọn sao
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (idx) {
+                      final starValue = idx + 1;
+                      return IconButton(
+                        iconSize: 36,
+                        icon: Icon(
+                          starValue <= selectedStars ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: const Color(0xFFFBBF24),
+                        ),
+                        onPressed: () {
+                          setModalState(() => selectedStars = starValue.toDouble());
+                        },
+                      );
+                    }),
+                  ),
+                  Center(
+                    child: Text(
+                      selectedStars == 5
+                          ? 'Cực kỳ tuyệt vời! (5/5)'
+                          : selectedStars == 4
+                              ? 'Rất tốt (4/5)'
+                              : selectedStars == 3
+                                  ? 'Bình thường (3/5)'
+                                  : selectedStars == 2
+                                      ? 'Chưa hài lòng (2/5)'
+                                      : 'Rất tệ (1/5)',
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB), fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Ô nhập nhận xét
+                  TextField(
+                    controller: commentCtrl,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Mô tả hương vị món ăn, thái độ nhân viên, không gian quán...',
+                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final text = commentCtrl.text.trim();
+                            if (text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Vui lòng nhập nội dung đánh giá của bạn.')),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => isSubmitting = true);
+                            final res = await _reviewService.createReview(
+                              businessId: r.id,
+                              rating: selectedStars,
+                              content: text,
+                            );
+
+                            if (mounted) {
+                              Navigator.pop(modalCtx);
+                              if (res['success'] == true) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Gửi đánh giá thành công! Cảm ơn bạn đã đóng góp cho cộng đồng FConnect.'),
+                                    backgroundColor: Color(0xFF10B981),
+                                  ),
+                                );
+                                _loadReviews();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(res['message'] ?? 'Không thể gửi đánh giá.'),
+                                    backgroundColor: const Color(0xFFEF4444),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Gửi Đánh Giá Ngay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

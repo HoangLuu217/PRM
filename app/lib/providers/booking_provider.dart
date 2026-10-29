@@ -37,10 +37,12 @@ class BookingProvider with ChangeNotifier {
   }
 
   /// Tải danh sách đặt bàn cho chủ quán
-  Future<void> fetchOwnerBookings({String? status, String? bookingDate}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  Future<void> fetchOwnerBookings({String? status, String? bookingDate, bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       _ownerBookings = await _bookingService.getOwnerBookings(
@@ -50,7 +52,9 @@ class BookingProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
-      _isLoading = false;
+      if (!silent) {
+        _isLoading = false;
+      }
       notifyListeners();
     }
   }
