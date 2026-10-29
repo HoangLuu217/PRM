@@ -245,15 +245,7 @@ export const checkDepositPaymentStatus = async (orderCode) => {
 
   const isPayOSPaid = payosInfo && (payosInfo.status === 'PAID' || payosInfo.status === 'COMPLETED');
 
-  // Dev / Testing Simulation Auto-Confirm Mode:
-  // Since local development environment (localhost) cannot receive real bank webhooks,
-  // in development mode, after 4 seconds of displaying QR, auto-confirm payment for testing flow!
-  const isDevTest = process.env.NODE_ENV === 'development';
-  const createdTime = transaction?.createdAt || order?.createdAt || new Date();
-  const secondsSinceCreation = (Date.now() - new Date(createdTime).getTime()) / 1000;
-  const shouldAutoConfirmDev = isDevTest && secondsSinceCreation >= 4;
-
-  if (isPayOSPaid || shouldAutoConfirmDev) {
+  if (isPayOSPaid) {
     if (transaction) {
       transaction.status = 'PAID';
       transaction.paidAt = new Date();
