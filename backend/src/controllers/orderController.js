@@ -281,7 +281,6 @@ export const createOrder = async (req, res) => {
         console.warn('Register PayOS Payment Link warning:', payosErr.message);
       }
     }
-    }
 
     await Cart.findOneAndDelete({ userId: req.user._id, branchId }).catch((error) => console.error('Cart cleanup failed:', error.message));
     UserInteraction.create({
