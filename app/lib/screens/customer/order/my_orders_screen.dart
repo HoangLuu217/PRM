@@ -209,6 +209,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          ),
                         ],
                       ),
                     ),

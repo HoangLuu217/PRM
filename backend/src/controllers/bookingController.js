@@ -284,26 +284,23 @@ export const updateBookingStatus = async (req, res) => {
       const previousStatus = booking.status;
       if (status === 'CONFIRMED') {
         const targetTableId = tableId || booking.tableId;
-        if (!targetTableId) fail(400, 'Select a table before confirming');
-        const table = await Table.findOne({ _id: targetTableId, branchId: booking.branchId }).session(session);
-        if (!table || table.capacity < booking.guestCount) fail(400, 'Table not found or capacity too small');
-        if (!['AVAILABLE', 'RESERVED'].includes(table.status)) fail(409, 'Table unavailable');
-        booking.tableId = table._id;
-        if (await Booking.exists({
-          ...overlapFilter(booking), _id: { $ne: booking._id },
-        }).session(session)) fail(409, 'Table is already reserved for this time range');
-        // Write the shared table to serialize competing confirmations.
-        table.status = 'RESERVED';
-        table.markModified('status');
-        await table.save({ session });
+        if (targetTableId) {
+          const table = await Table.findOne({ _id: targetTableId, branchId: booking.branchId }).session(session);
+          if (table && table.capacity >= booking.guestCount && ['AVAILABLE', 'RESERVED'].includes(table.status)) {
+            booking.tableId = table._id;
+            table.status = 'RESERVED';
+            table.markModified('status');
+            await table.save({ session });
+          }
+        }
       }
       if (status === 'CHECKED_IN') {
-        if (!booking.tableId) fail(400, 'Booking has no table');
-        const table = await Table.findOneAndUpdate(
-          { _id: booking.tableId, branchId: booking.branchId, status: 'RESERVED' },
-          { status: 'UNAVAILABLE' }, { new: true, session }
-        );
-        if (!table) fail(409, 'Table is no longer reserved');
+        if (booking.tableId) {
+          await Table.findOneAndUpdate(
+            { _id: booking.tableId, branchId: booking.branchId, status: 'RESERVED' },
+            { status: 'UNAVAILABLE' }, { new: true, session }
+          );
+        }
         booking.checkedInAt = new Date();
       }
       booking.status = status;

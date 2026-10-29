@@ -71,10 +71,14 @@ export const createOrder = async (req, res) => {
         status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
       });
       if (!booking) {
-        return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã bị hủy' });
+      if (!booking) {
+        return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã kết thúc/hủy' });
       }
+      if (!branchId) branchId = booking.branchId;
+      if (!businessId) businessId = booking.businessId;
       if (tableId && booking.tableId && String(tableId) !== String(booking.tableId)) {
-        return res.status(400).json({ success: false, message: 'Bàn phải trùng với bàn đã đặt cọc' });
+        return res.status(400).json({ success: false, message: 'Bàn ăn không khớp với đơn đặt bàn' });
+      }
       }
       selectedTableId = booking.tableId || selectedTableId;
     } else {
@@ -184,6 +188,32 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã giảm giá cần được xác thực từ chương trình khuyến mãi' });
     }
 
+    let existingOrder = null;
+    if (resolvedBookingId) {
+      existingOrder = await Order.findOne({ bookingId: resolvedBookingId, status: { $in: ['PENDING', 'CONFIRMED'] } });
+    }
+
+    if (existingOrder && existingOrder.status === 'PENDING') {
+      const mergedItems = [...existingOrder.items];
+      for (const newItem of formattedItems) {
+        const existIdx = mergedItems.findIndex((it) => String(it.productId) === String(newItem.productId));
+        if (existIdx > -1) {
+          mergedItems[existIdx].quantity += newItem.quantity;
+          mergedItems[existIdx].subtotal = (mergedItems[existIdx].unitPrice) * mergedItems[existIdx].quantity;
+        } else {
+          mergedItems.push(newItem);
+        }
+      }
+      const newSubtotal = mergedItems.reduce((sum, it) => sum + it.subtotal, 0);
+      existingOrder.items = mergedItems;
+      existingOrder.subtotal = newSubtotal;
+      existingOrder.total = newSubtotal - existingOrder.discount;
+      if (note) existingOrder.note = existingOrder.note ? `${existingOrder.note}; ${note}` : note;
+      await existingOrder.save();
+      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: existingOrder._id });
+      return res.status(200).json({ success: true, data: existingOrder, message: 'Đã thêm món vào đơn đặt bàn thành công!' });
+    }
+
     const numericOrderCode = generateOrderCode();
 
     const order = await Order.create({
@@ -203,6 +233,10 @@ export const createOrder = async (req, res) => {
       paymentStatus: 'PENDING',
       status: 'PENDING',
     });
+
+    if (resolvedBookingId) {
+      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: order._id });
+    }
 
     // Register PayOS Payment Link & Transaction
     if (paymentMethod === 'PAYOS_QR' || paymentMethod === 'BANK_TRANSFER') {
@@ -246,6 +280,7 @@ export const createOrder = async (req, res) => {
       } catch (payosErr) {
         console.warn('Register PayOS Payment Link warning:', payosErr.message);
       }
+    }
     }
 
     await Cart.findOneAndDelete({ userId: req.user._id, branchId }).catch((error) => console.error('Cart cleanup failed:', error.message));
