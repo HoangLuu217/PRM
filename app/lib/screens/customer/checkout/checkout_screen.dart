@@ -170,8 +170,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final payload = {
-        'businessId': cartProvider.businessId,
+        'businessId': cartProvider.businessId ?? _activeBooking!.businessId,
         if (cartProvider.branchId != null) 'branchId': cartProvider.branchId,
+        if (cartProvider.branchId == null && _activeBooking!.branchId != null) 'branchId': _activeBooking!.branchId,
         'bookingId': _activeBooking!.id,
         if (_activeBooking!.tableId != null) 'tableId': _activeBooking!.tableId,
         'orderType': _selectedOrderType,

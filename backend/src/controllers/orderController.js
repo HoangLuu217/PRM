@@ -40,14 +40,55 @@ export const createOrder = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Chỉ khách hàng mới có thể đặt món' });
     }
 
-    if (!branchId && businessId) {
-      const defaultBranch = await Branch.findOne({ businessId, status: 'ACTIVE' });
-      if (defaultBranch) branchId = defaultBranch._id;
+    const isValidObjectId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+
+    let selectedTableId = tableId;
+    let resolvedBookingId = bookingId;
+
+    // 1. Lấy thông tin từ Đơn Đặt Bàn chuẩn
+    if (resolvedBookingId && isValidObjectId(resolvedBookingId)) {
+      const booking = await Booking.findOne({
+        _id: resolvedBookingId,
+        userId: req.user._id,
+        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+      });
+      if (!booking) {
+        return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã kết thúc/hủy' });
+      }
+      if (!branchId || !isValidObjectId(branchId)) branchId = booking.branchId ? String(booking.branchId) : null;
+      if (!businessId || !isValidObjectId(businessId)) businessId = booking.businessId ? String(booking.businessId) : null;
+      selectedTableId = booking.tableId || selectedTableId;
+    } else {
+      const query = {
+        userId: req.user._id,
+        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+      };
+      if (businessId && isValidObjectId(businessId)) query.businessId = businessId;
+
+      const activeBooking = await Booking.findOne(query).sort({ createdAt: -1 });
+
+      if (!activeBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bạn bắt buộc phải đặt bàn tại quán trước khi thực hiện đặt món. Vui lòng đặt bàn trước!',
+        });
+      }
+      resolvedBookingId = activeBooking._id;
+      if (!branchId || !isValidObjectId(branchId)) branchId = activeBooking.branchId ? String(activeBooking.branchId) : null;
+      if (!businessId || !isValidObjectId(businessId)) businessId = activeBooking.businessId ? String(activeBooking.businessId) : null;
+      selectedTableId = activeBooking.tableId || selectedTableId;
     }
 
-    if (!businessId || !branchId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, message: 'Cần có businessId, branchId và ít nhất một món' });
+    // 2. Tìm chi nhánh mặc định nếu chưa có branchId
+    if ((!branchId || !isValidObjectId(branchId)) && businessId && isValidObjectId(businessId)) {
+      const defaultBranch = await Branch.findOne({ businessId, status: 'ACTIVE' });
+      if (defaultBranch) branchId = String(defaultBranch._id);
     }
+
+    if (!businessId || !isValidObjectId(businessId) || !branchId || !isValidObjectId(branchId) || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Cần có businessId, branchId hợp lệ và ít nhất một món' });
+    }
+
     if (!['PRE_ORDER', 'DINE_IN', 'PICKUP', 'DELIVERY'].includes(orderType)) {
       return res.status(400).json({ success: false, message: 'Loại đơn hàng không hợp lệ' });
     }
@@ -59,44 +100,6 @@ export const createOrder = async (req, res) => {
     const business = await Business.findById(businessId);
     if (!business || business.status !== 'APPROVED') {
       return res.status(400).json({ success: false, message: 'Doanh nghiệp hiện không nhận đơn hàng' });
-    }
-
-    let selectedTableId = tableId;
-    let resolvedBookingId = bookingId;
-
-    if (resolvedBookingId) {
-      const booking = await Booking.findOne({
-        _id: resolvedBookingId,
-        userId: req.user._id,
-        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
-      });
-      if (!booking) {
-      if (!booking) {
-        return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã kết thúc/hủy' });
-      }
-      if (!branchId) branchId = booking.branchId;
-      if (!businessId) businessId = booking.businessId;
-      if (tableId && booking.tableId && String(tableId) !== String(booking.tableId)) {
-        return res.status(400).json({ success: false, message: 'Bàn ăn không khớp với đơn đặt bàn' });
-      }
-      }
-      selectedTableId = booking.tableId || selectedTableId;
-    } else {
-      // Bắt buộc phải có lịch đặt bàn trước đó tại quán
-      const activeBooking = await Booking.findOne({
-        userId: req.user._id,
-        businessId,
-        status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
-      }).sort({ createdAt: -1 });
-
-      if (!activeBooking) {
-        return res.status(400).json({
-          success: false,
-          message: 'Bạn bắt buộc phải đặt bàn tại quán trước khi thực hiện đặt món. Vui lòng đặt bàn trước!',
-        });
-      }
-      resolvedBookingId = activeBooking._id;
-      selectedTableId = activeBooking.tableId || selectedTableId;
     }
 
     if (tableId && !(await Table.exists({ _id: tableId, branchId }))) {
