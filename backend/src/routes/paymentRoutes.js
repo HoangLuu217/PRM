@@ -3,6 +3,7 @@ import {
   createDepositPaymentController,
   handlePayOSWebhookController,
   checkPaymentStatusController,
+  confirmManualPaymentController,
   getMerchantWalletController,
   requestMerchantPayoutController,
   getAdminCommissionStatsController,
@@ -14,6 +15,7 @@ const router = express.Router();
 // 1. Customer: Create PayOS deposit link & check status
 router.post('/create-deposit-link', protect, createDepositPaymentController);
 router.get('/status/:orderCode', checkPaymentStatusController);
+router.post('/confirm-manual/:orderCode', confirmManualPaymentController);
 
 // 2. PayOS Webhook (Called automatically by PayOS Server when customer completes transfer)
 router.post('/payos-webhook', handlePayOSWebhookController);

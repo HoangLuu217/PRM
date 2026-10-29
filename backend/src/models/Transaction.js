@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: ['DEPOSIT', 'SUBSCRIPTION', 'PAYOUT', 'OTHER'],
-      default: 'SUBSCRIPTION',
+      default: 'OTHER',
     },
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
