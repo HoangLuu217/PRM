@@ -20,6 +20,10 @@ import '../../providers/user_provider.dart';
 import '../auth/login_screen.dart';
 import '../auth/profile_screen.dart';
 import '../customer/customer_home_screen.dart';
+import 'owner_booking_screen.dart';
+import 'owner_order_screen.dart';
+import 'owner_table_screen.dart';
+import 'product/owner_product_list_screen.dart';
 import 'widgets/merchant_onboarding_dialog.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
@@ -1304,8 +1308,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
               // Body Content
               Expanded(
-                child: _selectedTab == 4
-                    ? _buildTab4ChatSkeleton()
+                child: (_selectedTab == 1 || _selectedTab == 4)
+                    ? _buildCurrentTabContent(user)
                     : SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         padding: const EdgeInsets.all(28),
@@ -1475,8 +1479,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           ],
         ),
         Expanded(
-          child: _selectedTab == 4
-              ? _buildTab4ChatSkeleton()
+          child: (_selectedTab == 1 || _selectedTab == 4)
+              ? _buildCurrentTabContent(user)
               : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.all(16),
@@ -1562,7 +1566,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       case 0:
         return _buildTab0DashboardSkeleton();
       case 1:
-        return _buildTab1MenuSkeleton();
+        final bizId = user?.business?['_id']?.toString() ?? user?.business?['id']?.toString();
+        return OwnerProductListScreen(businessId: bizId);
       case 2:
         return _buildTab2BookingSkeleton();
       case 3:
@@ -1576,7 +1581,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   // =========================================================================
-  // TAB 5: HỒ SƠ QUÁN & CÀI ĐẶT (TRÁCH NHIỆM CHÍNH CỦA THÀNH VIÊN 1 - HOÀN THIỆN)
+  // TAB 5: HỒ SƠ QUÁN & CÀI ĐẶT (TRÁCH NHIỆM CHÍNH CỦA THÀNH VIÊN 1)
   // =========================================================================
   Widget _buildTab5BusinessProfile(User? user) {
     final biz = user?.business;
@@ -1838,9 +1843,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         ),
         const SizedBox(height: 18),
 
-        const SizedBox(height: 18),
-
-        // 3. Responsive 2-Column Body (Left: Unified Restaurant Info & Space, Right: Owner Account)
+        // Responsive 2-Column Body
         LayoutBuilder(
           builder: (context, constraints) {
             final isDesktopTwoCol = constraints.maxWidth >= 900;
@@ -1848,7 +1851,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             final leftColumn = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Single Unified Component: THÔNG TIN & KHÔNG GIAN QUÁN (Địa chỉ, Liên hệ, Không gian & Tiện ích)
+                // Single Unified Component: THÔNG TIN & KHÔNG GIAN QUÁN
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
@@ -1866,7 +1869,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Card
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -1907,7 +1909,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Section 1: ĐỊA CHỈ & LIÊN HỆ
                       const Row(
                         children: [
                           Icon(Icons.place_rounded, color: Color(0xFF2563EB), size: 18),
@@ -1968,7 +1969,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       const Divider(color: Color(0xFFE2E8F0)),
                       const SizedBox(height: 14),
 
-                      // Section 2: KHÔNG GIAN, VIBE & TIỆN ÍCH
                       const Row(
                         children: [
                           Icon(Icons.palette_rounded, color: Color(0xFF2563EB), size: 18),
@@ -1985,7 +1985,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Description Box
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
@@ -2001,7 +2000,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Vibes Pills
                       const Text('Không gian & Vibe quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       Wrap(
@@ -2026,7 +2024,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Purposes Pills
                       const Text('Phù hợp cho mục đích:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       Wrap(
@@ -2051,7 +2048,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Amenities Grid
                       const Text('Tiện ích phục vụ tại quán:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
                       Wrap(
@@ -2245,6 +2241,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       ),
     );
   }
+
 
   // =========================================================================
   // TAB 0: DASHBOARD / TỔNG QUAN (THÀNH VIÊN 5 - DASHBOARD & METRICS)

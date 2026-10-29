@@ -12,6 +12,7 @@ class BookingService {
     final token = await _authService.getToken();
     return {
       'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
@@ -187,5 +188,44 @@ class BookingService {
     } catch (e) {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
+  }
+
+  /// 7. Tạo mã VietQR PayOS đặt cọc bàn (POST /api/payments/create-deposit-link)
+  Future<Map<String, dynamic>> createDepositPaymentLink(String bookingId) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse('${ApiConstants.baseUrl}/payments/create-deposit-link');
+
+      final body = {'bookingId': bookingId};
+      final res = await http
+          .post(uri, headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Không thể tạo mã thanh toán cọc'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối thanh toán cọc: $e'};
+    }
+  }
+
+  /// 8. Kiểm tra trạng thái thanh toán PayOS theo orderCode
+  Future<bool> checkPaymentStatus(dynamic orderCode) async {
+    try {
+      final headers = await _getHeaders();
+      final uri = Uri.parse('${ApiConstants.baseUrl}/payments/status/$orderCode');
+
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['data']?['isPaid'] == true || data['data']?['status'] == 'PAID';
+      }
+    } catch (e) {
+      debugPrint('[checkPaymentStatus Error]: $e');
+    }
+    return false;
   }
 }

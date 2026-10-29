@@ -30,6 +30,7 @@ router.use('/tables', tableRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/subscriptions', subscriptionRoutes);
+router.use('/cart', cartRoutes);
 router.use('/carts', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/owner', ownerRoutes);

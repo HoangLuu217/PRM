@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'cart_item_model.dart';
+import 'product_model.dart';
 
 class OrderItemModel {
   final String productId;
   final String productName;
   final int unitPrice;
   final int quantity;
+  final ProductSize? selectedSize;
+  final List<SelectedOption> selectedOptions;
   final String? sizeName;
   final int? sizePrice;
   final List<String> optionTexts;
@@ -15,6 +19,8 @@ class OrderItemModel {
     required this.productName,
     required this.unitPrice,
     required this.quantity,
+    this.selectedSize,
+    this.selectedOptions = const [],
     this.sizeName,
     this.sizePrice,
     this.optionTexts = const [],
@@ -22,19 +28,26 @@ class OrderItemModel {
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
+    ProductSize? pSize;
     String? sName;
     int? sPrice;
+
     if (json['selectedSize'] is Map) {
-      sName = json['selectedSize']['name']?.toString();
-      if (json['selectedSize']['price'] is num) {
-        sPrice = (json['selectedSize']['price'] as num).toInt();
+      final sMap = json['selectedSize'] as Map<String, dynamic>;
+      pSize = ProductSize.fromJson(sMap);
+      sName = sMap['name']?.toString();
+      if (sMap['price'] is num) {
+        sPrice = (sMap['price'] as num).toInt();
       }
     }
 
+    final sOptions = <SelectedOption>[];
     final opts = <String>[];
     if (json['selectedOptions'] is List) {
       for (final opt in json['selectedOptions']) {
         if (opt is Map) {
+          final optMap = opt as Map<String, dynamic>;
+          sOptions.add(SelectedOption.fromJson(optMap));
           final n = opt['name']?.toString() ?? '';
           final v = opt['value']?.toString() ?? '';
           if (n.isNotEmpty && v.isNotEmpty) {
@@ -44,18 +57,26 @@ class OrderItemModel {
       }
     }
 
+    final pId = (json['productId'] is Map
+            ? json['productId']['_id']
+            : json['productId'] ?? '')
+        .toString();
+    final pName = (json['productName'] ?? 'Món ăn').toString();
+    final uPrice = (json['unitPrice'] is num) ? (json['unitPrice'] as num).toInt() : 0;
+    final qty = (json['quantity'] is num) ? (json['quantity'] as num).toInt() : 1;
+    final sub = (json['subtotal'] is num) ? (json['subtotal'] as num).toInt() : (uPrice * qty);
+
     return OrderItemModel(
-      productId: (json['productId'] is Map
-              ? json['productId']['_id']
-              : json['productId'] ?? '')
-          .toString(),
-      productName: (json['productName'] ?? 'Món ăn').toString(),
-      unitPrice: (json['unitPrice'] is num) ? (json['unitPrice'] as num).toInt() : 0,
-      quantity: (json['quantity'] is num) ? (json['quantity'] as num).toInt() : 1,
+      productId: pId,
+      productName: pName,
+      unitPrice: uPrice,
+      quantity: qty,
+      selectedSize: pSize,
+      selectedOptions: sOptions,
       sizeName: sName,
       sizePrice: sPrice,
       optionTexts: opts,
-      subtotal: (json['subtotal'] is num) ? (json['subtotal'] as num).toInt() : 0,
+      subtotal: sub,
     );
   }
 
@@ -65,7 +86,12 @@ class OrderItemModel {
       'productName': productName,
       'unitPrice': unitPrice,
       'quantity': quantity,
-      if (sizeName != null) 'selectedSize': {'name': sizeName, 'price': sizePrice ?? unitPrice},
+      if (selectedSize != null)
+        'selectedSize': selectedSize!.toJson()
+      else if (sizeName != null)
+        'selectedSize': {'name': sizeName, 'price': sizePrice ?? unitPrice},
+      if (selectedOptions.isNotEmpty)
+        'selectedOptions': selectedOptions.map((o) => o.toJson()).toList(),
       'subtotal': subtotal,
     };
   }
@@ -102,7 +128,7 @@ class OrderModel {
     this.userName,
     this.userPhone,
     required this.businessId,
-    required this.businessName,
+    this.businessName = 'Nhà hàng',
     this.businessLogo,
     required this.branchId,
     this.branchName,
@@ -308,6 +334,10 @@ class OrderModel {
       }
     }
 
+    final sTotal = (json['subtotal'] is num) ? (json['subtotal'] as num).toInt() : 0;
+    final disc = (json['discount'] is num) ? (json['discount'] as num).toInt() : 0;
+    final tot = (json['total'] is num) ? (json['total'] as num).toInt() : (sTotal - disc);
+
     return OrderModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       orderCode: (json['orderCode'] ?? 'FCO${json['_id']}').toString(),
@@ -325,14 +355,33 @@ class OrderModel {
       tableName: tName,
       orderType: (json['orderType'] ?? 'PRE_ORDER').toString().toUpperCase(),
       items: itemList,
-      subtotal: (json['subtotal'] is num) ? (json['subtotal'] as num).toInt() : 0,
-      discount: (json['discount'] is num) ? (json['discount'] as num).toInt() : 0,
-      total: (json['total'] is num) ? (json['total'] as num).toInt() : 0,
+      subtotal: sTotal,
+      discount: disc,
+      total: tot,
       status: (json['status'] ?? 'PENDING').toString().toUpperCase(),
       note: (json['note'] ?? '').toString(),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (id.isNotEmpty) '_id': id,
+      'orderCode': orderCode,
+      'userId': userId,
+      'businessId': businessId,
+      'branchId': branchId,
+      if (bookingId != null) 'bookingId': bookingId,
+      if (tableId != null) 'tableId': tableId,
+      'orderType': orderType,
+      'items': items.map((i) => i.toJson()).toList(),
+      'subtotal': subtotal,
+      'discount': discount,
+      'total': total,
+      'status': status,
+      'note': note,
+    };
   }
 }

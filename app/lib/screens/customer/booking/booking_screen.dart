@@ -7,8 +7,11 @@ import '../../../models/booking_model.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/booking_provider.dart';
+import '../../../providers/table_provider.dart';
+import '../../../services/booking_service.dart';
 import '../../../services/order_service.dart';
 import '../../auth/login_screen.dart';
+import '../widgets/restaurant_modals.dart';
 import 'my_bookings_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -324,42 +327,26 @@ class _BookingScreenState extends State<BookingScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
               ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.pop(context);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Đóng'),
-                    ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0072FF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0072FF),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Xem lịch đặt'),
-                    ),
-                  ),
-                ],
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                  label: const Text('Xem lịch sử đặt bàn của tôi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ),
               ),
             ],
           ),

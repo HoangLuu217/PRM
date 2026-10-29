@@ -168,6 +168,7 @@ class NotificationService {
         url,
         headers: {
           'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
           'Authorization': 'Bearer $jwtToken',
         },
         body: jsonEncode({'fcmToken': fcmToken}),

@@ -1,4 +1,4 @@
-import { Business, Branch, Review, UserInteraction } from '../models/index.js';
+import { Business, Branch, Review, UserInteraction, Menu, Product } from '../models/index.js';
 import { emitBusinessUpdate } from '../socket.js';
 import googleMapsService from '../services/googleMapsService.js';
 import { personalizeBusinesses } from '../services/recommendationService.js';
@@ -571,6 +571,7 @@ export const onboardBusiness = async (req, res) => {
       business.name = businessName;
       business.description = description?.trim() || business.description;
       business.categories = [selectedCategory];
+      business.status = 'APPROVED'; // Ensure business status is APPROVED on onboard
       if (logoUrl) business.logoUrl = logoUrl;
       if (coverImageUrl) business.coverImageUrl = coverImageUrl;
       if (googleMapsUrl !== undefined) business.googleMapsUrl = googleMapsUrl.trim();
@@ -665,6 +666,8 @@ export const onboardBusiness = async (req, res) => {
       req.user.role = 'MERCHANT';
       await req.user.save();
     }
+
+    emitBusinessUpdate(business);
 
     res.status(201).json({
       success: true,
@@ -784,5 +787,74 @@ export const syncGoogleReviews = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Get menu and products for a business
+// @route   GET /api/businesses/:id/menu
+// @access  Public
+export const getBusinessMenu = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const business = await Business.findById(businessId).select('name logoUrl coverImageUrl');
+    if (!business) {
+      return res.status(404).json({ success: false, message: 'Doanh nghiệp không tồn tại' });
+    }
+
+    // Find active menus or find any menu
+    let menu = await Menu.findOne({ businessId, status: 'ACTIVE' });
+    if (!menu) {
+      menu = await Menu.findOne({ businessId });
+    }
+    if (!menu) {
+      // Auto-create default active menu for this business
+      menu = await Menu.create({
+        businessId,
+        name: 'Thực đơn chính',
+        description: 'Thực đơn món ăn & đồ uống của quán',
+        status: 'ACTIVE',
+      });
+    }
+
+    // Get all branches of business
+    const branches = await Branch.find({ businessId }).select('_id name');
+    const branchIds = branches.map((b) => b._id);
+
+    // Find products
+    const products = await Product.find({
+      $or: [
+        { menuId: menu._id },
+        { branchId: { $in: branchIds } },
+      ],
+      isAvailable: true,
+    }).sort({ category: 1, name: 1 });
+
+    const categories = ['Tất cả', ...new Set(products.map((p) => p.category).filter(Boolean))];
+
+    res.json({
+      success: true,
+      data: {
+        menu: {
+          _id: menu._id,
+          id: menu._id,
+          name: menu.name,
+          description: menu.description,
+          status: menu.status,
+          businessId: menu.businessId,
+        },
+        business: {
+          _id: business._id,
+          id: business._id,
+          name: business.name,
+          logoUrl: business.logoUrl,
+        },
+        categories,
+        products,
+        totalProducts: products.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 
 

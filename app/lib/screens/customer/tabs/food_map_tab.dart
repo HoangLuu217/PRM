@@ -51,7 +51,6 @@ class _FoodMapTabState extends State<FoodMapTab> {
   @override
   void dispose() {
     _mapSearchController.dispose();
-    _osmMapController.dispose();
     super.dispose();
   }
 
@@ -68,58 +67,62 @@ class _FoodMapTabState extends State<FoodMapTab> {
   }
 
   Future<void> _determineMyCurrentLocation({bool moveCamera = false}) async {
-    setState(() => _isLocating = true);
-    final pos = await _locationService.getCurrentLocation();
-    if (!mounted) return;
-    setState(() => _isLocating = false);
+    try {
+      if (mounted) setState(() => _isLocating = true);
+      final pos = await _locationService.getCurrentLocation(requestIfNeeded: moveCamera);
+      if (!mounted) return;
+      setState(() => _isLocating = false);
 
-    if (pos != null) {
-      final myLatLng = LatLng(pos.latitude, pos.longitude);
-      setState(() {
-        _myCurrentLocation = myLatLng;
-      });
-      if (moveCamera) {
-        _osmMapController.move(myLatLng, 16.0);
+      if (pos != null) {
+        final myLatLng = LatLng(pos.latitude, pos.longitude);
+        setState(() {
+          _myCurrentLocation = myLatLng;
+        });
+        if (moveCamera) {
+          _osmMapController.move(myLatLng, 16.0);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.gps_fixed_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Đã định vị vị trí của bạn: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF0072FF),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else if (moveCamera) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(Icons.gps_fixed_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
+                Icon(Icons.location_off_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Đã định vị vị trí của bạn: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}',
-                  ),
+                  child: Text('Vui lòng bật định vị GPS và cấp quyền cho ứng dụng để nhận vị trí.'),
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFF0072FF),
+            backgroundColor: const Color(0xFFE53935),
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: 'Đà Nẵng',
+              textColor: Colors.white,
+              onPressed: () => _osmMapController.move(_daNangCenter, 14.0),
+            ),
           ),
         );
       }
-    } else if (moveCamera) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.location_off_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text('Vui lòng bật định vị GPS và cấp quyền cho ứng dụng để nhận vị trí.'),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFE53935),
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Đà Nẵng',
-            textColor: Colors.white,
-            onPressed: () => _osmMapController.move(_daNangCenter, 14.0),
-          ),
-        ),
-      );
+    } catch (_) {
+      if (mounted) setState(() => _isLocating = false);
     }
   }
 

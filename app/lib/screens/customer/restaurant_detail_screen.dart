@@ -6,12 +6,19 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
+import '../../models/product_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/favorite_provider.dart';
+import '../../providers/menu_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../widgets/product_card.dart';
 import '../auth/login_screen.dart';
 import 'booking/booking_screen.dart';
+import 'cart/cart_screen.dart';
 import 'chat/customer_chat_screen.dart';
+import 'product/product_detail_screen.dart';
 import '../../providers/booking_provider.dart';
 import '../../services/order_service.dart';
 
@@ -44,6 +51,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ProductProvider>(context, listen: false).fetchProducts(
+        businessId: widget.restaurant.id,
+      );
+      Provider.of<MenuProvider>(context, listen: false).fetchBusinessMenu(
+        widget.restaurant.id,
+      );
+    });
     _loadMenuProducts();
   }
 
@@ -329,6 +344,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   backgroundColor: Colors.black.withValues(alpha: 0.45),
                   radius: 18,
                   child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     icon: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -339,6 +356,27 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(Icons.forum_rounded, color: Colors.white, size: 17),
+                        tooltip: 'Chat với quán',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CustomerChatScreen(restaurant: r),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      backgroundColor: Colors.black.withValues(alpha: 0.45),
+                      radius: 18,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         icon: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
                         onPressed: () => _makePhoneCall(r.phone),
                       ),
@@ -351,6 +389,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                           backgroundColor: Colors.black.withValues(alpha: 0.45),
                           radius: 18,
                           child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                             icon: Icon(
                               isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                               color: isFav ? const Color(0xFFEF4444) : Colors.white,
@@ -363,6 +403,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
+                                    behavior: SnackBarBehavior.floating,
                                     action: SnackBarAction(
                                       label: 'Đăng nhập',
                                       textColor: Colors.amber,
@@ -371,12 +412,11 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                                       ),
                                     ),
-                                    behavior: SnackBarBehavior.floating,
                                   ),
                                 );
                                 return;
                               }
-                              favProvider.toggleFavorite(widget.restaurant, context: context);
+                              favProvider.toggleFavorite(widget.restaurant, token: auth.token, context: context);
                             },
                           ),
                         );
@@ -780,7 +820,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   // 2. Tab THỰC ĐƠN MÓN ĂN
   Widget _buildMenuTabContent() {
-    if (_isLoadingMenu) {
+    final productProvider = Provider.of<ProductProvider>(context);
+
+    if (productProvider.isLoading || _isLoadingMenu) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(30.0),
@@ -789,7 +831,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       );
     }
 
-    if (_menuItems.isEmpty) {
+    final realProducts = productProvider.filteredProducts;
+
+    if (realProducts.isEmpty && _menuItems.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(30),
         alignment: Alignment.center,
@@ -804,149 +848,111 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           'Thực đơn món ăn đặc sắc',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
         ),
-        const SizedBox(height: 12),
-        ..._menuItems.map((prod) {
-          final name = prod['name']?.toString() ?? 'Món ngon';
-          final desc = prod['description']?.toString() ?? '';
-          final price = (prod['price'] as num?)?.toInt() ?? 50000;
-          final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
-          final cat = prod['category']?.toString() ?? 'Món chính';
-          final prodId = (prod['_id'] ?? prod['id'] ?? '').toString();
-          final qty = _selectedDishesForBooking[prodId] ?? 0;
+        const SizedBox(height: 8),
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
+        // Category Filter Chips
+        if (productProvider.categories.length > 1) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    img ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80',
-                    width: 76,
-                    height: 76,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 76,
-                      height: 76,
-                      color: const Color(0xFFF1F5F9),
-                      child: const Icon(Icons.fastfood_rounded, color: Color(0xFF94A3B8)),
+              children: productProvider.categories.map((cat) {
+                final isSel = productProvider.selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: isSel,
+                    selectedColor: Colors.deepOrange,
+                    labelStyle: TextStyle(
+                      color: isSel ? Colors.white : Colors.black87,
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                    onSelected: (_) => productProvider.selectCategory(cat),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // Product List
+        if (realProducts.isNotEmpty)
+          ...realProducts.map((prod) {
+            return ProductCard(
+              product: prod,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: prod,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          cat,
-                          style: const TextStyle(color: Color(0xFF0072FF), fontSize: 10, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF0F172A)),
-                      ),
-                      if (desc.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          desc,
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ',
-                            style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13.5),
-                          ),
-                          Row(
-                            children: [
-                              if (qty > 0) ...[
-                                IconButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      if (qty > 1) {
-                                        _selectedDishesForBooking[prodId] = qty - 1;
-                                      } else {
-                                        _selectedDishesForBooking.remove(prodId);
-                                      }
-                                    });
-                                  },
-                                  icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444), size: 20),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                ),
-                              ],
-                              IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedDishesForBooking[prodId] = qty + 1;
-                                  });
-                                },
-                                icon: Icon(
-                                  qty > 0 ? Icons.add_circle : Icons.add_circle_outline,
-                                  color: const Color(0xFF0072FF),
-                                  size: 22,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                              ),
-                              PopupMenuButton<String>(
-                                tooltip: 'Tùy chọn',
-                                icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                onSelected: (val) {
-                                  if (val == 'add_to_old') {
-                                    _showAddToOldBookingDialog(prod);
-                                  }
-                                },
-                                itemBuilder: (ctx) => [
-                                  const PopupMenuItem(
-                                    value: 'add_to_old',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.history_edu_rounded, size: 16, color: Color(0xFF0072FF)),
-                                        SizedBox(width: 8),
-                                        Text('Thêm vào booking cũ', style: TextStyle(fontSize: 13)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
+                );
+              },
+              onAddToCart: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: prod,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                );
+              },
+            );
+          })
+        else
+          ..._menuItems.map((prod) {
+            final name = prod['name']?.toString() ?? 'Món ngon';
+            final desc = prod['description']?.toString() ?? '';
+            final price = (prod['price'] as num?)?.toDouble() ?? 50000.0;
+            final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
+            final cat = prod['category']?.toString() ?? 'Món chính';
+
+            final fakeProduct = ProductModel(
+              id: 'fake_${name.hashCode}',
+              category: cat,
+              name: name,
+              description: desc,
+              price: price,
+              imageUrl: img ?? '',
+            );
+
+            return ProductCard(
+              product: fakeProduct,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: fakeProduct,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                    ),
+                  ),
+                );
+              },
+              onAddToCart: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: fakeProduct,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
       ],
     );
   }
@@ -1144,107 +1150,163 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   // Widget Thanh Sticky Bottom
   Widget _buildStickyBottomActionBar(RestaurantModel r) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Nút Chat với quán
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.forum_rounded, color: Color(0xFF0072FF), size: 20),
-              tooltip: 'Chat với quán',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CustomerChatScreen(restaurant: r),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
+    final cartProvider = Provider.of<CartProvider>(context);
+    final intPrice = cartProvider.subtotal.toInt();
+    final formattedCartTotal =
+        '${intPrice.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}đ';
 
-          // Nút gọi điện thoại
-          Expanded(
-            flex: 4,
-            child: OutlinedButton.icon(
-              onPressed: () => _makePhoneCall(r.phone),
-              icon: const Icon(Icons.phone_outlined, size: 17),
-              label: const Text('Gọi quán', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0F172A),
-                side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 13),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Nút đặt bàn ngay
-          Expanded(
-            flex: 6,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (cartProvider.itemCount > 0)
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
             child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0072FF).withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BookingScreen(
-                        restaurant: r,
-                        initialSelectedDishes: _selectedDishesForBooking,
+              color: Colors.deepOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${cartProvider.totalQuantity}',
+                      style: const TextStyle(
+                        color: Colors.deepOrange,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.table_restaurant_rounded, size: 18),
-                label: Text(
-                  _totalSelectedDishes > 0
-                      ? 'Đặt bàn ($_totalSelectedDishes món)'
-                      : 'Đặt bàn ngay',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Xem giỏ hàng',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formattedCartTotal,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
+                ],
               ),
+
             ),
           ),
-        ],
-      ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Nút Chat với quán
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.forum_rounded, color: Color(0xFF0072FF), size: 20),
+                  tooltip: 'Chat với quán',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CustomerChatScreen(restaurant: r),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Nút gọi điện thoại
+              Expanded(
+                flex: 4,
+                child: OutlinedButton.icon(
+                  onPressed: () => _makePhoneCall(r.phone),
+                  icon: const Icon(Icons.phone_outlined, size: 17),
+                  label: const Text('Gọi quán', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Nút đặt bàn ngay
+              Expanded(
+                flex: 6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0072FF).withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BookingScreen(restaurant: r),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.table_restaurant_rounded, size: 18),
+                    label: const Text('Đặt bàn ngay', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

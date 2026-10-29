@@ -6,6 +6,7 @@ import {
   updateBusiness,
   onboardBusiness,
   syncGoogleReviews,
+  getBusinessMenu,
 } from '../controllers/businessController.js';
 import { protect, optionalProtect, businessOwnerOnly } from '../middlewares/auth.js';
 
@@ -16,6 +17,8 @@ router.route('/')
   .post(protect, createBusiness);
 
 router.post('/onboard', protect, onboardBusiness);
+
+router.get('/:id/menu', getBusinessMenu);
 
 router.route('/:id')
   .get(getBusinessById)

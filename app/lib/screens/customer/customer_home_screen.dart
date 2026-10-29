@@ -6,6 +6,7 @@ import '../../providers/favorite_provider.dart';
 import '../../services/location_service.dart';
 import '../../services/restaurant_service.dart';
 import '../auth/profile_screen.dart';
+
 import 'tabs/food_map_tab.dart';
 import 'tabs/home_feed_tab.dart';
 import 'widgets/restaurant_modals.dart';

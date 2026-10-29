@@ -35,11 +35,11 @@ class LocationService {
         return null;
       }
 
-      // 3. Lấy toạ độ GPS chính xác
+      // 3. Lấy toạ độ GPS chính xác (dùng LocationAccuracy.medium để tương thích tốt với Android Emulator)
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 5),
         ),
       );
 
@@ -48,13 +48,7 @@ class LocationService {
       return position;
     } catch (e) {
       debugPrint('[LocationService Error]: $e');
-      // Thử lấy vị trí cuối cùng được ghi nhận nếu GPS timeout
-      try {
-        _lastKnownPosition = await Geolocator.getLastKnownPosition();
-        return _lastKnownPosition;
-      } catch (_) {
-        return null;
-      }
+      return _lastKnownPosition;
     }
   }
 

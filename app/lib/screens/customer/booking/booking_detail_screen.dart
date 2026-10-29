@@ -7,6 +7,7 @@ import '../../../models/booking_model.dart';
 import '../../../models/order_model.dart';
 import '../../../providers/booking_provider.dart';
 import '../../../services/booking_service.dart';
+import '../widgets/restaurant_modals.dart';
 import '../../../services/order_service.dart';
 
 class BookingDetailScreen extends StatefulWidget {
@@ -221,6 +222,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 ],
               ),
             ),
+
     );
   }
 
