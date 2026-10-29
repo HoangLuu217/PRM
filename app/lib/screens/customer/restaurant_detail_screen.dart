@@ -11,6 +11,8 @@ import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import 'booking/booking_screen.dart';
 import 'chat/customer_chat_screen.dart';
+import '../../providers/booking_provider.dart';
+import '../../services/order_service.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final RestaurantModel restaurant;
@@ -29,6 +31,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   bool _isFavorite = false;
   bool _isLoadingMenu = true;
   List<Map<String, dynamic>> _menuItems = [];
+  final Map<String, int> _selectedDishesForBooking = {};
+
+  int get _totalSelectedDishes {
+    int sum = 0;
+    for (final q in _selectedDishesForBooking.values) {
+      sum += q;
+    }
+    return sum;
+  }
 
   @override
   void initState() {
@@ -324,23 +335,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                 ),
                 Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.black.withValues(alpha: 0.45),
-                      radius: 18,
-                      child: IconButton(
-                        icon: const Icon(Icons.forum_rounded, color: Colors.white, size: 17),
-                        tooltip: 'Chat với quán',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CustomerChatScreen(restaurant: r),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     CircleAvatar(
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
@@ -777,6 +771,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           final price = (prod['price'] as num?)?.toInt() ?? 50000;
           final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
           final cat = prod['category']?.toString() ?? 'Món chính';
+          final prodId = (prod['_id'] ?? prod['id'] ?? '').toString();
+          final qty = _selectedDishesForBooking[prodId] ?? 0;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -834,9 +830,75 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         ),
                       ],
                       const SizedBox(height: 4),
-                      Text(
-                        '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ',
-                        style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13.5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ',
+                            style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
+                          Row(
+                            children: [
+                              if (qty > 0) ...[
+                                IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      if (qty > 1) {
+                                        _selectedDishesForBooking[prodId] = qty - 1;
+                                      } else {
+                                        _selectedDishesForBooking.remove(prodId);
+                                      }
+                                    });
+                                  },
+                                  icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444), size: 20),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                ),
+                              ],
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedDishesForBooking[prodId] = qty + 1;
+                                  });
+                                },
+                                icon: Icon(
+                                  qty > 0 ? Icons.add_circle : Icons.add_circle_outline,
+                                  color: const Color(0xFF0072FF),
+                                  size: 22,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              ),
+                              PopupMenuButton<String>(
+                                tooltip: 'Tùy chọn',
+                                icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                onSelected: (val) {
+                                  if (val == 'add_to_old') {
+                                    _showAddToOldBookingDialog(prod);
+                                  }
+                                },
+                                itemBuilder: (ctx) => [
+                                  const PopupMenuItem(
+                                    value: 'add_to_old',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.history_edu_rounded, size: 16, color: Color(0xFF0072FF)),
+                                        SizedBox(width: 8),
+                                        Text('Thêm vào booking cũ', style: TextStyle(fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -996,6 +1058,92 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     );
   }
 
+
+  void _showAddToOldBookingDialog(Map<String, dynamic> prod) async {
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    await bookingProvider.fetchMyBookings();
+    if (!mounted) return;
+
+    final activeBookings = bookingProvider.myBookings
+        .where((b) => b.businessId == widget.restaurant.id && (b.isPending || b.isConfirmed))
+        .toList();
+
+    if (activeBookings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn chưa có đơn đặt bàn nào đang chờ/xác nhận tại quán này.'),
+          backgroundColor: Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.history_edu_rounded, color: Color(0xFF0072FF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Thêm "${prod['name']}" vào đơn cũ:',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...activeBookings.map((b) {
+              return ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: const Color(0xFFF8FAFC),
+                leading: const Icon(Icons.table_restaurant_rounded, color: Color(0xFF0072FF)),
+                title: Text('#${b.bookingCode} - ${b.startTime} (${b.bookingDate})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                subtitle: Text('Khách: ${b.guestCount} người'),
+                trailing: const Icon(Icons.add_shopping_cart, color: Color(0xFF0072FF), size: 20),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final res = await OrderService().createOrder(
+                    businessId: b.businessId,
+                    branchId: b.branchId,
+                    bookingId: b.id,
+                    tableId: b.tableId,
+                    items: [
+                      {
+                        'productId': (prod['_id'] ?? prod['id'] ?? '').toString(),
+                        'quantity': 1,
+                        'selectedOptions': [],
+                      }
+                    ],
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(res['success'] == true ? 'Đã thêm món vào đơn #${b.bookingCode} thành công!' : (res['message'] ?? 'Thất bại')),
+                        backgroundColor: res['success'] == true ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Widget Thanh Sticky Bottom
   Widget _buildStickyBottomActionBar(RestaurantModel r) {
     return Container(
@@ -1073,12 +1221,20 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => BookingScreen(restaurant: r),
+                      builder: (_) => BookingScreen(
+                        restaurant: r,
+                        initialSelectedDishes: _selectedDishesForBooking,
+                      ),
                     ),
                   );
                 },
                 icon: const Icon(Icons.table_restaurant_rounded, size: 18),
-                label: const Text('Đặt bàn ngay', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                label: Text(
+                  _totalSelectedDishes > 0
+                      ? 'Đặt bàn ($_totalSelectedDishes món)'
+                      : 'Đặt bàn ngay',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
