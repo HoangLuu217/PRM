@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../models/booking_model.dart';
+import '../../../models/product_model.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/booking_provider.dart';
@@ -263,36 +264,61 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (res['success'] == true) {
       final bookingCode = res['bookingCode'] ?? 'Đã xác nhận';
-      final booking = res['booking'] as BookingModel?;
-      final bookingId = booking?.id;
+      final hasDishes = _dishesCount > 0 || (cartProvider.itemCount > 0 && cartProvider.businessId == widget.restaurant.id);
 
-      // Nếu khách có chọn món trước, tạo đơn món gắn với booking này
-      if (_dishesCount > 0 && bookingId != null) {
-        final List<Map<String, dynamic>> orderItems = [];
+      // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider
+      if (_dishesCount > 0) {
         for (final p in _menuProducts) {
           final id = (p['_id'] ?? p['id'] ?? '').toString();
           final qty = _selectedDishQuantities[id] ?? 0;
           if (qty > 0) {
-            orderItems.add({
-              'productId': id,
-              'quantity': qty,
-              'selectedOptions': [],
-            });
+            final prodModel = ProductModel(
+              id: id,
+              category: p['category']?.toString() ?? 'Món ăn',
+              name: p['name']?.toString() ?? 'Món ăn',
+              description: p['description']?.toString() ?? '',
+              price: (p['price'] as num?)?.toDouble() ?? 0.0,
+              imageUrl: p['imageUrl']?.toString() ?? '',
+            );
+            cartProvider.addItem(
+              product: prodModel,
+              targetBusinessId: widget.restaurant.id,
+              targetBusinessName: widget.restaurant.name,
+              targetBranchId: widget.restaurant.branchId,
+              quantity: qty,
+            );
           }
-        }
-        if (orderItems.isNotEmpty) {
-          await OrderService().createOrder(
-            businessId: widget.restaurant.id,
-            branchId: widget.restaurant.branchId,
-            bookingId: bookingId,
-            items: orderItems,
-            note: 'Đặt trước lúc $_selectedTime ngày $_dateString',
-          );
         }
       }
 
       if (!mounted) return;
 
+      // NẾU CÓ ĐẶT MÓN ÁN -> BẮT BUỘC CHUYỂN THẲNG SANG MÀN HÌNH THANH TOÁN MÓN
+      if (hasDishes) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF10B981),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Đặt bàn #$bookingCode thành công! Đang chuyển sang thanh toán món...'),
+                ),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+        );
+        return;
+      }
+
+      // NẾU CHỈ ĐẶT BÀN KHÔNG CHỌN MÓN -> HIỂN THỊ THÔNG BÁO THÀNH CÔNG THƯỜNG
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -324,77 +350,31 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                _dishesCount > 0
-                    ? 'Nhà hàng ${widget.restaurant.name} sẽ chuẩn bị bàn và $_dishesCount món ăn (${_formatCurrency(_dishesTotal)}) cho bạn vào lúc $_selectedTime ngày $_dateString.'
-                    : 'Nhà hàng ${widget.restaurant.name} sẽ chuẩn bị bàn cho bạn vào lúc $_selectedTime ngày $_dateString.',
+                'Nhà hàng ${widget.restaurant.name} sẽ chuẩn bị bàn cho bạn vào lúc $_selectedTime ngày $_dateString.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 20),
-              if (_dishesCount > 0 || (cartProvider.itemCount > 0 && cartProvider.businessId == widget.restaurant.id)) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0072FF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.payment_rounded, size: 20),
-                    label: Text(
-                      'Tiến hành thanh toán món (${_formatCurrency((_dishesTotal > 0 ? _dishesTotal : cartProvider.subtotal).toInt())})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0072FF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                  label: const Text('Xem lịch sử đặt bàn của tôi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Xem lịch sử đặt bàn của tôi'),
-                  ),
-                ),
-              ] else ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0072FF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-                    label: const Text('Xem lịch sử đặt bàn của tôi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),

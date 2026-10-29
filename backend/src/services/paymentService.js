@@ -155,6 +155,9 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
     foodOrder.paymentStatus = 'PAID';
     foodOrder.status = 'CONFIRMED';
     await foodOrder.save();
+    if (foodOrder.bookingId) {
+      await Booking.findByIdAndUpdate(foodOrder.bookingId, { status: 'CONFIRMED', depositStatus: 'PAID' });
+    }
   }
 
   // 2. Update Booking
@@ -263,6 +266,9 @@ export const checkDepositPaymentStatus = async (orderCode) => {
       order.paymentStatus = 'PAID';
       order.status = 'CONFIRMED';
       await order.save();
+      if (order.bookingId) {
+        await Booking.findByIdAndUpdate(order.bookingId, { status: 'CONFIRMED', depositStatus: 'PAID' });
+      }
     }
     return {
       orderCode,
