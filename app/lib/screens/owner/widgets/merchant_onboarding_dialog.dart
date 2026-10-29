@@ -375,8 +375,9 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
-              child: Scaffold(
-                backgroundColor: Colors.white,
+              child: ScaffoldMessenger(
+                child: Scaffold(
+                  backgroundColor: Colors.white,
                 appBar: AppBar(
                   backgroundColor: Colors.white,
                   elevation: 0,
@@ -1030,6 +1031,7 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                     ),
                   ),
                 ),
+              ),
               ),
             ),
           ),

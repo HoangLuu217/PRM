@@ -392,12 +392,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _handleSyncGoogleReviews(String businessId, String? googleMapsUrl, {String? businessName}) async {
     if (businessId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tài khoản chưa có cơ sở quán ăn. Vui lòng hoàn tất tạo hồ sơ quán trước khi đồng bộ Google Maps.'),
-          backgroundColor: Color(0xFFEF4444),
-        ),
-      );
+      ScaffoldMessenger.of(context).clearSnackBars();
       _openOnboardingForm();
       return;
     }
@@ -1088,12 +1083,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               final col2 = _buildRatingDistributionCard(totalFConnectReviews, count5, count4, count3, count2, count1);
               final col3 = _buildGoogleRatingMetricCard(gRating, gTotal, googleMapsUrl, googleReviews.length, onAddLink: () {
                 if (businessId.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Tài khoản chưa có cơ sở quán ăn. Vui lòng hoàn tất tạo hồ sơ quán trước khi gắn link.'),
-                      backgroundColor: Color(0xFFEF4444),
-                    ),
-                  );
+                  ScaffoldMessenger.of(context).clearSnackBars();
                   _openOnboardingForm();
                   return;
                 }
