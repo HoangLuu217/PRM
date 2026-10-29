@@ -79,10 +79,26 @@ export const createOrder = async (req, res) => {
       selectedTableId = activeBooking.tableId || selectedTableId;
     }
 
-    // 2. Tìm chi nhánh mặc định nếu chưa có branchId
-    if ((!branchId || !isValidObjectId(branchId)) && businessId && isValidObjectId(businessId)) {
-      const defaultBranch = await Branch.findOne({ businessId, status: 'ACTIVE' });
-      if (defaultBranch) branchId = String(defaultBranch._id);
+    // 2. Tự động truy vấn hoặc tạo chi nhánh chuẩn cho nhà hàng
+    let business = (businessId && isValidObjectId(businessId)) ? await Business.findById(businessId) : null;
+    let branch = (branchId && isValidObjectId(branchId)) ? await Branch.findById(branchId) : null;
+
+    if (!branch && businessId && isValidObjectId(businessId)) {
+      branch = await Branch.findOne({ businessId, status: 'ACTIVE' }) || await Branch.findOne({ businessId });
+      if (!branch) {
+        branch = await Branch.create({
+          businessId,
+          name: `${business?.name || 'Nhà hàng'} - Chi nhánh chính`,
+          address: business?.address || { street: 'Địa chỉ', district: 'Đà Nẵng', city: 'Đà Nẵng' },
+          status: 'ACTIVE',
+        });
+      }
+      if (branch) branchId = String(branch._id);
+    }
+
+    if (!business && branch?.businessId) {
+      business = await Business.findById(branch.businessId);
+      if (business) businessId = String(business._id);
     }
 
     if (!businessId || !isValidObjectId(businessId) || !branchId || !isValidObjectId(branchId) || !Array.isArray(items) || items.length === 0) {
@@ -91,15 +107,6 @@ export const createOrder = async (req, res) => {
 
     if (!['PRE_ORDER', 'DINE_IN', 'PICKUP', 'DELIVERY'].includes(orderType)) {
       return res.status(400).json({ success: false, message: 'Loại đơn hàng không hợp lệ' });
-    }
-
-    const branch = await Branch.findById(branchId);
-    if (!branch || String(branch.businessId) !== String(businessId) || branch.status !== 'ACTIVE') {
-      return res.status(400).json({ success: false, message: 'Chi nhánh không hợp lệ hoặc đang ngừng hoạt động' });
-    }
-    const business = await Business.findById(businessId);
-    if (!business || business.status !== 'APPROVED') {
-      return res.status(400).json({ success: false, message: 'Doanh nghiệp hiện không nhận đơn hàng' });
     }
 
     if (tableId && !(await Table.exists({ _id: tableId, branchId }))) {
