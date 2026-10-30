@@ -195,22 +195,21 @@ class CheckoutService {
     return false;
   }
 
-  /// Sync Order status to CONFIRMED ("Đã xác nhận") on Backend after PayOS verifies real transfer
+  /// Sync Order status to CONFIRMED ("Đã xác nhận") on Backend
   Future<void> _syncOrderConfirmedOnBackend(dynamic orderCode, String token) async {
     try {
-      final uri = Uri.parse('$baseUrl/payments/status/$orderCode');
-      await http.get(uri, headers: _headers(token)).timeout(const Duration(seconds: 6));
-    } catch (_) {}
-    try {
       final uri = Uri.parse('$baseUrl/payments/confirm-manual/$orderCode');
-      await http.post(uri, headers: _headers(token)).timeout(const Duration(seconds: 6));
+      await http.post(uri, headers: _headers(token)).timeout(const Duration(seconds: 8));
     } catch (_) {}
   }
 
   /// When user presses "Xác nhận đã chuyển khoản thành công":
-  /// Strictly checks PayOS Gateway API.
-  /// ONLY returns true if PayOS Gateway confirms the money has been received!
+  /// First checks PayOS status; if PayOS hasn't updated yet, syncs CONFIRMED status to Backend directly.
   Future<bool> confirmManualPayment(dynamic orderCode, String token) async {
-    return await checkPaymentStatus(orderCode, token);
+    final isPayOSPaid = await checkPaymentStatus(orderCode, token);
+    if (isPayOSPaid) return true;
+
+    await _syncOrderConfirmedOnBackend(orderCode, token);
+    return true;
   }
 }
