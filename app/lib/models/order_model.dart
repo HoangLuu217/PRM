@@ -381,7 +381,7 @@ class OrderModel {
       status: (json['status'] ?? 'PENDING').toString().toUpperCase(),
       note: (json['note'] ?? '').toString(),
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
+          ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
       payosAccountNo: payosAccNo,
       payosAccountName: payosAccName,
