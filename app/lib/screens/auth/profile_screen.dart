@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -356,6 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           TextFormField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             decoration: _buildInputDecoration(hint: '0901234567', icon: Icons.phone_outlined),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
