@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/booking_model.dart';
 import '../../../providers/booking_provider.dart';
+import '../../../providers/cart_provider.dart';
 import 'booking_detail_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -38,24 +39,32 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     super.dispose();
   }
 
-  List<BookingModel> _filterBookings(List<BookingModel> list, int tabIndex) {
+  List<BookingModel> _filterBookings(
+    List<BookingModel> list,
+    int tabIndex,
+    CartProvider cartProvider,
+  ) {
+    // Ẩn các đơn đặt bàn có đi kèm món ăn nhưng chưa hoàn tất thanh toán
+    final visibleList = list.where((b) => !cartProvider.isBookingPendingPayment(b)).toList();
+
     switch (tabIndex) {
       case 1:
-        return list.where((b) => b.isPending).toList();
+        return visibleList.where((b) => b.isPending).toList();
       case 2:
-        return list.where((b) => b.isConfirmed || b.isCheckedIn).toList();
+        return visibleList.where((b) => b.isConfirmed || b.isCheckedIn).toList();
       case 3:
-        return list.where((b) => b.isCompleted).toList();
+        return visibleList.where((b) => b.isCompleted).toList();
       case 4:
-        return list.where((b) => b.isCancelled || b.isRejected).toList();
+        return visibleList.where((b) => b.isCancelled || b.isRejected).toList();
       default:
-        return list;
+        return visibleList;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final bookingProvider = Provider.of<BookingProvider>(context);
+    final cartProvider = Provider.of<CartProvider>(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -79,7 +88,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       body: TabBarView(
         controller: _tabController,
         children: List.generate(_tabs.length, (tabIndex) {
-          final filtered = _filterBookings(bookingProvider.myBookings, tabIndex);
+          final filtered = _filterBookings(bookingProvider.myBookings, tabIndex, cartProvider);
 
           if (bookingProvider.isLoading && bookingProvider.myBookings.isEmpty) {
             return const Center(

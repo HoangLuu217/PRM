@@ -127,7 +127,7 @@ class _CartScreenState extends State<CartScreen> {
               : 'DANG THANH TUNG';
           final desc = payosData['description'] ?? memo;
           final qrUrl =
-              'https://img.vietqr.io/image/970422-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(desc)}&accountName=${Uri.encodeComponent(accName)}';
+              payosData['qrUrl']!;
 
           if (mounted) {
             cartProvider.setPendingOrderForBusiness(
@@ -164,10 +164,10 @@ class _CartScreenState extends State<CartScreen> {
       if (isPaid && mounted) {
         _pollTimer?.cancel();
         _countdownTimer?.cancel();
-        cartProvider.clearCartForBusiness(group.businessId);
+        cartProvider.completePaymentForBusiness(group.businessId);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chuyển khoản thành công! Đơn hàng #${pendingOrder.orderCode} đã được xác nhận 🎉'),
+            content: Text('Chuyển khoản thành công! Đã xác nhận đặt bàn & đơn hàng #${pendingOrder.orderCode} 🎉'),
             backgroundColor: const Color(0xFF10B981),
             duration: const Duration(seconds: 4),
           ),
