@@ -58,6 +58,7 @@ export const createPayOSPaymentLink = async ({
     description: cleanDescription,
     returnUrl: returnUrl || process.env.PAYOS_RETURN_URL || 'http://localhost:5173/my-bookings?payment=success',
     cancelUrl: cancelUrl || process.env.PAYOS_CANCEL_URL || 'http://localhost:5173/my-bookings?payment=cancel',
+    expiredAt: Math.floor(Date.now() / 1000) + 15 * 60,
     items,
     buyerName,
     buyerEmail,

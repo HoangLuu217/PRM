@@ -118,6 +118,7 @@ class OrderModel {
   final int discount;
   final int total;
   final String status;
+  final String paymentStatus;
   final String note;
   final DateTime? createdAt;
   final String? payosAccountNo;
@@ -146,6 +147,7 @@ class OrderModel {
     this.discount = 0,
     required this.total,
     this.status = 'PENDING',
+    this.paymentStatus = 'PENDING',
     this.note = '',
     this.createdAt,
     this.payosAccountNo,
@@ -379,6 +381,7 @@ class OrderModel {
       discount: disc,
       total: tot,
       status: (json['status'] ?? 'PENDING').toString().toUpperCase(),
+      paymentStatus: (json['paymentStatus'] ?? 'PENDING').toString().toUpperCase(),
       note: (json['note'] ?? '').toString(),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()

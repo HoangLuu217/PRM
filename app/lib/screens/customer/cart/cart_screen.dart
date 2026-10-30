@@ -1,12 +1,185 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/order_model.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../services/booking_service.dart';
+import '../../../services/checkout_service.dart';
 import '../../../widgets/cart_item_tile.dart';
-import '../../../widgets/price_summary.dart';
 import '../checkout/checkout_screen.dart';
+import '../order/my_orders_screen.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  final CheckoutService _checkoutService = CheckoutService();
+  final BookingService _bookingService = BookingService();
+  final Set<String> _preparingBusinesses = {};
+
+  Timer? _countdownTimer;
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preparePendingOrdersAndQr();
+    });
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _checkPendingPayments();
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _preparePendingOrdersAndQr() async {
+    if (!mounted) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final token = authProvider.token;
+    if (token == null || token.isEmpty) return;
+
+    final groups = cartProvider.groups;
+    for (final group in groups) {
+      final busId = group.businessId;
+      if (_preparingBusinesses.contains(busId)) continue;
+
+      OrderModel? pendingOrder = cartProvider.getPendingOrderForBusiness(busId);
+      Map<String, String>? qrDetails = cartProvider.getPendingQrDetailsForBusiness(busId);
+
+      if (pendingOrder != null && qrDetails != null) continue;
+
+      _preparingBusinesses.add(busId);
+      try {
+        // 1. Nếu chưa có order chờ thanh toán trong RAM, tìm đơn PENDING mới tạo trong 15p hoặc tự khởi tạo từ Booking
+        if (pendingOrder == null) {
+          final myOrders = await _checkoutService.getMyOrders(token);
+          for (final ord in myOrders) {
+            final ageSec = ord.createdAt != null
+                ? DateTime.now().difference(ord.createdAt!).inSeconds
+                : 999999;
+            if (ord.businessId == busId &&
+                ord.paymentStatus.toUpperCase() == 'PENDING' &&
+                ageSec < 15 * 60) {
+              pendingOrder = ord;
+              break;
+            }
+          }
+        }
+
+        if (pendingOrder == null) {
+          final myBookings = await _bookingService.getMyBookings();
+          final validBookings = myBookings.where((b) {
+            return b.businessId == busId && (b.isPending || b.isConfirmed || b.isCheckedIn);
+          }).toList();
+
+          if (validBookings.isNotEmpty) {
+            final activeBooking = validBookings.first;
+            final payload = <String, dynamic>{
+              'businessId': busId,
+              'bookingId': activeBooking.id,
+              'orderType': 'PRE_ORDER',
+              'paymentMethod': 'PAYOS_QR',
+              'note': '',
+              'items': group.items.map((item) => item.toJson()).toList(),
+            };
+            if (group.branchId != null && group.branchId!.isNotEmpty) {
+              payload['branchId'] = group.branchId;
+            } else if (activeBooking.branchId.isNotEmpty) {
+              payload['branchId'] = activeBooking.branchId;
+            }
+            if (activeBooking.tableId != null && activeBooking.tableId!.isNotEmpty) {
+              payload['tableId'] = activeBooking.tableId;
+            }
+            pendingOrder = await _checkoutService.createOrder(payload, token);
+          }
+        }
+
+        if (pendingOrder != null) {
+          final amount = pendingOrder.total > 0 ? pendingOrder.total : group.subtotal.toInt();
+          final memo = 'DAT MON ${pendingOrder.orderCode}';
+          final payosData = await _checkoutService.createPayOSPaymentRequest(
+            orderCode: pendingOrder.orderCode,
+            amount: amount,
+            description: memo,
+          );
+          final accNo = (payosData['accountNumber'] != null &&
+                  payosData['accountNumber'] != '1021072004' &&
+                  payosData['accountNumber']!.isNotEmpty)
+              ? payosData['accountNumber']!
+              : '0776101860';
+          final accName = (payosData['accountName'] != null && payosData['accountName']!.isNotEmpty)
+              ? payosData['accountName']!
+              : 'DANG THANH TUNG';
+          final desc = payosData['description'] ?? memo;
+          final qrUrl =
+              'https://img.vietqr.io/image/970422-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(desc)}&accountName=${Uri.encodeComponent(accName)}';
+
+          if (mounted) {
+            cartProvider.setPendingOrderForBusiness(
+              busId,
+              pendingOrder,
+              qrDetails: {
+                'qrUrl': qrUrl,
+                'accountNumber': accNo,
+                'accountName': accName,
+                'description': desc,
+              },
+            );
+          }
+        }
+      } catch (_) {
+      } finally {
+        _preparingBusinesses.remove(busId);
+      }
+    }
+  }
+
+  Future<void> _checkPendingPayments() async {
+    if (!mounted) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final token = authProvider.token;
+    if (token == null || token.isEmpty) return;
+
+    for (final group in cartProvider.groups) {
+      final pendingOrder = cartProvider.getPendingOrderForBusiness(group.businessId);
+      if (pendingOrder == null) continue;
+
+      final isPaid = await _checkoutService.checkPaymentStatus(pendingOrder.orderCode, token);
+      if (isPaid && mounted) {
+        _pollTimer?.cancel();
+        _countdownTimer?.cancel();
+        cartProvider.clearCartForBusiness(group.businessId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chuyển khoản thành công! Đơn hàng #${pendingOrder.orderCode} đã được xác nhận 🎉'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+        );
+        return;
+      }
+    }
+  }
 
   String _formatCurrency(double amount) {
     return '${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ';
@@ -101,6 +274,8 @@ class CartScreen extends StatelessWidget {
               itemCount: groups.length,
               itemBuilder: (ctx, groupIdx) {
                 final group = groups[groupIdx];
+                final pendingOrder = cartProvider.getPendingOrderForBusiness(group.businessId);
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
@@ -131,14 +306,28 @@ class CartScreen extends StatelessWidget {
                             const Icon(Icons.storefront_rounded, color: Color(0xFF0072FF), size: 20),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                group.businessName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: Color(0xFF0F172A),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    group.businessName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (pendingOrder != null)
+                                    Text(
+                                      'Mã đơn chờ thanh toán: #${pendingOrder.orderCode}',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: Color(0xFFD97706),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             Container(
@@ -187,7 +376,7 @@ class CartScreen extends StatelessWidget {
 
                       const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
-                      // Tạm tính & Nút Thanh toán cho quán này
+                      // Tạm tính, Mã QR Thanh toán lại & Nút Thanh toán
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -196,12 +385,12 @@ class CartScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Tạm tính món:',
-                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
+                                  'Tổng thanh toán:',
+                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13.5, fontWeight: FontWeight.w600),
                                 ),
                                 Text(
                                   _formatCurrency(group.subtotal),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0072FF)),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF0072FF)),
                                 ),
                               ],
                             ),
@@ -214,7 +403,9 @@ class CartScreen extends StatelessWidget {
                                   cartProvider.setActiveBusiness(group.businessId, group.businessName, brId: group.branchId);
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                                    MaterialPageRoute(
+                                      builder: (_) => CheckoutScreen(autoShowQr: pendingOrder != null),
+                                    ),
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
@@ -223,9 +414,11 @@ class CartScreen extends StatelessWidget {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 0,
                                 ),
-                                icon: const Icon(Icons.payment_rounded, size: 18),
+                                icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
                                 label: Text(
-                                  'Thanh toán tại ${group.businessName}',
+                                  pendingOrder != null
+                                      ? 'Thanh toán lại đơn #${pendingOrder.orderCode}'
+                                      : 'Thanh toán tại ${group.businessName}',
                                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                   overflow: TextOverflow.ellipsis,
                                 ),
