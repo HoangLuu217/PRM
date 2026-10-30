@@ -245,7 +245,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     String accName;
     String memo;
 
-    if (order.payosAccountNo != null && order.payosAccountNo!.isNotEmpty) {
+    if (order.payosAccountNo != null && order.payosAccountNo!.isNotEmpty && order.payosAccountNo != '1021072004') {
       accNo = order.payosAccountNo!;
       accName = order.payosAccountName ?? 'DANG THANH TUNG';
       final bin = order.payosBin ?? '970422';
@@ -261,10 +261,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (!mounted) return;
 
-      qrUrl = payosData['qrUrl']!;
-      accNo = payosData['accountNumber']!;
-      accName = payosData['accountName']!;
+      accNo = (payosData['accountNumber'] != null && payosData['accountNumber'] != '1021072004' && payosData['accountNumber']!.isNotEmpty)
+          ? payosData['accountNumber']!
+          : '0776101860';
+      accName = (payosData['accountName'] != null && payosData['accountName']!.isNotEmpty)
+          ? payosData['accountName']!
+          : 'DANG THANH TUNG';
       memo = payosData['description']!;
+      qrUrl = 'https://img.vietqr.io/image/970422-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent(accName)}';
     }
 
     Timer? pollTimer;

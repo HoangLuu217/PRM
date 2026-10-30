@@ -112,7 +112,8 @@ class CheckoutService {
         final data = body['data'];
         if (body['code'] == '00' && data is Map<String, dynamic>) {
           final bin = (data['bin'] ?? '970422').toString();
-          final accNo = (data['accountNumber'] ?? '').toString();
+          final rawAccNo = (data['accountNumber'] ?? '').toString();
+          final accNo = (rawAccNo.isNotEmpty && rawAccNo != '1021072004') ? rawAccNo : '0776101860';
           final accName = (data['accountName'] ?? 'DANG THANH TUNG').toString();
           final desc = (data['description'] ?? cleanDesc).toString();
           final qrUrl =
@@ -137,29 +138,28 @@ class CheckoutService {
         final data = body['data'];
         if (body['code'] == '00' && data is Map<String, dynamic>) {
           final bin = (data['bin'] ?? '970422').toString();
-          final accNo = (data['accountNumber'] ?? '').toString();
+          final rawAccNo = (data['accountNumber'] ?? '').toString();
+          final accNo = (rawAccNo.isNotEmpty && rawAccNo != '1021072004') ? rawAccNo : '0776101860';
           final accName = (data['accountName'] ?? 'DANG THANH TUNG').toString();
           final desc = (data['description'] ?? cleanDesc).toString();
-          if (accNo.isNotEmpty) {
-            final qrUrl =
-                'https://img.vietqr.io/image/$bin-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(desc)}&accountName=${Uri.encodeComponent(accName)}';
-            return {
-              'qrUrl': qrUrl,
-              'accountNumber': accNo,
-              'accountName': accName,
-              'description': desc,
-              'bin': bin,
-            };
-          }
+          final qrUrl =
+              'https://img.vietqr.io/image/$bin-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(desc)}&accountName=${Uri.encodeComponent(accName)}';
+          return {
+            'qrUrl': qrUrl,
+            'accountNumber': accNo,
+            'accountName': accName,
+            'description': desc,
+            'bin': bin,
+          };
         }
       }
     } catch (_) {}
 
     final fallbackQr =
-        'https://img.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(cleanDesc)}&accountName=${Uri.encodeComponent("DANG THANH TUNG")}';
+        'https://img.vietqr.io/image/970422-0776101860-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(cleanDesc)}&accountName=${Uri.encodeComponent("DANG THANH TUNG")}';
     return {
       'qrUrl': fallbackQr,
-      'accountNumber': '1021072004',
+      'accountNumber': '0776101860',
       'accountName': 'DANG THANH TUNG',
       'description': cleanDesc,
       'bin': '970422',
