@@ -201,7 +201,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               o.orderTypeLabel,
@@ -209,6 +209,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (o.createdAt != null) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '• ${o.createdAt!.hour.toString().padLeft(2, '0')}:${o.createdAt!.minute.toString().padLeft(2, '0')} ${o.createdAt!.day.toString().padLeft(2, '0')}/${o.createdAt!.month.toString().padLeft(2, '0')}/${o.createdAt!.year}',
+                              style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ],
                       ),
                     ),

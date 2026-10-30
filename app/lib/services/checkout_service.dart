@@ -204,12 +204,9 @@ class CheckoutService {
   }
 
   /// When user presses "Xác nhận đã chuyển khoản thành công":
-  /// First checks PayOS status; if PayOS hasn't updated yet, syncs CONFIRMED status to Backend directly.
+  /// Strictly queries PayOS Gateway API.
+  /// ONLY returns true if PayOS Gateway explicitly confirms status == 'PAID' or amountPaid > 0!
   Future<bool> confirmManualPayment(dynamic orderCode, String token) async {
-    final isPayOSPaid = await checkPaymentStatus(orderCode, token);
-    if (isPayOSPaid) return true;
-
-    await _syncOrderConfirmedOnBackend(orderCode, token);
-    return true;
+    return await checkPaymentStatus(orderCode, token);
   }
 }
