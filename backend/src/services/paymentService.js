@@ -128,29 +128,29 @@ export const createDepositPayment = async ({
  * Handle Successful Payment Execution (Webhook or Simulator)
  */
 export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
-  const transaction = await Transaction.findOne({ orderCode: Number(orderCode) });
-  if (!transaction) {
-    throw new Error(`Không tìm thấy giao dịch với mã orderCode: ${orderCode}`);
+  const numericCode = Number(String(orderCode).replace(/\D/g, '')) || Number(orderCode);
+
+  let transaction = await Transaction.findOne({ orderCode: numericCode });
+  let foodOrder = await Order.findOne({ orderCode: String(orderCode) });
+  if (!foodOrder && numericCode > 0) {
+    foodOrder = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  if (transaction.status === 'PAID') {
-    return { success: true, message: 'Giao dịch đã được xử lý trước đó', transaction };
+  if (!transaction && !foodOrder) {
+    throw new Error(`Không tìm thấy đơn hàng hoặc giao dịch với mã orderCode: ${orderCode}`);
   }
 
-  // Handle Subscription Payment
-  if (transaction.type === 'SUBSCRIPTION') {
-    const { completeSubscriptionSuccess } = await import('./subscriptionService.js');
-    return completeSubscriptionSuccess(orderCode, webhookData);
+  if (transaction) {
+    if (transaction.type === 'SUBSCRIPTION') {
+      const { completeSubscriptionSuccess } = await import('./subscriptionService.js');
+      return completeSubscriptionSuccess(orderCode, webhookData);
+    }
+    transaction.status = 'PAID';
+    transaction.paidAt = new Date();
+    transaction.webhookData = webhookData;
+    await transaction.save();
   }
 
-  // 1. Update Transaction (for deposit / food order)
-  transaction.status = 'PAID';
-  transaction.paidAt = new Date();
-  transaction.webhookData = webhookData;
-  await transaction.save();
-
-  // 1b. Update Food Order if exists
-  const foodOrder = await Order.findOne({ orderCode: String(orderCode) });
   if (foodOrder) {
     foodOrder.paymentStatus = 'PAID';
     foodOrder.status = 'CONFIRMED';
@@ -160,55 +160,28 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
     }
   }
 
-  // 2. Update Booking
-  const booking = await Booking.findById(transaction.bookingId).populate('businessId branchId');
-  if (booking) {
-    booking.depositStatus = 'PAID';
-    booking.status = 'CONFIRMED';
-    booking.paidAt = new Date();
-    await booking.save();
+  const bookingId = transaction?.bookingId || foodOrder?.bookingId;
+  if (bookingId) {
+    const booking = await Booking.findById(bookingId).populate('businessId branchId');
+    if (booking) {
+      booking.depositStatus = 'PAID';
+      booking.status = 'CONFIRMED';
+      booking.paidAt = new Date();
+      await booking.save();
 
-    // 3. Credit Merchant Wallet (90% after 10% platform commission)
-    let wallet = await Wallet.findOne({ businessId: transaction.businessId });
-    if (!wallet) {
-      wallet = new Wallet({ businessId: transaction.businessId, balance: 0 });
-    }
-
-    wallet.balance += transaction.merchantAmount;
-    wallet.totalDepositsEarned += transaction.merchantAmount;
-    wallet.totalCommissionPaid += transaction.commissionAmount;
-    await wallet.save();
-
-    // 4. Send Notifications
-    try {
-      await Notification.create({
-        userId: booking.userId,
-        title: 'Thanh toán cọc bàn thành công 🎉',
-        message: `Bạn đã đặt cọc thành công ${transaction.amount.toLocaleString()}đ cho bàn tiệc tại ${booking.businessId?.name || 'nhà hàng'}. Bàn của bạn đã được xác nhận giữ chỗ!`,
-        type: 'BOOKING',
-        data: { bookingId: booking._id, orderCode },
-      });
-
-      if (booking.businessId?.ownerId) {
-        await Notification.create({
-          userId: booking.businessId.ownerId,
-          title: 'Khách đã cọc bàn thành công 💵',
-          message: `Khách hàng đã đặt cọc ${transaction.amount.toLocaleString()}đ cho đơn đặt bàn ${booking.bookingCode} (${booking.guestCount} người). Số dư ví của quán được cộng +${transaction.merchantAmount.toLocaleString()}đ!`,
-          type: 'MERCHANT_ORDER',
-          data: { bookingId: booking._id, orderCode },
-        });
+      let wallet = await Wallet.findOne({ businessId: booking.businessId?._id || booking.businessId });
+      if (wallet && transaction?.merchantAmount) {
+        wallet.balance += transaction.merchantAmount;
+        wallet.totalDepositsEarned += transaction.merchantAmount;
+        await wallet.save();
       }
-    } catch (notifErr) {
-      console.warn('Send notification error:', notifErr.message);
     }
   }
 
   return {
     success: true,
-    message: 'Thanh toán cọc thành công và đã xác nhận đặt bàn',
-    bookingId: transaction.bookingId,
-    orderCode: transaction.orderCode,
-    amount: transaction.amount,
+    message: 'Xác nhận thanh toán thành công!',
+    orderCode,
   };
 };
 

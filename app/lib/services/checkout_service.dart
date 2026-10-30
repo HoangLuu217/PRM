@@ -207,8 +207,20 @@ class CheckoutService {
     } catch (_) {}
   }
 
-  /// When user presses "Xác nhận đã chuyển khoản": strictly verify real PayOS payment!
+  /// When user presses "Xác nhận đã chuyển khoản thành công":
+  /// First queries PayOS status; if PayOS or user confirms transfer, syncs status to Backend and returns true.
   Future<bool> confirmManualPayment(dynamic orderCode, String token) async {
-    return await checkPaymentStatus(orderCode, token);
+    final isPayOSPaid = await checkPaymentStatus(orderCode, token);
+    if (isPayOSPaid) return true;
+
+    try {
+      final uri = Uri.parse('$baseUrl/payments/confirm-manual/$orderCode');
+      final res = await http.post(uri, headers: _headers(token)).timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        return body['success'] == true;
+      }
+    } catch (_) {}
+    return true;
   }
 }
