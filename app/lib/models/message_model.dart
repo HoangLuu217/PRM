@@ -51,7 +51,7 @@ class ChatMessage {
       imageUrl: json['imageUrl']?.toString(),
       isFromCustomer: isCustomer,
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(json['createdAt'].toString())?.toLocal() ?? DateTime.now())
           : DateTime.now(),
       isRead: json['isRead'] ?? true,
     );
@@ -117,7 +117,7 @@ class ChatConversation {
       businessLogo: bLogo,
       lastMessage: json['lastMessage']?.toString() ?? 'Bắt đầu cuộc trò chuyện',
       lastMessageAt: json['lastMessageAt'] != null
-          ? DateTime.tryParse(json['lastMessageAt'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(json['lastMessageAt'].toString())?.toLocal() ?? DateTime.now())
           : DateTime.now(),
       unreadCount: json['unreadCount'] ?? 0,
     );

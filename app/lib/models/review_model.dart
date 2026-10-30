@@ -56,7 +56,7 @@ class ReviewModel {
 
     DateTime createdDate = DateTime.now();
     if (json['createdAt'] != null) {
-      createdDate = DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now();
+      createdDate = DateTime.tryParse(json['createdAt'].toString())?.toLocal() ?? DateTime.now();
     }
 
     final rawImages = json['images'];

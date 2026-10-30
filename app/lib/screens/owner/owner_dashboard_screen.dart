@@ -182,7 +182,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               custAvatar = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(custName)}&background=E11D48&color=fff&bold=true&size=128';
             }
 
-            final lastMsgAt = item['lastMessageAt'] != null ? DateTime.tryParse(item['lastMessageAt'].toString()) : null;
+            final lastMsgAt = item['lastMessageAt'] != null ? DateTime.tryParse(item['lastMessageAt'].toString())?.toLocal() : null;
             final timeStr = lastMsgAt != null
                 ? '${lastMsgAt.hour.toString().padLeft(2, '0')}:${lastMsgAt.minute.toString().padLeft(2, '0')}'
                 : 'Vừa xong';
@@ -262,7 +262,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             final mId = m['_id']?.toString() ?? '';
             final text = m['text']?.toString() ?? '';
             final imageUrl = m['imageUrl']?.toString();
-            final createdAt = m['createdAt'] != null ? DateTime.tryParse(m['createdAt'].toString()) : null;
+            final createdAt = m['createdAt'] != null ? DateTime.tryParse(m['createdAt'].toString())?.toLocal() : null;
             final timeStr = createdAt != null
                 ? '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}'
                 : '';
@@ -1447,18 +1447,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              CircleAvatar(
+              _buildUserAvatar(
+                name: rev.userName,
+                avatarUrl: rev.userAvatar,
                 radius: 20,
-                backgroundColor: const Color(0xFFDBEAFE),
-                backgroundImage: (rev.userAvatar.isNotEmpty && rev.userAvatar.startsWith('http'))
-                    ? NetworkImage(rev.userAvatar)
-                    : null,
-                child: (rev.userAvatar.isEmpty || !rev.userAvatar.startsWith('http'))
-                    ? Text(
-                        rev.userName.isNotEmpty ? rev.userName[0].toUpperCase() : 'U',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8), fontSize: 15),
-                      )
-                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1593,13 +1585,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              _buildUserAvatar(
+                name: author,
+                avatarUrl: photo,
                 radius: 20,
-                backgroundColor: const Color(0xFFFEE2E2),
-                backgroundImage: photo.startsWith('http') ? NetworkImage(photo) : null,
-                child: !photo.startsWith('http')
-                    ? const Icon(Icons.person, color: Color(0xFFEF4444), size: 20)
-                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -5622,15 +5611,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) &&
         !avatarUrl.contains('ui-avatars.com');
 
+    final List<List<Color>> colorGradients = [
+      [const Color(0xFFFB7185), const Color(0xFFE11D48)], // Đỏ hồng (như Dong Tran)
+      [const Color(0xFF38BDF8), const Color(0xFF0284C7)], // Xanh dương
+      [const Color(0xFF34D399), const Color(0xFF059669)], // Xanh ngọc
+      [const Color(0xFFA78BFA), const Color(0xFF7C3AED)], // Tím Violet
+      [const Color(0xFFFBBF24), const Color(0xFFD97706)], // Vàng cam
+      [const Color(0xFF2DD4BF), const Color(0xFF0D9488)], // Xanh Teal
+      [const Color(0xFF818CF8), const Color(0xFF4F46E5)], // Xanh Indigo
+      [const Color(0xFFF472B6), const Color(0xFFDB2777)], // Hồng cánh sen
+    ];
+    final colorIdx = displayName.codeUnits.fold<int>(0, (acc, c) => acc + c) % colorGradients.length;
+    final gradientColors = colorGradients[colorIdx];
+
     final Widget fallbackWidget = Container(
       width: radius * 2,
       height: radius * 2,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFB7185), Color(0xFFE11D48)], // Đỏ hồng chuẩn như hồ sơ cá nhân trên app
+          colors: gradientColors,
         ),
       ),
       alignment: Alignment.center,
