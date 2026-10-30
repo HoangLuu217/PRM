@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             final avatarUrl = metadata['avatar_url'] ?? metadata['picture'];
             final googleId = metadata['sub'] ?? supaUser.id;
 
-            final effectiveRole = (kIsWeb && pendingRole == 'MERCHANT') ? 'MERCHANT' : null;
+            final effectiveRole = (kIsWeb && pendingRole == 'MERCHANT') ? 'MERCHANT' : 'USER';
 
             final authProvider = Provider.of<AuthProvider>(context, listen: false);
             final success = await authProvider.googleLogin(
@@ -165,12 +165,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       return;
     }
 
-    // Trên Mobile App: Nếu là Chủ quán thì vào OwnerDashboardScreen, nếu là Khách thì vào CustomerHomeScreen
+    // Trên Mobile App: Ứng dụng di động FConnect dành riêng cho Khách hàng (USER).
+    // Chặn tài khoản Chủ quán (MERCHANT) đăng nhập trên mobile và yêu cầu chuyển sang Web Portal.
     if (authProvider.isOwner) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const OwnerDashboardScreen()),
-        (route) => false,
+      authProvider.logout();
+      userProvider.clearUser();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Ứng dụng di động FConnect dành riêng cho Khách hàng. Tài khoản Chủ quán F&B vui lòng đăng nhập trên trang Web dành cho Đối tác.',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 5),
+        ),
       );
       return;
     }
