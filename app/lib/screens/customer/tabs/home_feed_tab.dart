@@ -532,7 +532,7 @@ class HomeFeedTab extends StatelessWidget {
           // Nút Giỏ Hàng ngoài Trang chủ có badge đếm số lượng món
           Consumer<CartProvider>(
             builder: (context, cartProvider, _) {
-              final count = cartProvider.totalQuantity;
+              final count = cartProvider.groups.length;
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
