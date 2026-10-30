@@ -65,8 +65,9 @@ class _CartScreenState extends State<CartScreen> {
 
       _preparingBusinesses.add(busId);
       try {
-        // 1. Nếu chưa có order chờ thanh toán trong RAM, tìm đơn PENDING mới tạo trong 15p hoặc tự khởi tạo từ Booking
+        // 1. Nếu chưa có order chờ thanh toán trong RAM, chỉ dùng lại đơn PENDING nếu khớp đúng tổng tiền hiện tại của giỏ hàng
         if (pendingOrder == null) {
+          final expectedTotal = group.subtotal.toInt();
           final myOrders = await _checkoutService.getMyOrders(token);
           for (final ord in myOrders) {
             final ageSec = ord.createdAt != null
@@ -74,6 +75,7 @@ class _CartScreenState extends State<CartScreen> {
                 : 999999;
             if (ord.businessId == busId &&
                 ord.paymentStatus.toUpperCase() == 'PENDING' &&
+                ord.total == expectedTotal &&
                 ageSec < 15 * 60) {
               pendingOrder = ord;
               break;

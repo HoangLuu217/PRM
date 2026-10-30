@@ -212,9 +212,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         payload['tableId'] = _activeBooking!.tableId;
       }
 
+      final currentTotal = cartProvider.activeSubtotal.toInt();
       OrderModel? existingPending = _selectedPaymentMethod == 'PAYOS_QR'
           ? cartProvider.getPendingOrderForBusiness(effectiveBusinessId)
           : null;
+      if (existingPending != null && existingPending.total != currentTotal) {
+        cartProvider.invalidatePendingOrderForBusiness(effectiveBusinessId);
+        existingPending = null;
+      }
 
       final OrderModel order = existingPending ??
           await _checkoutService.createOrder(payload, authProvider.token!);
@@ -267,7 +272,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ? cartProvider.getPendingQrDetailsForBusiness(effectiveBusId)
         : null;
 
-    final amount = order.total > 0 ? order.total : 2000;
+    final activeTotal = cartProvider.activeSubtotal.toInt();
+    final amount = activeTotal > 0 ? activeTotal : (order.total > 0 ? order.total : 2000);
     final orderCode = order.orderCode;
     final defaultMemo = 'DAT MON $orderCode';
 
