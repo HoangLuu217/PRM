@@ -95,8 +95,8 @@ class ReviewService {
       final headers = await _getHeaders();
       final targetId = businessId.trim();
       final uri = targetId.isNotEmpty
-          ? Uri.parse('//sync-google-reviews')
-          : Uri.parse('/sync-google-reviews');
+          ? Uri.parse('${ApiConstants.baseUrl}${ApiConstants.businesses}/$targetId/sync-google-reviews')
+          : Uri.parse('${ApiConstants.baseUrl}${ApiConstants.businesses}/sync-google-reviews');
 
       final body = <String, dynamic>{};
       if (googleMapsUrl != null && googleMapsUrl.trim().isNotEmpty) {
@@ -111,7 +111,7 @@ class ReviewService {
       if (!rawBody.startsWith('{')) {
         return {
           'success': false,
-          'message': 'Không thể kết nối tới dịch vụ đồng bộ (Mã lỗi: ). Vui lòng hoàn tất hồ sơ quán trước.',
+          'message': 'Không thể kết nối tới dịch vụ đồng bộ (Mã lỗi: ${res.statusCode}). Vui lòng hoàn tất hồ sơ quán trước.',
         };
       }
 
