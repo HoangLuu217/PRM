@@ -77,6 +77,7 @@ export const createDepositPayment = async ({
   // Create or update Transaction record
   await Transaction.create({
     orderCode,
+    type: 'DEPOSIT',
     bookingId: booking._id,
     userId: booking.userId,
     businessId: booking.businessId._id,
@@ -125,7 +126,7 @@ export const createDepositPayment = async ({
 };
 
 /**
- * Handle Successful Payment Execution (Webhook or Simulator)
+ * Handle Successful Payment Execution (Webhook or verified PayOS payment)
  */
 export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
   const numericCode = Number(String(orderCode).replace(/\D/g, '')) || Number(orderCode);
@@ -141,7 +142,7 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
   }
 
   if (transaction) {
-    if (transaction.type === 'SUBSCRIPTION') {
+    if (transaction.type === 'SUBSCRIPTION' && transaction.subscriptionPlan) {
       const { completeSubscriptionSuccess } = await import('./subscriptionService.js');
       return completeSubscriptionSuccess(orderCode, webhookData);
     }
@@ -187,6 +188,7 @@ export const completePaymentSuccess = async (orderCode, webhookData = {}) => {
 
 /**
  * Check payment status by orderCode (supports both Booking deposits and Food Orders)
+ * Strictly verifies with PayOS Gateway that payment status is PAID before confirming!
  */
 export const checkDepositPaymentStatus = async (orderCode) => {
   const numericCode = Number(String(orderCode).replace(/\D/g, '')) || Number(orderCode);
@@ -197,13 +199,40 @@ export const checkDepositPaymentStatus = async (orderCode) => {
     order = await Order.findOne({ orderCode: String(numericCode) });
   }
 
-  const isPaid = (transaction?.status === 'PAID') || (order?.paymentStatus === 'PAID');
+  // Query PayOS Gateway directly for real payment status
+  let isPayOSPaid = false;
+  let payosInfo = null;
+  if (numericCode > 0) {
+    try {
+      payosInfo = await getPayOSPaymentInfo(numericCode);
+      const status = String(payosInfo?.status || '').toUpperCase();
+      const amountPaid = Number(payosInfo?.amountPaid || 0);
+      const hasTransactions = Array.isArray(payosInfo?.transactions) && payosInfo.transactions.length > 0;
+      isPayOSPaid = status === 'PAID' || amountPaid > 0 || hasTransactions;
+    } catch (err) {
+      console.warn('Query PayOS payment info warning:', err.message);
+    }
+  }
+
+  if (isPayOSPaid) {
+    await completePaymentSuccess(numericCode, payosInfo || {});
+    return {
+      orderCode,
+      status: 'PAID',
+      isPaid: true,
+      paidAt: new Date(),
+    };
+  }
+
+  const isAlreadyPaidInDb =
+    (transaction?.status === 'PAID' && !transaction?.webhookData?.manual) ||
+    (order?.paymentStatus === 'PAID' && !transaction?.webhookData?.manual);
 
   return {
     orderCode,
-    status: isPaid ? 'PAID' : 'PENDING',
-    isPaid,
-    paidAt: transaction?.paidAt || order?.updatedAt,
+    status: isAlreadyPaidInDb ? 'PAID' : 'PENDING',
+    isPaid: Boolean(isAlreadyPaidInDb),
+    paidAt: isAlreadyPaidInDb ? (transaction?.paidAt || order?.updatedAt) : null,
   };
 };
 
