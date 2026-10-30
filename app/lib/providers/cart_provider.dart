@@ -110,14 +110,29 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void invalidatePendingOrderForBusiness(String busId) {
+    _pendingOrders.remove(busId);
+    _pendingQrDetails.remove(busId);
+    _pendingOrderCreatedAt.remove(busId);
+  }
+
+  int _subtotalForBusiness(String busId) {
+    return _items
+        .where((i) => i.businessId == busId || (i.businessId == null && _businessId == busId))
+        .fold(0, (sum, i) => sum + i.itemSubtotal.toInt());
+  }
+
   OrderModel? getPendingOrderForBusiness(String busId) {
     final order = _pendingOrders[busId];
     if (order == null) return null;
+    final currentSub = _subtotalForBusiness(busId);
+    if (currentSub > 0 && order.total != currentSub) {
+      invalidatePendingOrderForBusiness(busId);
+      return null;
+    }
     final created = _pendingOrderCreatedAt[busId] ?? order.createdAt ?? DateTime.now();
     if (DateTime.now().difference(created).inSeconds >= 15 * 60) {
-      _pendingOrders.remove(busId);
-      _pendingQrDetails.remove(busId);
-      _pendingOrderCreatedAt.remove(busId);
+      invalidatePendingOrderForBusiness(busId);
       return null;
     }
     return order;
@@ -268,6 +283,9 @@ class CartProvider with ChangeNotifier {
       _items.add(newItem);
     }
 
+    // Khi thêm món mới, hủy đơn/QR tạm cũ của quán này để tạo lại QR theo đúng tổng tiền mới
+    invalidatePendingOrderForBusiness(targetBusinessId);
+
     // Persist to SQLite
     _dbHelper.saveCartItem(
       item: newItem,
@@ -284,6 +302,11 @@ class CartProvider with ChangeNotifier {
   void updateQuantity(int index, int newQuantity) {
     if (index < 0 || index >= _items.length) return;
 
+    final busId = _items[index].businessId ?? _businessId;
+    if (busId != null) {
+      invalidatePendingOrderForBusiness(busId);
+    }
+
     if (newQuantity <= 0) {
       removeItem(index);
     } else {
@@ -296,6 +319,10 @@ class CartProvider with ChangeNotifier {
   /// Remove item at index (Deletes from SQLite)
   void removeItem(int index) {
     if (index < 0 || index >= _items.length) return;
+    final busId = _items[index].businessId ?? _businessId;
+    if (busId != null) {
+      invalidatePendingOrderForBusiness(busId);
+    }
     _items.removeAt(index);
     _dbHelper.deleteCartItemByIndex(index);
 
