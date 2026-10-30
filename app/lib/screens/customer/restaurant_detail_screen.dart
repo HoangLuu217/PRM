@@ -381,20 +381,18 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     CircleAvatar(
                       backgroundColor: Colors.black.withValues(alpha: 0.45),
                       radius: 18,
-                      child: IconButton(
-                        icon: Icon(
-                          _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          color: _isFavorite ? const Color(0xFFEF4444) : Colors.white,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          setState(() => _isFavorite = !_isFavorite);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(_isFavorite ? 'Đã thêm vào danh sách yêu thích' : 'Đã bỏ yêu thích'),
-                              duration: const Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
+                      child: Consumer<FavoriteProvider>(
+                        builder: (context, favProvider, _) {
+                          final isFav = favProvider.isFavorite(r.id);
+                          return IconButton(
+                            icon: Icon(
+                              isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: isFav ? const Color(0xFFEF4444) : Colors.white,
+                              size: 18,
                             ),
+                            onPressed: () {
+                              favProvider.toggleFavorite(r, context: context);
+                            },
                           );
                         },
                       ),
