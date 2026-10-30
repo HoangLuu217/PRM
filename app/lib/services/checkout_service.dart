@@ -166,13 +166,14 @@ class CheckoutService {
     };
   }
 
-  /// Strictly check with PayOS Gateway whether the bank transfer was actually completed.
-  /// Only when PayOS confirms status == 'PAID' (or amountPaid > 0), sync status to Backend DB.
+  /// Strictly check with PayOS Gateway and Backend Webhook whether the bank transfer was completed.
   Future<bool> checkPaymentStatus(dynamic orderCode, String token) async {
     final numericOrderCode = int.tryParse(orderCode.toString().replaceAll(RegExp(r'\D'), '')) ?? orderCode;
+
+    // 1. Query PayOS Gateway API directly
     try {
       final payosUri = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$numericOrderCode');
-      final payosRes = await http.get(payosUri, headers: _payosHeaders).timeout(const Duration(seconds: 6));
+      final payosRes = await http.get(payosUri, headers: _payosHeaders).timeout(const Duration(seconds: 5));
       if (payosRes.statusCode == 200) {
         final body = jsonDecode(payosRes.body);
         final data = body['data'];
@@ -181,17 +182,29 @@ class CheckoutService {
           final amountPaid = (data['amountPaid'] as num?)?.toInt() ?? 0;
           final transactions = data['transactions'] as List<dynamic>?;
           final isReallyPaid =
-              status == 'PAID' || amountPaid > 0 || (transactions != null && transactions.isNotEmpty);
+              status == 'PAID' || status == 'COMPLETED' || amountPaid > 0 || (transactions != null && transactions.isNotEmpty);
 
           if (isReallyPaid) {
-            // Sync PAID & CONFIRMED status to Backend (Vercel / Local)
             await _syncOrderConfirmedOnBackend(orderCode, token);
             return true;
           }
-          return false;
         }
       }
     } catch (_) {}
+
+    // 2. Query Backend DB status (Updated by PayOS Webhook)
+    try {
+      final uri = Uri.parse('$baseUrl/payments/status/$orderCode');
+      final res = await http.get(uri, headers: _headers(token)).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final data = body['data'];
+        if (data != null && (data['isPaid'] == true || data['status'] == 'PAID' || data['status'] == 'CONFIRMED')) {
+          return true;
+        }
+      }
+    } catch (_) {}
+
     return false;
   }
 
@@ -204,9 +217,12 @@ class CheckoutService {
   }
 
   /// When user presses "Xác nhận đã chuyển khoản thành công":
-  /// Strictly queries PayOS Gateway API.
-  /// ONLY returns true if PayOS Gateway explicitly confirms status == 'PAID' or amountPaid > 0!
+  /// First checks PayOS / Webhook status; if still pending, syncs confirmation to Backend.
   Future<bool> confirmManualPayment(dynamic orderCode, String token) async {
-    return await checkPaymentStatus(orderCode, token);
+    final isPaid = await checkPaymentStatus(orderCode, token);
+    if (isPaid) return true;
+
+    await _syncOrderConfirmedOnBackend(orderCode, token);
+    return true;
   }
 }
