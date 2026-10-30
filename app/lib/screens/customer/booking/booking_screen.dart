@@ -12,6 +12,7 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/table_provider.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/order_service.dart';
+import '../../../services/notification_service.dart';
 import '../../auth/login_screen.dart';
 import '../checkout/checkout_screen.dart';
 import '../widgets/restaurant_modals.dart';
@@ -264,6 +265,15 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (res['success'] == true) {
       final bookingCode = res['bookingCode'] ?? 'Đã xác nhận';
+      // Bắn Heads-up Banner thông báo trực tiếp ra ngoài máy điện thoại
+      NotificationService().showBookingSuccessNotification(
+        bookingCode: bookingCode,
+        restaurantName: widget.restaurant.name,
+        time: _selectedTime,
+        date: _dateString,
+      );
+      final booking = res['booking'] as BookingModel?;
+      final bookingId = booking?.id;
       final hasDishes = _dishesCount > 0 || (cartProvider.itemCount > 0 && cartProvider.businessId == widget.restaurant.id);
 
       // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider

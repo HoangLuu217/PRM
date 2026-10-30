@@ -5,7 +5,9 @@ import '../../models/restaurant_model.dart';
 import '../../providers/favorite_provider.dart';
 import '../../services/location_service.dart';
 import '../../services/restaurant_service.dart';
+import '../../providers/chat_provider.dart';
 import '../auth/profile_screen.dart';
+import 'chat/customer_chat_inbox_screen.dart';
 
 import 'tabs/food_map_tab.dart';
 import 'tabs/home_feed_tab.dart';
@@ -40,6 +42,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     _loadRestaurants();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FavoriteProvider>().loadFavoriteIds();
+      context.read<ChatProvider>().fetchConversations(silent: true);
     });
   }
 
@@ -248,7 +251,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               onShowDetails: (r) => RestaurantModals.showDetails(context, r),
             ),
 
-            // Tab 2: Cá nhân (Profile)
+            // Tab 2: Trò chuyện (Chat Inbox trực tiếp với nhà hàng)
+            const CustomerChatInboxScreen(isTab: true),
+
+            // Tab 3: Cá nhân (Profile)
             const ProfileScreen(),
           ],
         ),
@@ -289,18 +295,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
         elevation: 0,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.local_fire_department_rounded, size: 22),
             activeIcon: Icon(Icons.local_fire_department_rounded, size: 24, color: Color(0xFF0072FF)),
             label: 'Trang chủ',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.location_on_outlined, size: 22),
             activeIcon: Icon(Icons.location_on, size: 24, color: Color(0xFF0072FF)),
             label: 'Bản đồ',
           ),
           BottomNavigationBarItem(
+            icon: Consumer<ChatProvider>(
+              builder: (context, chatProv, _) {
+                final unread = chatProv.conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+                if (unread > 0) {
+                  return Badge.count(
+                    count: unread,
+                    child: const Icon(Icons.forum_outlined, size: 22),
+                  );
+                }
+                return const Icon(Icons.forum_outlined, size: 22);
+              },
+            ),
+            activeIcon: Consumer<ChatProvider>(
+              builder: (context, chatProv, _) {
+                final unread = chatProv.conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+                if (unread > 0) {
+                  return Badge.count(
+                    count: unread,
+                    child: const Icon(Icons.forum_rounded, size: 24, color: Color(0xFF0072FF)),
+                  );
+                }
+                return const Icon(Icons.forum_rounded, size: 24, color: Color(0xFF0072FF));
+              },
+            ),
+            label: 'Trò chuyện',
+          ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person_outline_rounded, size: 22),
             activeIcon: Icon(Icons.person_rounded, size: 24, color: Color(0xFF0072FF)),
             label: 'Cá nhân',

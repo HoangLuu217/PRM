@@ -192,4 +192,61 @@ class NotificationService {
       return false;
     }
   }
+
+  /// Hiển thị thông báo cục bộ (Heads-up banner) trực tiếp ra màn hình / thanh thông báo điện thoại
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (kIsWeb) return;
+    try {
+      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await _localNotifications.show(
+        id,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            icon: '@mipmap/ic_launcher',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
+        ),
+        payload: payload,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Lỗi hiển thị thông báo ra điện thoại: $e');
+      }
+    }
+  }
+
+  /// Thông báo đặt bàn thành công trực tiếp trên điện thoại
+  Future<void> showBookingSuccessNotification({
+    required String bookingCode,
+    required String restaurantName,
+    required String time,
+    required String date,
+  }) async {
+    await showNotification(
+      title: 'Đặt bàn thành công #$bookingCode',
+      body: 'Bạn đã đặt bàn tại $restaurantName lúc $time ngày $date. Nhà hàng đã nhận được thông tin!',
+    );
+  }
+
+  /// Thông báo đặt đơn thành công trực tiếp trên điện thoại
+  Future<void> showOrderSuccessNotification({
+    required String orderCode,
+    String? message,
+  }) async {
+    await showNotification(
+      title: 'Đặt đơn thành công #$orderCode',
+      body: message ?? 'Đơn hàng của bạn đã được gửi tới nhà hàng và đang được chuẩn bị!',
+    );
+  }
 }

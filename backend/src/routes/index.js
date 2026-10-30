@@ -6,6 +6,7 @@ import productRoutes from './productRoutes.js';
 import tableRoutes from './tableRoutes.js';
 import bookingRoutes from './bookingRoutes.js';
 import cartRoutes from './cartRoutes.js';
+import favoriteRoutes from './favoriteRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import reviewRoutes from './reviewRoutes.js';
 import staffRoutes from './staffRoutes.js';
@@ -32,6 +33,7 @@ router.use('/payments', paymentRoutes);
 router.use('/subscriptions', subscriptionRoutes);
 router.use('/cart', cartRoutes);
 router.use('/carts', cartRoutes);
+router.use('/favorites', favoriteRoutes);
 router.use('/orders', orderRoutes);
 router.use('/owner', ownerRoutes);
 router.use('/reviews', reviewRoutes);
@@ -47,6 +49,7 @@ router.use('/upload', uploadRoutes);
 // Legacy routes fallbacks
 router.use('/restaurants', businessRoutes);
 router.use('/menu', productRoutes);
+router.use('/menus', productRoutes);
 router.use('/reservations', bookingRoutes);
 
 export default router;

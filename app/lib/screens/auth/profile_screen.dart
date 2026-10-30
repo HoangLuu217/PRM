@@ -11,7 +11,6 @@ import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
-import '../customer/chat/customer_chat_inbox_screen.dart';
 import '../customer/favorites_screen.dart';
 import '../customer/notification/customer_notification_screen.dart';
 import '../customer/order/my_orders_screen.dart';
@@ -1284,27 +1283,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CustomerNotificationScreen()),
-          );
-        },
-      ),
-      Consumer<ChatProvider>(
-        builder: (context, chatProv, _) {
-          final unread = chatProv.conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
-          return _buildGroupItem(
-            icon: Icons.forum_rounded,
-            iconBg: const Color(0xFFEFF6FF),
-            iconColor: const Color(0xFF2563EB),
-            title: 'Trò chuyện',
-            subtitle: 'Nhắn tin trực tiếp với các nhà hàng',
-            badgeNumber: unread > 0 ? unread : null,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CustomerChatInboxScreen(),
-                ),
-              );
-            },
           );
         },
       ),

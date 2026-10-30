@@ -1,8 +1,13 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 
 let connectionPromise;
 
 export const connectDB = async () => {
+  try {
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+  } catch (e) {}
+
   if (mongoose.connection.readyState === 1) {
     return mongoose.connection;
   }

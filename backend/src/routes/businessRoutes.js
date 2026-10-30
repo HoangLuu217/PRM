@@ -24,6 +24,7 @@ router.route('/:id')
   .get(getBusinessById)
   .put(protect, businessOwnerOnly, updateBusiness);
 
+router.post('/sync-google-reviews', protect, businessOwnerOnly, syncGoogleReviews);
 router.post('/:id/sync-google-reviews', protect, businessOwnerOnly, syncGoogleReviews);
 
 export default router;

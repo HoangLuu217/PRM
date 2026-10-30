@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../models/booking_model.dart';
+import '../../../services/notification_service.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../services/auth_service.dart';
@@ -194,6 +195,12 @@ class RestaurantModals {
                         errorMsg = 'Khung giờ đặt bàn phải sau thời điểm hiện tại. Vui lòng chọn giờ khác!';
                       }
                       if (res['success'] == true) {
+                        NotificationService().showBookingSuccessNotification(
+                          bookingCode: res['bookingCode']?.toString() ?? 'Đã xác nhận',
+                          restaurantName: r.name,
+                          time: selectedTime,
+                          date: todayStr,
+                        );
                         Navigator.pop(ctx);
                         final cartProvider = Provider.of<CartProvider>(context, listen: false);
                         final hasCart = cartProvider.itemCount > 0 && cartProvider.businessId == r.id;
@@ -286,11 +293,11 @@ class RestaurantModals {
   }
 
   /// Mở màn hình Xem chi tiết quán ăn chuẩn phong cách FConnect
-  static void showDetails(BuildContext context, RestaurantModel r) {
+  static void showDetails(BuildContext context, RestaurantModel r, {int initialTabIndex = 0}) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RestaurantDetailScreen(restaurant: r),
+        builder: (_) => RestaurantDetailScreen(restaurant: r, initialTabIndex: initialTabIndex),
       ),
     );
   }

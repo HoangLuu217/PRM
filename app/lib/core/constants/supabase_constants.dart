@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SupabaseConstants {
+  static bool isInitialized = false;
   // Lấy URL và Anon Key từ file .env an toàn
   static String get url =>
       dotenv.isInitialized ? (dotenv.env['SUPABASE_URL'] ?? '') : '';

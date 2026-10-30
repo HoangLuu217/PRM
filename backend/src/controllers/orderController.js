@@ -15,6 +15,7 @@ import {
   User,
 } from '../models/index.js';
 import { createPayOSPaymentLink } from '../services/payosService.js';
+import { sendPushToUser } from '../services/pushNotificationService.js';
 
 const generateOrderCode = () => {
   const timestampPart = Math.floor(Date.now() / 1000) % 1000000;
@@ -274,6 +275,52 @@ export const createOrder = async (req, res) => {
       type: 'ORDER',
       metadata: { total: order.total, itemCount: formattedItems.length, orderType },
     }).catch((error) => console.error('Failed to record order interaction:', error.message));
+
+    // 1. Tạo Notification cho Khách hàng & Gửi Push Notification
+    Notification.create({
+      userId: req.user._id,
+      businessId,
+      type: 'ORDER_CREATED',
+      referenceId: order._id,
+      title: `Đặt món thành công #${order.orderCode}`,
+      message: `Đơn hàng của bạn trị giá ${order.total.toLocaleString('vi-VN')}đ đã được gửi đến nhà hàng.`,
+    }).catch((err) => console.error('Order notif customer err:', err));
+
+    sendPushToUser(
+      req.user._id,
+      `Đặt món thành công #${order.orderCode}`,
+      `Đơn hàng của bạn trị giá ${order.total.toLocaleString('vi-VN')}đ đã được gửi đến nhà hàng.`,
+      { orderId: String(order._id), orderCode: String(order.orderCode), type: 'ORDER_CREATED' }
+    ).catch(() => {});
+
+    // 2. Tạo Notification & Gửi Push Notification cho Chủ Quán
+    try {
+      const biz = await Business.findById(businessId).select('ownerId name');
+      let ownerUserId = biz?.ownerId;
+      if (!ownerUserId) {
+        const anyOwner = await User.findOne({ role: { $in: ['MERCHANT', 'OWNER'] } });
+        if (anyOwner) ownerUserId = anyOwner._id;
+      }
+      if (ownerUserId) {
+        Notification.create({
+          userId: ownerUserId,
+          businessId,
+          type: 'NEW_ORDER_ALERT',
+          referenceId: order._id,
+          title: `Đơn gọi món mới #${order.orderCode}`,
+          message: `Khách hàng vừa đặt đơn mới trị giá ${order.total.toLocaleString('vi-VN')}đ.`,
+        }).catch((err) => console.error('Order notif owner err:', err));
+
+        sendPushToUser(
+          ownerUserId,
+          `Đơn gọi món mới #${order.orderCode}`,
+          `Khách hàng vừa đặt đơn mới trị giá ${order.total.toLocaleString('vi-VN')}đ.`,
+          { orderId: String(order._id), orderCode: String(order.orderCode), type: 'NEW_ORDER' }
+        ).catch(() => {});
+      }
+    } catch (notifErr) {
+      console.warn('Order notification owner warning:', notifErr.message);
+    }
 
     res.status(201).json({ success: true, data: order });
   } catch (error) {
