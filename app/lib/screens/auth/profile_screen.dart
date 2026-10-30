@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
@@ -521,9 +523,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _pickAndUploadImage(ImageSource source, void Function(void Function()) setModalState, BuildContext pickerCtx) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source, imageQuality: 85);
+      if (image == null) return;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+              SizedBox(width: 12),
+              Text('Đang tải ảnh lên Cloudinary...'),
+            ],
+          ),
+          duration: Duration(seconds: 15),
+        ),
+      );
+
+      final uri = Uri.parse('${ApiConstants.baseUrl}/upload');
+      final request = http.MultipartRequest('POST', uri);
+      final bytes = await image.readAsBytes();
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: image.name,
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final uploadedUrl = data['url'] ?? data['data']?['url'];
+        if (uploadedUrl != null && uploadedUrl.toString().isNotEmpty) {
+          setModalState(() {
+            _avatarController.text = uploadedUrl.toString();
+          });
+          if (mounted) setState(() {});
+          if (pickerCtx.mounted) Navigator.pop(pickerCtx);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tải ảnh từ điện thoại lên thành công!'),
+              backgroundColor: Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tải ảnh thất bại (Mã lỗi ${response.statusCode})'),
+            backgroundColor: const Color(0xFFE53935),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi chọn/tải ảnh: $e'),
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   void _showAvatarPicker(void Function(void Function()) setModalState) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -534,53 +611,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Chọn ảnh đại diện / Logo quán', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 70,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _presetAvatars.length,
-                separatorBuilder: (_, idx) => const SizedBox(width: 12),
-                itemBuilder: (_, idx) {
-                  final url = _presetAvatars[idx];
-                  return GestureDetector(
-                    onTap: () {
-                      setModalState(() {
-                        _avatarController.text = url;
-                      });
-                      Navigator.pop(pickerCtx);
-                    },
-                    child: CircleAvatar(
-                      radius: 32,
-                      backgroundImage: NetworkImage(url),
+            const SizedBox(height: 14),
+
+            // Nút chọn ảnh từ Thư viện điện thoại & Camera
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _pickAndUploadImage(ImageSource.gallery, setModalState, pickerCtx),
+                    icon: const Icon(Icons.photo_library_rounded, size: 18),
+                    label: const Text('Thư viện ảnh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickAndUploadImage(ImageSource.camera, setModalState, pickerCtx),
+                    icon: const Icon(Icons.photo_camera_rounded, size: 18, color: Color(0xFF2563EB)),
+                    label: const Text('Máy ảnh', style: TextStyle(fontSize: 13, color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _avatarController,
-              decoration: InputDecoration(
-                labelText: 'Hoặc dán URL ảnh trực tuyến',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.link_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  setModalState(() {});
-                  Navigator.pop(pickerCtx);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Áp dụng ảnh'),
+              child: TextButton(
+                onPressed: () => Navigator.pop(pickerCtx),
+                child: const Text('Đóng', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -1297,6 +1366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Trò chuyện',
             subtitle: 'Nhắn tin trực tiếp với các nhà hàng',
             badgeNumber: unread > 0 ? unread : null,
+            isLast: true,
             onTap: () {
               Navigator.push(
                 context,
@@ -1307,15 +1377,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           );
         },
-      ),
-      _buildGroupItem(
-        icon: Icons.settings_outlined,
-        iconBg: const Color(0xFFEFF6FF),
-        iconColor: const Color(0xFF2563EB),
-        title: 'Cài đặt',
-        subtitle: 'Tùy chọn ứng dụng & bảo mật',
-        isLast: true,
-        onTap: () => _openEditProfileModal(user, false),
       ),
     ]);
   }
