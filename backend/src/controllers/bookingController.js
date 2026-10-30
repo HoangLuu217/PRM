@@ -59,6 +59,15 @@ export const createBooking = async (req, res) => {
     if (branch.status !== 'ACTIVE' || business.status !== 'APPROVED' || !business.isBookingEnabled) {
       return res.status(400).json({ success: false, message: 'Chi nhánh hiện không nhận đặt bàn' });
     }
+
+    const openTime = business.openTime || '07:00';
+    const closeTime = business.closeTime || '22:00';
+    if (startTime < openTime || startTime > closeTime) {
+      return res.status(400).json({
+        success: false,
+        message: `Nhà hàng chỉ mở cửa từ ${openTime} đến ${closeTime}. Vui lòng chọn giờ trong khung giờ này.`,
+      });
+    }
     if (tableId) {
       const table = await Table.findOne({ _id: tableId, branchId, status: { $in: ['AVAILABLE', 'RESERVED'] } });
       if (!table || table.capacity < Number(guestCount)) {

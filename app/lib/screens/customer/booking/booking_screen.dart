@@ -31,7 +31,8 @@ class BookingScreen extends StatefulWidget {
     this.initialSelectedDishes,
   });
 
-  static int parseTimeToMinutes(String timeStr, int defaultMinutes) {
+  static int parseTimeToMinutes(String? timeStr, int defaultMinutes) {
+    if (timeStr == null || timeStr.trim().isEmpty) return defaultMinutes;
     try {
       final s = timeStr.trim();
       final match = RegExp(r'^(\d{1,2})[:hH](\d{2})?').firstMatch(s);
@@ -215,13 +216,43 @@ class _BookingScreenState extends State<BookingScreen> {
     final initialHour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 19 : 19;
     final initialMinute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
 
-    DateTime tempDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      initialHour,
-      initialMinute,
-    );
+    final openMin = BookingScreen.parseTimeToMinutes(widget.restaurant.openTime ?? '07:00', 7 * 60);
+    final closeMin = BookingScreen.parseTimeToMinutes(widget.restaurant.closeTime ?? '22:00', 22 * 60);
+
+    final startHour = openMin ~/ 60;
+    final endHour = closeMin ~/ 60;
+    final closeMinute = closeMin % 60;
+
+    // Danh sách giờ chỉ nằm trong khung giờ mở cửa (ví dụ 07..22)
+    final hours = <int>[];
+    if (endHour >= startHour) {
+      for (int h = startHour; h <= endHour; h++) {
+        hours.add(h);
+      }
+    } else {
+      // Quán mở xuyên đêm
+      for (int h = startHour; h <= 23; h++) {
+        hours.add(h);
+      }
+      for (int h = 0; h <= endHour; h++) {
+        hours.add(h);
+      }
+    }
+    if (hours.isEmpty) {
+      hours.addAll([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
+    }
+
+    final minutes = List.generate(60, (i) => i);
+
+    int tempHour = hours.contains(initialHour) ? initialHour : hours.first;
+    int tempMinute = initialMinute.clamp(0, 59);
+    if (tempHour == endHour && tempMinute > closeMinute) {
+      tempMinute = closeMinute;
+    }
+
+    int hourIndex = hours.indexOf(tempHour);
+    if (hourIndex < 0) hourIndex = 0;
+    int minuteIndex = tempMinute;
 
     await showDialog<void>(
       context: context,
@@ -233,19 +264,97 @@ class _BookingScreenState extends State<BookingScreen> {
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
           elevation: 10,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF0072FF)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Giờ mở cửa: ${widget.restaurant.openTime ?? "07:00"} - ${widget.restaurant.closeTime ?? "22:00"}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0072FF),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 SizedBox(
                   height: 190,
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.time,
-                    use24hFormat: true,
-                    initialDateTime: tempDateTime,
-                    onDateTimeChanged: (newDateTime) {
-                      tempDateTime = newDateTime;
-                    },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Cột Giờ (Chỉ nằm trong khung mở cửa)
+                      SizedBox(
+                        width: 75,
+                        child: CupertinoPicker(
+                          scrollController: FixedExtentScrollController(initialItem: hourIndex),
+                          itemExtent: 44,
+                          selectionOverlay: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9).withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onSelectedItemChanged: (idx) {
+                            tempHour = hours[idx];
+                          },
+                          children: hours.map((h) => Center(
+                            child: Text(
+                              h.toString().padLeft(2, '0'),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          )).toList(),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          ':',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                      // Cột Phút
+                      SizedBox(
+                        width: 75,
+                        child: CupertinoPicker(
+                          scrollController: FixedExtentScrollController(initialItem: minuteIndex),
+                          itemExtent: 44,
+                          selectionOverlay: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9).withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onSelectedItemChanged: (idx) {
+                            tempMinute = minutes[idx];
+                          },
+                          children: minutes.map((m) => Center(
+                            child: Text(
+                              m.toString().padLeft(2, '0'),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          )).toList(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -258,16 +367,16 @@ class _BookingScreenState extends State<BookingScreen> {
                         foregroundColor: const Color(0xFF0072FF),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      child: const Text(
-                        'CANCEL',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
+                      child: const Text('CANCEL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     ),
                     const SizedBox(width: 4),
                     TextButton(
                       onPressed: () {
-                        final hourStr = tempDateTime.hour.toString().padLeft(2, '0');
-                        final minuteStr = tempDateTime.minute.toString().padLeft(2, '0');
+                        if (tempHour == endHour && tempMinute > closeMinute) {
+                          tempMinute = closeMinute;
+                        }
+                        final hourStr = tempHour.toString().padLeft(2, '0');
+                        final minuteStr = tempMinute.toString().padLeft(2, '0');
                         setState(() {
                           _selectedTime = '$hourStr:$minuteStr';
                         });
@@ -277,10 +386,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         foregroundColor: const Color(0xFF0072FF),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      child: const Text(
-                        'OK',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
+                      child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     ),
                   ],
                 ),
@@ -409,6 +515,23 @@ class _BookingScreenState extends State<BookingScreen> {
           MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       }
+      return;
+    }
+
+    final openMin = BookingScreen.parseTimeToMinutes(widget.restaurant.openTime ?? '07:00', 7 * 60);
+    final closeMin = BookingScreen.parseTimeToMinutes(widget.restaurant.closeTime ?? '22:00', 22 * 60);
+    final selectedMin = BookingScreen.parseTimeToMinutes(_selectedTime, 19 * 60);
+
+    if (selectedMin < openMin || selectedMin > closeMin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFEF4444),
+          content: Text(
+            'Nhà hàng chỉ mở cửa từ ${widget.restaurant.openTime ?? "07:00"} đến ${widget.restaurant.closeTime ?? "22:00"}. Vui lòng chọn giờ trong khung giờ này.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
