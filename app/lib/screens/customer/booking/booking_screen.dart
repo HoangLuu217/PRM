@@ -562,6 +562,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
       // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider
       if (_dishesCount > 0) {
+        cartProvider.clearCartForBusiness(widget.restaurant.id);
         for (final p in _menuProducts) {
           final id = (p['_id'] ?? p['id'] ?? '').toString();
           final qty = _selectedDishQuantities[id] ?? 0;

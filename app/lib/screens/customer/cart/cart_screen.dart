@@ -202,7 +202,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
             if (groups.isNotEmpty)
               Text(
-                '${groups.length} nhà hàng • ${cartProvider.totalQuantity} món',
+                '${groups.length} đơn hàng • ${cartProvider.totalQuantity} món',
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
           ],
