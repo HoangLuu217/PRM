@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Business, Branch, Review, UserInteraction, Menu, Product } from '../models/index.js';
 import { emitBusinessUpdate } from '../socket.js';
 import googleMapsService from '../services/googleMapsService.js';
@@ -705,10 +706,20 @@ export const onboardBusiness = async (req, res) => {
 // @access  Private (Owner/Admin)
 export const syncGoogleReviews = async (req, res) => {
   try {
-    const business = await Business.findById(req.params.id);
+    let business = null;
+    const bizId = req.params.id;
+    if (bizId && bizId !== 'undefined' && bizId !== 'null' && mongoose.Types.ObjectId.isValid(bizId)) {
+      business = await Business.findById(bizId);
+    }
+    if (!business && req.user) {
+      business = await Business.findOne({ ownerId: req.user._id });
+    }
 
     if (!business) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy doanh nghiệp' });
+      return res.status(404).json({
+        success: false,
+        message: 'Tài khoản chưa có cơ sở quán ăn. Vui lòng hoàn tất tạo hồ sơ quán trước khi đồng bộ Google Maps.',
+      });
     }
 
     if (req.user.role !== 'ADMIN' && business.ownerId.toString() !== req.user._id.toString()) {
@@ -720,6 +731,22 @@ export const syncGoogleReviews = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Quán chưa có link Google Maps. Vui lòng dán link Google Maps trước khi đồng bộ.',
+      });
+    }
+
+    // Bắt buộc kiểm tra định dạng: Chỉ chấp nhận liên kết hợp lệ từ Google Maps
+    const lowerUrl = targetUrl.toLowerCase();
+    const isValidGoogleMapsUrl =
+      lowerUrl.includes('google.com/maps') ||
+      lowerUrl.includes('maps.google.') ||
+      lowerUrl.includes('maps.app.goo.gl') ||
+      lowerUrl.includes('goo.gl/maps');
+
+    if (!isValidGoogleMapsUrl) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Đường dẫn không hợp lệ! Vui lòng nhập đúng liên kết Google Maps của quán (ví dụ: https://maps.app.goo.gl/... hoặc https://www.google.com/maps/...).',
       });
     }
 

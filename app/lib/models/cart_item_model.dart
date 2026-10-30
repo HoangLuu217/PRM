@@ -47,12 +47,18 @@ class CartItemModel {
   final int quantity;
   final ProductSize? selectedSize;
   final List<SelectedOption> selectedOptions;
+  final String? businessId;
+  final String? businessName;
+  final String? branchId;
 
   CartItemModel({
     required this.product,
     this.quantity = 1,
     this.selectedSize,
     this.selectedOptions = const [],
+    this.businessId,
+    this.businessName,
+    this.branchId,
   });
 
   double get baseUnitPrice {
@@ -75,12 +81,18 @@ class CartItemModel {
     int? quantity,
     ProductSize? selectedSize,
     List<SelectedOption>? selectedOptions,
+    String? businessId,
+    String? businessName,
+    String? branchId,
   }) {
     return CartItemModel(
       product: product ?? this.product,
       quantity: quantity ?? this.quantity,
       selectedSize: selectedSize ?? this.selectedSize,
       selectedOptions: selectedOptions ?? this.selectedOptions,
+      businessId: businessId ?? this.businessId,
+      businessName: businessName ?? this.businessName,
+      branchId: branchId ?? this.branchId,
     );
   }
 
@@ -113,6 +125,9 @@ class CartItemModel {
       quantity: (json['quantity'] as num?)?.toInt() ?? 1,
       selectedSize: size,
       selectedOptions: options,
+      businessId: json['businessId']?.toString(),
+      businessName: json['businessName']?.toString(),
+      branchId: json['branchId']?.toString(),
     );
   }
 
@@ -126,6 +141,9 @@ class CartItemModel {
       if (selectedSize != null) 'selectedSize': selectedSize!.toJson(),
       'selectedOptions': selectedOptions.map((o) => o.toJson()).toList(),
       'subtotal': itemSubtotal,
+      if (businessId != null) 'businessId': businessId,
+      if (businessName != null) 'businessName': businessName,
+      if (branchId != null) 'branchId': branchId,
     };
   }
 

@@ -18,31 +18,41 @@ import 'providers/table_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'services/notification_service.dart';
-import 'services/supabase_auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Tải các biến môi trường từ file .env
+  // Load .env file with fail-safe fallback
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint('[Dotenv Load Warning]: Không tìm thấy file .env, sử dụng cấu hình mặc định.');
+    debugPrint("[Config] Warning: .env file not found, continuing with defaults.");
   }
 
-  // 2. Khởi tạo Supabase Client nếu có cấu hình trong .env
-  if (SupabaseAuthService.isConfigured()) {
+  // Initialize Supabase only if valid non-placeholder keys exist
+  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  final hasValidSupabase = supabaseUrl.isNotEmpty &&
+      supabaseAnonKey.isNotEmpty &&
+      !supabaseUrl.contains('your-project') &&
+      !supabaseAnonKey.contains('your-anon-key');
+
+  if (hasValidSupabase) {
     try {
       await Supabase.initialize(
-        url: SupabaseConstants.url,
-        anonKey: SupabaseConstants.anonKey, // ignore: deprecated_member_use
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
       );
+      SupabaseConstants.isInitialized = true;
     } catch (e) {
-      debugPrint('[Supabase Init Error]: $e');
+      debugPrint("[Supabase] Init error (continuing in offline/fallback mode): $e");
     }
   }
 
-  // 3. Khởi tạo Firebase Core cho Mobile
+  // Initialize Firebase for Mobile
   if (!kIsWeb) {
     try {
       await Firebase.initializeApp();
@@ -51,7 +61,7 @@ void main() async {
     }
   }
 
-  // 4. Khởi tạo Firebase Notification Service
+  // Initialize Firebase Notification Service (Push + Local Notifications)
   try {
     await NotificationService().initialize();
   } catch (e) {
@@ -81,16 +91,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: MaterialApp(
-        title: 'FConnect F&B Platform',
+        title: 'FConnect F&B',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF2563EB),
-            primary: const Color(0xFF2563EB),
-            brightness: Brightness.light,
+            seedColor: const Color(0xFF0072FF),
+            primary: const Color(0xFF0072FF),
           ),
-          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
           useMaterial3: true,
+          fontFamily: 'Roboto',
         ),
         home: const SplashScreen(),
       ),

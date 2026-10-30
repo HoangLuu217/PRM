@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../models/booking_model.dart';
+import '../../../services/notification_service.dart';
 import '../../../models/restaurant_model.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/booking_service.dart';
+import '../../../services/checkout_service.dart';
 import '../../../services/restaurant_service.dart';
 import '../../auth/login_screen.dart';
 import '../booking/booking_detail_screen.dart';
 import '../booking/booking_screen.dart';
 import '../booking/my_bookings_screen.dart';
+import '../checkout/checkout_screen.dart';
 import '../restaurant_detail_screen.dart';
 
 class RestaurantModals {
@@ -190,7 +195,16 @@ class RestaurantModals {
                         errorMsg = 'Khung giờ đặt bàn phải sau thời điểm hiện tại. Vui lòng chọn giờ khác!';
                       }
                       if (res['success'] == true) {
+                        NotificationService().showBookingSuccessNotification(
+                          bookingCode: res['bookingCode']?.toString() ?? 'Đã xác nhận',
+                          restaurantName: r.name,
+                          time: selectedTime,
+                          date: todayStr,
+                        );
                         Navigator.pop(ctx);
+                        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                        final hasCart = cartProvider.itemCount > 0 && cartProvider.businessId == r.id;
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             backgroundColor: const Color(0xFF10B981),
@@ -198,16 +212,28 @@ class RestaurantModals {
                               children: [
                                 const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
                                 const SizedBox(width: 8),
-                                Expanded(child: Text('Đặt bàn tại ${r.name} thành công!')),
+                                Expanded(
+                                  child: Text(hasCart
+                                      ? 'Đặt bàn thành công! Chuyển sang thanh toán món ăn...'
+                                      : 'Đặt bàn tại ${r.name} thành công!'),
+                                ),
                               ],
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
-                        );
+
+                        if (hasCart) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+                          );
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -267,31 +293,67 @@ class RestaurantModals {
   }
 
   /// Mở màn hình Xem chi tiết quán ăn chuẩn phong cách FConnect
-  static void showDetails(BuildContext context, RestaurantModel r) {
+  static void showDetails(BuildContext context, RestaurantModel r, {int initialTabIndex = 0}) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RestaurantDetailScreen(restaurant: r),
+        builder: (_) => RestaurantDetailScreen(restaurant: r, initialTabIndex: initialTabIndex),
       ),
     );
   }
 
   /// Modal Thanh toán Cọc bàn VietQR / PayOS
-  static void showDepositPaymentModal(
+  static Future<void> showDepositPaymentModal(
     BuildContext context, {
     required BookingModel booking,
     required Map<String, dynamic> depositData,
-  }) {
-    final amount = depositData['depositAmount'] ?? 50000;
-    final qrUrl = depositData['qrCode'] ??
-        'https://api.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent("COC BAN ${booking.bookingCode}")}&accountName=${Uri.encodeComponent("LUONG DANG HOANG LUU")}';
-    final accNo = (depositData['accountNumber'] ?? '1021072004').toString();
-    final accName = (depositData['accountName'] ?? 'LUONG DANG HOANG LUU').toString();
-    final memo = (depositData['description'] ?? 'COC BAN ${booking.bookingCode}').toString();
+  }) async {
+    final amount = ((depositData['depositAmount'] ?? 50000) as num).toInt();
+    final orderCode = depositData['orderCode'];
+    final defaultMemo = (depositData['description'] ?? 'COC BAN ${booking.bookingCode}').toString();
+
+    final payosData = await CheckoutService().createPayOSPaymentRequest(
+      orderCode: orderCode,
+      amount: amount,
+      description: defaultMemo,
+    );
+
+    if (!context.mounted) return;
+
+    final qrUrl = payosData['qrUrl']!;
+    final accNo = payosData['accountNumber']!;
+    final accName = payosData['accountName']!;
+    final memo = payosData['description']!;
 
     Timer? pollTimer;
     bool isPaymentSuccess = false;
-    final orderCode = depositData['orderCode'];
+    bool isConfirming = false;
+
+    void onDepositPaid(BuildContext modalCtx, StateSetter setModalState) {
+      if (isPaymentSuccess) return;
+      pollTimer?.cancel();
+      if (modalCtx.mounted) {
+        setModalState(() {
+          isPaymentSuccess = true;
+          isConfirming = false;
+        });
+      }
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (!context.mounted) return;
+        if (modalCtx.mounted) Navigator.pop(modalCtx);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Xác nhận đặt cọc thành công! Bàn của bạn tại ${booking.businessName} đã được giữ chỗ 🎉'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      });
+    }
 
     showModalBottomSheet(
       context: context,
@@ -301,7 +363,6 @@ class RestaurantModals {
       enableDrag: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
-          // Polling Timer tự động kiểm tra giao dịch PayOS mỗi 3s
           if (orderCode != null && !isPaymentSuccess) {
             pollTimer ??= Timer.periodic(const Duration(seconds: 3), (timer) async {
               if (isPaymentSuccess) {
@@ -311,27 +372,7 @@ class RestaurantModals {
               final bookingService = BookingService();
               final isPaid = await bookingService.checkPaymentStatus(orderCode);
               if (isPaid && ctx.mounted) {
-                timer.cancel();
-                setModalState(() {
-                  isPaymentSuccess = true;
-                });
-
-                // Tự động đóng modal và mở vé đặt bàn sau 1.5 giây
-                Future.delayed(const Duration(milliseconds: 1500), () {
-                  if (!context.mounted) return;
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => BookingDetailScreen(booking: booking)),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Xác nhận đặt cọc thành công! Bàn của bạn tại ${booking.businessName} đã được giữ chỗ 🎉'),
-                      backgroundColor: const Color(0xFF10B981),
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
-                });
+                onDepositPaid(ctx, setModalState);
               }
             });
           }
@@ -473,6 +514,71 @@ class RestaurantModals {
                       ),
                     ),
                     const SizedBox(height: 12),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706))),
+                          SizedBox(width: 8),
+                          Text(
+                            'Vui lòng quét mã QR và bấm xác nhận bên dưới...',
+                            style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0072FF),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        onPressed: isConfirming || orderCode == null
+                            ? null
+                            : () async {
+                                setModalState(() {
+                                  isConfirming = true;
+                                });
+                                final bookingService = BookingService();
+                                final ok = await bookingService.confirmDepositPayment(orderCode);
+                                if (ctx.mounted) {
+                                  setModalState(() {
+                                    isConfirming = false;
+                                  });
+                                }
+                                if (ok && ctx.mounted) {
+                                  onDepositPaid(ctx, setModalState);
+                                } else if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Chưa ghi nhận được giao dịch chuyển khoản từ ngân hàng! Vui lòng quét mã QR thanh toán trước.'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                }
+                              },
+                        icon: isConfirming
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.check_circle_outline_rounded, size: 18),
+                        label: Text(
+                          isConfirming ? 'Đang kiểm tra giao dịch...' : 'Xác nhận đã chuyển khoản cọc',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                   ],
                   const SizedBox(height: 12),
                 ],
@@ -508,4 +614,3 @@ class RestaurantModals {
     );
   }
 }
-

@@ -13,7 +13,6 @@ import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
-import '../customer/chat/customer_chat_inbox_screen.dart';
 import '../customer/favorites_screen.dart';
 import '../customer/notification/customer_notification_screen.dart';
 import '../customer/order/my_orders_screen.dart';
@@ -1377,6 +1376,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           );
         },
+      ),
       ),
     ]);
   }

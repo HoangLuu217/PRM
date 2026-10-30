@@ -100,6 +100,7 @@ class _OwnerProductListScreenState extends State<OwnerProductListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Quản lý Thực đơn & Món ăn', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(

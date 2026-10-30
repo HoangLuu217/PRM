@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import '../../../models/restaurant_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/cart_provider.dart';
 import '../../../providers/favorite_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../auth/login_screen.dart';
 import '../../auth/profile_screen.dart';
+import '../cart/cart_screen.dart';
 import '../favorites_screen.dart';
 import '../notification/customer_notification_screen.dart';
 import '../widgets/restaurant_modals.dart';
@@ -224,151 +226,138 @@ class HomeFeedTab extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
-    return Column(
-      children: [
-        // 1. Header cố định luôn hiển thị ở trên cùng
-        _buildTopHeader(context, authProvider, user),
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: const Color(0xFF0072FF),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        slivers: [
+          // 1. Header cố định ở trên
+          SliverToBoxAdapter(
+            child: _buildTopHeader(context, authProvider, user),
+          ),
 
-        // 2. Phần nội dung cuộn bên dưới
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: onRefresh,
-            color: const Color(0xFF0072FF),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-              slivers: [
-                // Banner chính FConnect
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                    child: _buildBannerCard(),
-                  ),
-                ),
-
-                // Thanh bộ lọc danh mục và thuộc tính
-                SliverToBoxAdapter(
-                  child: _buildFilterChipsSection(context),
-                ),
-
-                // Tiêu đề Khám phá & Gợi ý AI
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              searchController.text.trim().isNotEmpty
-                                  ? Icons.search_rounded
-                                  : Icons.local_fire_department_rounded,
-                              color: const Color(0xFF0072FF),
-                              size: 24,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                searchController.text.trim().isNotEmpty
-                                    ? 'Kết quả tìm kiếm cho "${searchController.text.trim()}" (${restaurants.length} quán)'
-                                    : 'Khám Phá Tất Cả Quán Ăn tại $selectedCity',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A),
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        const Row(
-                          children: [
-                            Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 14),
-                            SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                'Xếp theo thứ tự gợi ý của AI cao hơn đứng trước & phù hợp với bạn nhất',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF475569),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // 5. Danh sách các Quán ăn
-                if (isLoading)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40.0),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            CircularProgressIndicator(color: Color(0xFF0072FF), strokeWidth: 2.5),
-                            SizedBox(height: 12),
-                            Text(
-                              'Đang tải danh sách quán ăn tại Đà Nẵng...',
-                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                else if (restaurants.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            const Icon(Icons.search_off_rounded, size: 56, color: Color(0xFFCBD5E1)),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Không tìm thấy quán ăn phù hợp',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Thử tìm với từ khóa khác hoặc xóa bớt bộ lọc',
-                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                            ),
-                            const SizedBox(height: 16),
-                            OutlinedButton(
-                              onPressed: onResetFilters,
-                              child: const Text('Xem tất cả quán ăn'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final restaurant = restaurants[index];
-                          return _buildRestaurantCard(context, restaurant);
-                        },
-                        childCount: restaurants.length,
-                      ),
-                    ),
-                  ),
-              ],
+          // 2. Banner chính FConnect
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+              child: _buildBannerCard(),
             ),
           ),
-        ),
-      ],
+
+          // 3. Thanh bộ lọc danh mục và thuộc tính
+          SliverToBoxAdapter(
+            child: _buildFilterChipsSection(context),
+          ),
+
+          // 4. Tiêu đề Khám phá & Gợi ý AI
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded, color: Color(0xFF0072FF), size: 24),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Khám Phá Tất Cả Quán Ăn tại $selectedCity',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 14),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Xếp theo thứ tự gợi ý của AI cao hơn đứng trước & phù hợp với bạn nhất',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 5. Danh sách các Quán ăn
+          if (isLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40.0),
+                child: Center(
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(color: Color(0xFF0072FF), strokeWidth: 2.5),
+                      SizedBox(height: 12),
+                      Text(
+                        'Đang tải danh sách quán ăn tại Đà Nẵng...',
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (restaurants.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.search_off_rounded, size: 56, color: Color(0xFFCBD5E1)),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Không tìm thấy quán ăn phù hợp',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Thử tìm với từ khóa khác hoặc xóa bớt bộ lọc',
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                        onPressed: onResetFilters,
+                        child: const Text('Xem tất cả quán ăn'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final restaurant = restaurants[index];
+                    return _buildRestaurantCard(context, restaurant);
+                  },
+                  childCount: restaurants.length,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -376,17 +365,7 @@ class HomeFeedTab extends StatelessWidget {
     final isLoggedIn = authProvider.isAuthenticated || user != null;
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.8)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
       child: Row(
         children: [
@@ -462,9 +441,6 @@ class HomeFeedTab extends StatelessWidget {
               child: TextField(
                 controller: searchController,
                 textInputAction: TextInputAction.search,
-                onChanged: (val) {
-                  onSearchChanged?.call(val);
-                },
                 onSubmitted: (_) => onSearch(),
                 style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
                 decoration: InputDecoration(
@@ -476,7 +452,6 @@ class HomeFeedTab extends StatelessWidget {
                           icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
                           onPressed: () {
                             searchController.clear();
-                            onSearchChanged?.call('');
                             onSearch();
                           },
                         )
@@ -552,7 +527,55 @@ class HomeFeedTab extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
+
+          // Nút Giỏ Hàng ngoài Trang chủ có badge đếm số lượng món
+          Consumer<CartProvider>(
+            builder: (context, cartProvider, _) {
+              final count = cartProvider.totalQuantity;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF0F172A), size: 22),
+                    tooltip: 'Giỏ hàng của bạn',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartScreen()),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF97316),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 4),
 
           // Nút Chuông Thông Báo (Member 5)
           Consumer<NotificationProvider>(
@@ -855,9 +878,21 @@ class HomeFeedTab extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            if (onShowDetails != null) {
+              onShowDetails!(r);
+            } else {
+              RestaurantModals.showDetails(context, r);
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           // A. Ảnh bìa nhà hàng kèm Badge
           Stack(
             children: [
@@ -883,41 +918,12 @@ class HomeFeedTab extends StatelessWidget {
                 ),
               ),
 
-              // AI Match Score Badge (Góc trên trái)
-              if (r.aiMatchScore != null && r.aiMatchScore! > 0)
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF38BDF8), width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome, color: Color(0xFF38BDF8), size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${r.aiMatchScore!.toStringAsFixed(0)}% phù hợp',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
-              // Rating Google Maps Badge (Góc trên phải, kế bên nút Favorite)
+              // Rating Google Maps Badge (Góc trên phải)
               if (r.googleRating != null && r.googleRating! > 0)
                 Positioned(
-                  top: 10,
-                  right: 50,
+                  top: 12,
+                  right: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -955,62 +961,6 @@ class HomeFeedTab extends StatelessWidget {
                     ),
                   ),
                 ),
-
-              // Nút Favorite Heart (Góc trên cùng bên phải ảnh bìa)
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Consumer<FavoriteProvider>(
-                  builder: (context, favProvider, _) {
-                    final isFav = favProvider.isFavorite(r.id);
-                    return Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.95),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          color: isFav ? const Color(0xFFEF4444) : const Color(0xFF64748B),
-                          size: 18,
-                        ),
-                        tooltip: isFav ? 'Bỏ yêu thích' : 'Yêu thích quán',
-                        onPressed: () {
-                          final auth = context.read<AuthProvider>();
-                          if (!auth.isAuthenticated) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Vui lòng đăng nhập để lưu quán yêu thích'),
-                                action: SnackBarAction(
-                                  label: 'Đăng nhập',
-                                  textColor: Colors.amber,
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                  ),
-                                ),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                            return;
-                          }
-                          favProvider.toggleFavorite(r, context: context);
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
 
               // Category tag (Góc dưới trái ảnh bìa)
               Positioned(
@@ -1065,21 +1015,38 @@ class HomeFeedTab extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
 
-                // Rating FConnect
-                Row(
-                  children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
-                    const SizedBox(width: 3),
-                    Text(
-                      r.rating.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                // Rating FConnect (Bấm vào để xem đánh giá ngay)
+                InkWell(
+                  onTap: () {
+                    RestaurantModals.showDetails(context, r, initialTabIndex: 3);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 17),
+                        const SizedBox(width: 3),
+                        Text(
+                          r.rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '(${r.totalReviews} đánh giá • Xem nhận xét)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF0072FF),
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF0072FF)),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '(${r.totalReviews} đánh giá FConnect)',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 6),
 
@@ -1184,6 +1151,8 @@ class HomeFeedTab extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

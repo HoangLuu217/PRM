@@ -37,7 +37,12 @@ class BookingProvider with ChangeNotifier {
   }
 
   /// Tải danh sách đặt bàn cho chủ quán
-  Future<void> fetchOwnerBookings({String? status, String? bookingDate}) async {
+  Future<void> fetchOwnerBookings({String? status, String? bookingDate, bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

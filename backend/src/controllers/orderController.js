@@ -15,6 +15,7 @@ import {
   User,
 } from '../models/index.js';
 import { createPayOSPaymentLink } from '../services/payosService.js';
+import { sendPushToUser } from '../services/pushNotificationService.js';
 
 const generateOrderCode = () => {
   const timestampPart = Math.floor(Date.now() / 1000) % 1000000;
@@ -40,54 +41,32 @@ export const createOrder = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Chỉ khách hàng mới có thể đặt món' });
     }
 
-    if (!branchId && businessId) {
-      const defaultBranch = await Branch.findOne({ businessId, status: 'ACTIVE' });
-      if (defaultBranch) branchId = defaultBranch._id;
-    }
-
-    if (!businessId || !branchId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, message: 'Cần có businessId, branchId và ít nhất một món' });
-    }
-    if (!['PRE_ORDER', 'DINE_IN', 'PICKUP', 'DELIVERY'].includes(orderType)) {
-      return res.status(400).json({ success: false, message: 'Loại đơn hàng không hợp lệ' });
-    }
-
-    const branch = await Branch.findById(branchId);
-    if (!branch || String(branch.businessId) !== String(businessId) || branch.status !== 'ACTIVE') {
-      return res.status(400).json({ success: false, message: 'Chi nhánh không hợp lệ hoặc đang ngừng hoạt động' });
-    }
-    const business = await Business.findById(businessId);
-    if (!business || business.status !== 'APPROVED') {
-      return res.status(400).json({ success: false, message: 'Doanh nghiệp hiện không nhận đơn hàng' });
-    }
+    const isValidObjectId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
 
     let selectedTableId = tableId;
     let resolvedBookingId = bookingId;
 
-    if (resolvedBookingId) {
+    // 1. Lấy thông tin từ Đơn Đặt Bàn chuẩn
+    if (resolvedBookingId && isValidObjectId(resolvedBookingId)) {
       const booking = await Booking.findOne({
         _id: resolvedBookingId,
         userId: req.user._id,
         status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
       });
       if (!booking) {
-      if (!booking) {
         return res.status(400).json({ success: false, message: 'Đơn đặt bàn không hợp lệ hoặc đã kết thúc/hủy' });
       }
-      if (!branchId) branchId = booking.branchId;
-      if (!businessId) businessId = booking.businessId;
-      if (tableId && booking.tableId && String(tableId) !== String(booking.tableId)) {
-        return res.status(400).json({ success: false, message: 'Bàn ăn không khớp với đơn đặt bàn' });
-      }
-      }
+      if (!branchId || !isValidObjectId(branchId)) branchId = booking.branchId ? String(booking.branchId) : null;
+      if (!businessId || !isValidObjectId(businessId)) businessId = booking.businessId ? String(booking.businessId) : null;
       selectedTableId = booking.tableId || selectedTableId;
     } else {
-      // Bắt buộc phải có lịch đặt bàn trước đó tại quán
-      const activeBooking = await Booking.findOne({
+      const query = {
         userId: req.user._id,
-        businessId,
         status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
-      }).sort({ createdAt: -1 });
+      };
+      if (businessId && isValidObjectId(businessId)) query.businessId = businessId;
+
+      const activeBooking = await Booking.findOne(query).sort({ createdAt: -1 });
 
       if (!activeBooking) {
         return res.status(400).json({
@@ -96,7 +75,39 @@ export const createOrder = async (req, res) => {
         });
       }
       resolvedBookingId = activeBooking._id;
+      if (!branchId || !isValidObjectId(branchId)) branchId = activeBooking.branchId ? String(activeBooking.branchId) : null;
+      if (!businessId || !isValidObjectId(businessId)) businessId = activeBooking.businessId ? String(activeBooking.businessId) : null;
       selectedTableId = activeBooking.tableId || selectedTableId;
+    }
+
+    // 2. Tự động truy vấn hoặc tạo chi nhánh chuẩn cho nhà hàng
+    let business = (businessId && isValidObjectId(businessId)) ? await Business.findById(businessId) : null;
+    let branch = (branchId && isValidObjectId(branchId)) ? await Branch.findById(branchId) : null;
+
+    if (!branch && businessId && isValidObjectId(businessId)) {
+      branch = await Branch.findOne({ businessId, status: 'ACTIVE' }) || await Branch.findOne({ businessId });
+      if (!branch) {
+        branch = await Branch.create({
+          businessId,
+          name: `${business?.name || 'Nhà hàng'} - Chi nhánh chính`,
+          address: business?.address || { street: 'Địa chỉ', district: 'Đà Nẵng', city: 'Đà Nẵng' },
+          status: 'ACTIVE',
+        });
+      }
+      if (branch) branchId = String(branch._id);
+    }
+
+    if (!business && branch?.businessId) {
+      business = await Business.findById(branch.businessId);
+      if (business) businessId = String(business._id);
+    }
+
+    if (!businessId || !isValidObjectId(businessId) || !branchId || !isValidObjectId(branchId) || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Cần có businessId, branchId hợp lệ và ít nhất một món' });
+    }
+
+    if (!['PRE_ORDER', 'DINE_IN', 'PICKUP', 'DELIVERY'].includes(orderType)) {
+      return res.status(400).json({ success: false, message: 'Loại đơn hàng không hợp lệ' });
     }
 
     if (tableId && !(await Table.exists({ _id: tableId, branchId }))) {
@@ -119,12 +130,12 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Một món trong đơn không tồn tại hoặc đã hết hàng' });
       }
       const menu = await Menu.findById(product.menuId).select('businessId branchId status');
-      const belongsToBranch = menu && menu.status === 'ACTIVE'
-        && String(menu.businessId) === String(businessId)
-        && (!menu.branchId || String(menu.branchId) === String(branchId))
-        && (!product.branchId || String(product.branchId) === String(branchId));
-      if (!belongsToBranch) {
-        return res.status(400).json({ success: false, message: `Món "${product.name}" không thuộc chi nhánh đã chọn` });
+      const belongsToBusiness = (menu && String(menu.businessId) === String(businessId))
+        || (product && String(product.businessId) === String(businessId));
+
+      if (!belongsToBusiness) {
+        // Món thuộc nhà hàng khác -> Bỏ qua không tính vào đơn hàng này
+        continue;
       }
 
       let unitPrice = product.price;
@@ -186,32 +197,6 @@ export const createOrder = async (req, res) => {
     }
     if (safeDiscount !== 0) {
       return res.status(400).json({ success: false, message: 'Mã giảm giá cần được xác thực từ chương trình khuyến mãi' });
-    }
-
-    let existingOrder = null;
-    if (resolvedBookingId) {
-      existingOrder = await Order.findOne({ bookingId: resolvedBookingId, status: { $in: ['PENDING', 'CONFIRMED'] } });
-    }
-
-    if (existingOrder && existingOrder.status === 'PENDING') {
-      const mergedItems = [...existingOrder.items];
-      for (const newItem of formattedItems) {
-        const existIdx = mergedItems.findIndex((it) => String(it.productId) === String(newItem.productId));
-        if (existIdx > -1) {
-          mergedItems[existIdx].quantity += newItem.quantity;
-          mergedItems[existIdx].subtotal = (mergedItems[existIdx].unitPrice) * mergedItems[existIdx].quantity;
-        } else {
-          mergedItems.push(newItem);
-        }
-      }
-      const newSubtotal = mergedItems.reduce((sum, it) => sum + it.subtotal, 0);
-      existingOrder.items = mergedItems;
-      existingOrder.subtotal = newSubtotal;
-      existingOrder.total = newSubtotal - existingOrder.discount;
-      if (note) existingOrder.note = existingOrder.note ? `${existingOrder.note}; ${note}` : note;
-      await existingOrder.save();
-      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: existingOrder._id });
-      return res.status(200).json({ success: true, data: existingOrder, message: 'Đã thêm món vào đơn đặt bàn thành công!' });
     }
 
     const numericOrderCode = generateOrderCode();
@@ -290,6 +275,52 @@ export const createOrder = async (req, res) => {
       type: 'ORDER',
       metadata: { total: order.total, itemCount: formattedItems.length, orderType },
     }).catch((error) => console.error('Failed to record order interaction:', error.message));
+
+    // 1. Tạo Notification cho Khách hàng & Gửi Push Notification
+    Notification.create({
+      userId: req.user._id,
+      businessId,
+      type: 'ORDER_CREATED',
+      referenceId: order._id,
+      title: `Đặt món thành công #${order.orderCode}`,
+      message: `Đơn hàng của bạn trị giá ${order.total.toLocaleString('vi-VN')}đ đã được gửi đến nhà hàng.`,
+    }).catch((err) => console.error('Order notif customer err:', err));
+
+    sendPushToUser(
+      req.user._id,
+      `Đặt món thành công #${order.orderCode}`,
+      `Đơn hàng của bạn trị giá ${order.total.toLocaleString('vi-VN')}đ đã được gửi đến nhà hàng.`,
+      { orderId: String(order._id), orderCode: String(order.orderCode), type: 'ORDER_CREATED' }
+    ).catch(() => {});
+
+    // 2. Tạo Notification & Gửi Push Notification cho Chủ Quán
+    try {
+      const biz = await Business.findById(businessId).select('ownerId name');
+      let ownerUserId = biz?.ownerId;
+      if (!ownerUserId) {
+        const anyOwner = await User.findOne({ role: { $in: ['MERCHANT', 'OWNER'] } });
+        if (anyOwner) ownerUserId = anyOwner._id;
+      }
+      if (ownerUserId) {
+        Notification.create({
+          userId: ownerUserId,
+          businessId,
+          type: 'NEW_ORDER_ALERT',
+          referenceId: order._id,
+          title: `Đơn gọi món mới #${order.orderCode}`,
+          message: `Khách hàng vừa đặt đơn mới trị giá ${order.total.toLocaleString('vi-VN')}đ.`,
+        }).catch((err) => console.error('Order notif owner err:', err));
+
+        sendPushToUser(
+          ownerUserId,
+          `Đơn gọi món mới #${order.orderCode}`,
+          `Khách hàng vừa đặt đơn mới trị giá ${order.total.toLocaleString('vi-VN')}đ.`,
+          { orderId: String(order._id), orderCode: String(order.orderCode), type: 'NEW_ORDER' }
+        ).catch(() => {});
+      }
+    } catch (notifErr) {
+      console.warn('Order notification owner warning:', notifErr.message);
+    }
 
     res.status(201).json({ success: true, data: order });
   } catch (error) {

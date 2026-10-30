@@ -9,6 +9,23 @@ enum AddToCartResult {
   differentBusinessConflict,
 }
 
+class CartGroup {
+  final String businessId;
+  final String businessName;
+  final String? branchId;
+  final List<CartItemModel> items;
+
+  CartGroup({
+    required this.businessId,
+    required this.businessName,
+    this.branchId,
+    required this.items,
+  });
+
+  int get totalQuantity => items.fold(0, (sum, i) => sum + i.quantity);
+  double get subtotal => items.fold(0.0, (sum, i) => sum + i.itemSubtotal);
+}
+
 class CartProvider with ChangeNotifier {
   final CartService _cartService;
   final CartDatabaseHelper _dbHelper = CartDatabaseHelper();
@@ -25,9 +42,9 @@ class CartProvider with ChangeNotifier {
   bool _isSyncing = false;
   String? _errorMessage;
 
-  String? get businessId => _businessId;
-  String? get businessName => _businessName;
-  String? get branchId => _branchId;
+  String? get businessId => _businessId ?? (_items.isNotEmpty ? _items.last.businessId : null);
+  String? get businessName => _businessName ?? (_items.isNotEmpty ? _items.last.businessName : null);
+  String? get branchId => _branchId ?? (_items.isNotEmpty ? _items.last.branchId : null);
   List<CartItemModel> get items => List.unmodifiable(_items);
   bool get isSyncing => _isSyncing;
   String? get errorMessage => _errorMessage;
@@ -38,6 +55,41 @@ class CartProvider with ChangeNotifier {
   int get totalQuantity => _items.fold(0, (sum, i) => sum + i.quantity);
 
   double get subtotal => _items.fold(0.0, (sum, i) => sum + i.itemSubtotal);
+
+  /// Returns items belonging to the currently active selected restaurant (_businessId)
+  List<CartItemModel> get activeItems {
+    if (_businessId == null || _businessId!.isEmpty) return items;
+    final list = _items.where((i) => i.businessId == _businessId).toList();
+    return list.isNotEmpty ? list : items;
+  }
+
+  double get activeSubtotal => activeItems.fold(0.0, (sum, i) => sum + i.itemSubtotal);
+
+  /// Return cart items grouped by Restaurant
+  List<CartGroup> get groups {
+    final Map<String, List<CartItemModel>> map = {};
+    final Map<String, String> names = {};
+    final Map<String, String?> branches = {};
+
+    for (final item in _items) {
+      final bId = item.businessId ?? _businessId ?? 'default';
+      final bName = item.businessName ?? _businessName ?? 'Nhà hàng';
+      final brId = item.branchId ?? _branchId;
+
+      map.putIfAbsent(bId, () => []).add(item);
+      names[bId] = bName;
+      branches[bId] = brId;
+    }
+
+    return map.entries.map((entry) {
+      return CartGroup(
+        businessId: entry.key,
+        businessName: names[entry.key] ?? 'Nhà hàng',
+        branchId: branches[entry.key],
+        items: entry.value,
+      );
+    }).toList();
+  }
 
   /// Load cart items & metadata directly from SQLite on device
   Future<void> loadCartFromDatabase() async {
@@ -54,22 +106,23 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  /// Check if adding a product from targetBusinessId conflicts with existing cart
+  /// Multi-restaurant cart always permits adding from any business
   bool canAddFromBusiness(String targetBusinessId) {
-    if (_items.isEmpty || _businessId == null) return true;
-    return _businessId == targetBusinessId;
+    return true;
+  }
+
+  /// Set active business info for current checkout
+  void setActiveBusiness(String busId, String busName, {String? brId}) {
+    _businessId = busId;
+    _businessName = busName;
+    if (brId != null && brId.isNotEmpty) _branchId = brId;
+    _dbHelper.setMetadata(busId, busName, brId: brId);
+    notifyListeners();
   }
 
   /// Set target business info
   void setBusinessInfo(String busId, String busName, {String? brId}) {
-    if (_businessId != busId && _items.isNotEmpty) {
-      return;
-    }
-    _businessId = busId;
-    _businessName = busName;
-    if (brId != null) _branchId = brId;
-    _dbHelper.setMetadata(busId, busName, brId: brId);
-    notifyListeners();
+    setActiveBusiness(busId, busName, brId: brId);
   }
 
   /// Add item to cart with options, sizes, quantity (Saves to SQLite)
@@ -86,10 +139,6 @@ class CartProvider with ChangeNotifier {
       throw Exception('Sản phẩm hiện không còn phục vụ');
     }
 
-    if (_items.isNotEmpty && _businessId != null && _businessId != targetBusinessId) {
-      return AddToCartResult.differentBusinessConflict;
-    }
-
     _businessId = targetBusinessId;
     _businessName = targetBusinessName;
     if (targetBranchId != null && targetBranchId.isNotEmpty) {
@@ -101,15 +150,23 @@ class CartProvider with ChangeNotifier {
       quantity: quantity,
       selectedSize: selectedSize,
       selectedOptions: selectedOptions,
+      businessId: targetBusinessId,
+      businessName: targetBusinessName,
+      branchId: targetBranchId,
     );
 
-    // Find if an identical item configuration exists
-    final existingIndex = _items.indexWhere((item) => item.isSameConfiguration(newItem));
+    // Find if an identical item configuration exists for this business
+    final existingIndex = _items.indexWhere(
+      (item) => (item.businessId == targetBusinessId || item.businessId == null) && item.isSameConfiguration(newItem),
+    );
 
     if (existingIndex != -1) {
       final existingItem = _items[existingIndex];
       _items[existingIndex] = existingItem.copyWith(
         quantity: existingItem.quantity + quantity,
+        businessId: targetBusinessId,
+        businessName: targetBusinessName,
+        branchId: targetBranchId,
       );
     } else {
       _items.add(newItem);
@@ -150,6 +207,23 @@ class CartProvider with ChangeNotifier {
       _businessId = null;
       _businessName = null;
       _branchId = null;
+    }
+    notifyListeners();
+  }
+
+  /// Clear cart for specific business
+  void clearCartForBusiness(String busId) {
+    _items.removeWhere((i) => i.businessId == busId || (i.businessId == null && _businessId == busId));
+    if (_businessId == busId) {
+      if (_items.isNotEmpty) {
+        _businessId = _items.first.businessId;
+        _businessName = _items.first.businessName;
+        _branchId = _items.first.branchId;
+      } else {
+        _businessId = null;
+        _businessName = null;
+        _branchId = null;
+      }
     }
     notifyListeners();
   }

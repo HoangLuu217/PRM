@@ -39,7 +39,12 @@ class OrderProvider with ChangeNotifier {
   }
 
   /// Tải danh sách đơn hàng cho Chủ quán
-  Future<void> fetchOwnerOrders({String? status, String? orderType}) async {
+  Future<void> fetchOwnerOrders({String? status, String? orderType, bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

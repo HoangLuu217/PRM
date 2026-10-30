@@ -6,7 +6,8 @@ import '../../../providers/chat_provider.dart';
 import 'customer_chat_screen.dart';
 
 class CustomerChatInboxScreen extends StatefulWidget {
-  const CustomerChatInboxScreen({super.key});
+  final bool isTab;
+  const CustomerChatInboxScreen({super.key, this.isTab = false});
 
   @override
   State<CustomerChatInboxScreen> createState() => _CustomerChatInboxScreenState();
@@ -206,12 +207,15 @@ class _CustomerChatInboxScreenState extends State<CustomerChatInboxScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0F172A), size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: !widget.isTab,
+        leading: widget.isTab
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0F172A), size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: const Text(
-          'Đoạn chat',
+          'Trò chuyện',
           style: TextStyle(
             color: Color(0xFF0F172A),
             fontSize: 22,

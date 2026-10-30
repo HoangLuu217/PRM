@@ -245,6 +245,24 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
 
     setState(() => _isSubmitting = true);
 
+    final gMapUrl = _googleMapsController.text.trim();
+    if (gMapUrl.isNotEmpty) {
+      final lower = gMapUrl.toLowerCase();
+      final isValid = lower.contains('google.com/maps') ||
+          lower.contains('maps.google.') ||
+          lower.contains('maps.app.goo.gl') ||
+          lower.contains('goo.gl/maps');
+      if (!isValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đường dẫn không hợp lệ! Vui lòng nhập đúng liên kết Google Maps của quán (ví dụ: https://maps.app.goo.gl/... hoặc https://google.com/maps/...).'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+        return;
+      }
+    }
+
     final minPrice = int.tryParse(_minPriceController.text.trim()) ?? 20000;
     final maxPrice = int.tryParse(_maxPriceController.text.trim()) ?? 100000;
 
@@ -357,8 +375,9 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
-              child: Scaffold(
-                backgroundColor: Colors.white,
+              child: ScaffoldMessenger(
+                child: Scaffold(
+                  backgroundColor: Colors.white,
                 appBar: AppBar(
                   backgroundColor: Colors.white,
                   elevation: 0,
@@ -1012,6 +1031,7 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                     ),
                   ),
                 ),
+              ),
               ),
             ),
           ),
