@@ -226,138 +226,151 @@ class HomeFeedTab extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: const Color(0xFF0072FF),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-        slivers: [
-          // 1. Header cố định ở trên
-          SliverToBoxAdapter(
-            child: _buildTopHeader(context, authProvider, user),
-          ),
+    return Column(
+      children: [
+        // 1. Header CỐ ĐỊNH ở trên cùng (Không bị cuộn)
+        _buildTopHeader(context, authProvider, user),
 
-          // 2. Banner chính FConnect
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              child: _buildBannerCard(),
-            ),
-          ),
+        // 2. Nội dung cuộn bên dưới
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: onRefresh,
+            color: const Color(0xFF0072FF),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              slivers: [
+                // Banner chính FConnect
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                    child: _buildBannerCard(),
+                  ),
+                ),
 
-          // 3. Thanh bộ lọc danh mục và thuộc tính
-          SliverToBoxAdapter(
-            child: _buildFilterChipsSection(context),
-          ),
+                // Thanh bộ lọc danh mục và thuộc tính
+                SliverToBoxAdapter(
+                  child: _buildFilterChipsSection(context),
+                ),
 
-          // 4. Tiêu đề Khám phá & Gợi ý AI
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.local_fire_department_rounded, color: Color(0xFF0072FF), size: 24),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Khám Phá Tất Cả Quán Ăn tại $selectedCity',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.3,
-                          ),
+                // Tiêu đề Khám phá & Gợi ý AI
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              searchController.text.trim().isNotEmpty
+                                  ? Icons.search_rounded
+                                  : Icons.local_fire_department_rounded,
+                              color: const Color(0xFF0072FF),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                searchController.text.trim().isNotEmpty
+                                    ? 'Kết quả tìm kiếm cho "${searchController.text.trim()}" (${restaurants.length} quán)'
+                                    : 'Khám Phá Tất Cả Quán Ăn tại $selectedCity',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Row(
+                          children: [
+                            Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 14),
+                            SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Xếp theo thứ tự gợi ý của AI cao hơn đứng trước & phù hợp với bạn nhất',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF475569),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 5. Danh sách các Quán ăn
+                if (isLoading)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40.0),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            CircularProgressIndicator(color: Color(0xFF0072FF), strokeWidth: 2.5),
+                            SizedBox(height: 12),
+                            Text(
+                              'Đang tải danh sách quán ăn tại Đà Nẵng...',
+                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Row(
-                    children: [
-                      Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 14),
-                      SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Xếp theo thứ tự gợi ý của AI cao hơn đứng trước & phù hợp với bạn nhất',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF475569),
-                            fontWeight: FontWeight.w500,
-                          ),
+                    ),
+                  )
+                else if (restaurants.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.search_off_rounded, size: 56, color: Color(0xFFCBD5E1)),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Không tìm thấy quán ăn phù hợp',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Thử tìm với từ khóa khác hoặc xóa bớt bộ lọc',
+                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: onResetFilters,
+                              child: const Text('Xem tất cả quán ăn'),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final restaurant = restaurants[index];
+                          return _buildRestaurantCard(context, restaurant);
+                        },
+                        childCount: restaurants.length,
+                      ),
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
-
-          // 5. Danh sách các Quán ăn
-          if (isLoading)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 40.0),
-                child: Center(
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(color: Color(0xFF0072FF), strokeWidth: 2.5),
-                      SizedBox(height: 12),
-                      Text(
-                        'Đang tải danh sách quán ăn tại Đà Nẵng...',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else if (restaurants.isEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 50.0, horizontal: 20),
-                child: Center(
-                  child: Column(
-                    children: [
-                      const Icon(Icons.search_off_rounded, size: 56, color: Color(0xFFCBD5E1)),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Không tìm thấy quán ăn phù hợp',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Thử tìm với từ khóa khác hoặc xóa bớt bộ lọc',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton(
-                        onPressed: onResetFilters,
-                        child: const Text('Xem tất cả quán ăn'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final restaurant = restaurants[index];
-                    return _buildRestaurantCard(context, restaurant);
-                  },
-                  childCount: restaurants.length,
-                ),
-              ),
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -365,7 +378,17 @@ class HomeFeedTab extends StatelessWidget {
     final isLoggedIn = authProvider.isAuthenticated || user != null;
 
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
       child: Row(
         children: [
@@ -918,6 +941,41 @@ class HomeFeedTab extends StatelessWidget {
                 ),
               ),
 
+
+              // Nút tim Yêu thích (Góc trên trái)
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Consumer<FavoriteProvider>(
+                  builder: (context, favProvider, _) {
+                    final isFav = favProvider.isFavorite(r.id);
+                    return GestureDetector(
+                      onTap: () {
+                        favProvider.toggleFavorite(r, context: context);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isFav ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                          size: 18,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
 
               // Rating Google Maps Badge (Góc trên phải)
               if (r.googleRating != null && r.googleRating! > 0)

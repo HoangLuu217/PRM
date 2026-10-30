@@ -31,11 +31,8 @@ class FavoriteProvider extends ChangeNotifier {
     return _favoriteIds.contains(businessId);
   }
 
-  /// Tải danh sách quán yêu thích chi tiết từ Backend
+  /// Tải danh sách quán yêu thích chi tiết từ SQLite
   Future<void> loadFavorites({bool force = false}) async {
-    if (_isLoading) return;
-    if (_isInitialLoaded && !force) return;
-
     _isLoading = true;
     notifyListeners();
 
@@ -52,11 +49,13 @@ class FavoriteProvider extends ChangeNotifier {
     }
   }
 
-  /// Tải nhanh danh sách ID quán yêu thích (nhẹ và nhanh cho trang chủ)
+  /// Tải nhanh danh sách ID quán yêu thích từ SQLite
   Future<void> loadFavoriteIds() async {
     try {
-      final ids = await _favoriteService.getFavoriteIds();
-      _favoriteIds = ids;
+      final list = await _favoriteService.getFavorites();
+      _favorites = list;
+      _favoriteIds = list.map((r) => r.id).toSet();
+      _isInitialLoaded = true;
       notifyListeners();
     } catch (e) {
       debugPrint('[FavoriteProvider Error loadFavoriteIds]: $e');
