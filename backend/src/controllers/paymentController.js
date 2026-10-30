@@ -58,16 +58,20 @@ export const handlePayOSWebhookController = async (req, res) => {
     const code = webhookData?.code || webhookBody?.code;
 
     // "00" indicates success in PayOS response
-    if (orderCode && (code === '00' || code === 0 || webhookBody.desc === 'success')) {
-      await completePaymentSuccess(orderCode, webhookData);
-      console.log(`✅ PayOS payment processed successfully for orderCode: ${orderCode}`);
+    if (orderCode && Number(orderCode) !== 123 && (code === '00' || code === 0 || webhookBody.desc === 'success' || webhookBody.success === true)) {
+      try {
+        await completePaymentSuccess(orderCode, webhookData);
+        console.log(`✅ PayOS payment processed successfully for orderCode: ${orderCode}`);
+      } catch (completeErr) {
+        console.warn(`⚠️ PayOS Webhook order lookup notice for ${orderCode}:`, completeErr.message);
+      }
     }
 
     // Always respond 200 OK to PayOS
     res.json({ success: true, message: 'Webhook received' });
   } catch (error) {
     console.error('PayOS Webhook error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(200).json({ success: true, message: 'Webhook acknowledged' });
   }
 };
 
@@ -88,17 +92,24 @@ export const checkPaymentStatusController = async (req, res) => {
   }
 };
 
-// @desc    Confirm Manual Payment (For Testing / Immediate Confirmation)
+// @desc    Confirm Payment (Strictly checks PayOS payment status before confirming)
 // @route   POST /api/payments/confirm-manual/:orderCode
 // @access  Public / Private
 export const confirmManualPaymentController = async (req, res) => {
   try {
     const { orderCode } = req.params;
-    const result = await completePaymentSuccess(orderCode, { manual: true });
+    const statusResult = await checkDepositPaymentStatus(orderCode);
+    if (!statusResult.isPaid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa nhận được tiền chuyển khoản trên PayOS! Vui lòng quét mã QR thanh toán trước.',
+        data: statusResult,
+      });
+    }
     res.json({
       success: true,
       message: 'Xác nhận thanh toán thành công!',
-      data: result,
+      data: statusResult,
     });
   } catch (error) {
     console.error('Confirm manual payment error:', error);

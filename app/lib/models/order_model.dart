@@ -118,8 +118,13 @@ class OrderModel {
   final int discount;
   final int total;
   final String status;
+  final String paymentStatus;
   final String note;
   final DateTime? createdAt;
+  final String? payosAccountNo;
+  final String? payosAccountName;
+  final String? payosBin;
+  final String? payosQrUrl;
 
   OrderModel({
     required this.id,
@@ -142,8 +147,13 @@ class OrderModel {
     this.discount = 0,
     required this.total,
     this.status = 'PENDING',
+    this.paymentStatus = 'PENDING',
     this.note = '',
     this.createdAt,
+    this.payosAccountNo,
+    this.payosAccountName,
+    this.payosBin,
+    this.payosQrUrl,
   });
 
   bool get isPending => status == 'PENDING';
@@ -338,6 +348,18 @@ class OrderModel {
     final disc = (json['discount'] is num) ? (json['discount'] as num).toInt() : 0;
     final tot = (json['total'] is num) ? (json['total'] as num).toInt() : (sTotal - disc);
 
+    String? payosAccNo;
+    String? payosAccName;
+    String? payosBin;
+    String? payosQrUrl;
+    if (json['payosData'] is Map) {
+      final pData = json['payosData'] as Map<String, dynamic>;
+      payosAccNo = pData['accountNumber']?.toString();
+      payosAccName = pData['accountName']?.toString();
+      payosBin = pData['bin']?.toString();
+      payosQrUrl = pData['qrCode']?.toString();
+    }
+
     return OrderModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       orderCode: (json['orderCode'] ?? 'FCO${json['_id']}').toString(),
@@ -359,10 +381,15 @@ class OrderModel {
       discount: disc,
       total: tot,
       status: (json['status'] ?? 'PENDING').toString().toUpperCase(),
+      paymentStatus: (json['paymentStatus'] ?? 'PENDING').toString().toUpperCase(),
       note: (json['note'] ?? '').toString(),
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
+          ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
+      payosAccountNo: payosAccNo,
+      payosAccountName: payosAccName,
+      payosBin: payosBin,
+      payosQrUrl: payosQrUrl,
     );
   }
 

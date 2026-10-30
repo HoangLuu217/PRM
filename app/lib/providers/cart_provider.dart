@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../database/cart_database_helper.dart';
 import '../models/cart_item_model.dart';
+import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../services/cart_service.dart';
 
@@ -41,6 +42,56 @@ class CartProvider with ChangeNotifier {
   List<CartItemModel> _items = [];
   bool _isSyncing = false;
   String? _errorMessage;
+
+  /// Lưu đơn hàng đang chờ quét QR (tồn tại tối đa 15 phút) theo từng nhà hàng
+  final Map<String, OrderModel> _pendingOrders = {};
+  final Map<String, Map<String, String>> _pendingQrDetails = {};
+  final Map<String, DateTime> _pendingOrderCreatedAt = {};
+
+  void setPendingOrderForBusiness(
+    String busId,
+    OrderModel order, {
+    Map<String, String>? qrDetails,
+  }) {
+    _pendingOrders[busId] = order;
+    if (qrDetails != null) {
+      _pendingQrDetails[busId] = qrDetails;
+    }
+    _pendingOrderCreatedAt.putIfAbsent(busId, () => order.createdAt ?? DateTime.now());
+    notifyListeners();
+  }
+
+  void setPendingQrDetailsForBusiness(String busId, Map<String, String> qrDetails) {
+    _pendingQrDetails[busId] = qrDetails;
+    notifyListeners();
+  }
+
+  OrderModel? getPendingOrderForBusiness(String busId) {
+    final order = _pendingOrders[busId];
+    if (order == null) return null;
+    final created = _pendingOrderCreatedAt[busId] ?? order.createdAt ?? DateTime.now();
+    if (DateTime.now().difference(created).inSeconds >= 15 * 60) {
+      _pendingOrders.remove(busId);
+      _pendingQrDetails.remove(busId);
+      _pendingOrderCreatedAt.remove(busId);
+      return null;
+    }
+    return order;
+  }
+
+  Map<String, String>? getPendingQrDetailsForBusiness(String busId) {
+    if (getPendingOrderForBusiness(busId) == null) return null;
+    return _pendingQrDetails[busId];
+  }
+
+  int getRemainingSecondsForBusiness(String busId) {
+    final order = getPendingOrderForBusiness(busId);
+    if (order == null) return 15 * 60;
+    final created = _pendingOrderCreatedAt[busId] ?? order.createdAt ?? DateTime.now();
+    final elapsed = DateTime.now().difference(created).inSeconds;
+    final rem = (15 * 60) - elapsed;
+    return rem > 0 ? rem : 0;
+  }
 
   String? get businessId => _businessId ?? (_items.isNotEmpty ? _items.last.businessId : null);
   String? get businessName => _businessName ?? (_items.isNotEmpty ? _items.last.businessName : null);
@@ -214,16 +265,18 @@ class CartProvider with ChangeNotifier {
   /// Clear cart for specific business
   void clearCartForBusiness(String busId) {
     _items.removeWhere((i) => i.businessId == busId || (i.businessId == null && _businessId == busId));
-    if (_businessId == busId) {
-      if (_items.isNotEmpty) {
-        _businessId = _items.first.businessId;
-        _businessName = _items.first.businessName;
-        _branchId = _items.first.branchId;
-      } else {
-        _businessId = null;
-        _businessName = null;
-        _branchId = null;
-      }
+    _pendingOrders.remove(busId);
+    _pendingQrDetails.remove(busId);
+    _pendingOrderCreatedAt.remove(busId);
+    if (_items.isEmpty) {
+      _businessId = null;
+      _businessName = null;
+      _branchId = null;
+      _dbHelper.clearCart();
+    } else if (_businessId == busId) {
+      _businessId = _items.first.businessId;
+      _businessName = _items.first.businessName;
+      _branchId = _items.first.branchId;
     }
     notifyListeners();
   }
@@ -234,6 +287,9 @@ class CartProvider with ChangeNotifier {
       _cartService.clearCart(_branchId!, token).catchError((_) => false);
     }
     _items.clear();
+    _pendingOrders.clear();
+    _pendingQrDetails.clear();
+    _pendingOrderCreatedAt.clear();
     _businessId = null;
     _businessName = null;
     _branchId = null;

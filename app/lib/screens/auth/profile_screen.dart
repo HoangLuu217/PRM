@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
@@ -9,8 +12,10 @@ import '../../providers/chat_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/administrative_division_service.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
+import '../customer/chat/customer_chat_inbox_screen.dart';
 import '../customer/favorites_screen.dart';
 import '../customer/notification/customer_notification_screen.dart';
 import '../customer/order/my_orders_screen.dart';
@@ -37,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   RangeValues _priceRange = const RangeValues(20000, 500000);
 
   // Available Areas in Da Nang
-  final List<String> _availableAreas = [
+  List<String> _availableAreas = [
     'Hải Châu',
     'Sơn Trà',
     'Ngũ Hành Sơn',
@@ -46,6 +51,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'Liên Chiểu',
     'Hòa Vang',
   ];
+  bool _isLoadingAreas = false;
+
+  Future<void> _loadAreasFromApi() async {
+    try {
+      if (mounted) setState(() => _isLoadingAreas = true);
+      final service = AdministrativeDivisionService();
+      // Tải danh sách đơn vị hành chính Đà Nẵng (mã 48) từ API
+      final wards = await service.fetchWards(48);
+      service.close();
+
+      if (wards.isNotEmpty) {
+        final apiAreaNames = wards.map((w) {
+          return w.name
+              .replaceAll(RegExp(r'^(Phường|Xã|Quận|Huyện|Thị trấn)\s+', caseSensitive: false), '')
+              .trim();
+        }).where((name) => name.isNotEmpty).toSet().toList();
+        apiAreaNames.sort();
+
+        if (mounted && apiAreaNames.isNotEmpty) {
+          setState(() {
+            _availableAreas = apiAreaNames;
+            _isLoadingAreas = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingAreas = false);
+      }
+    } catch (e) {
+      debugPrint('[ProfileScreen] Lỗi tải danh sách khu vực từ API: $e');
+      if (mounted) setState(() => _isLoadingAreas = false);
+    }
+  }
 
   // Available F&B Categories
   final Map<String, String> _categoryOptions = {
@@ -78,6 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserData();
+      _loadAreasFromApi();
       Provider.of<BookingProvider>(context, listen: false).fetchMyBookings();
       Provider.of<OrderProvider>(context, listen: false).fetchMyOrders();
       Provider.of<ChatProvider>(context, listen: false).fetchConversations(silent: true);
@@ -320,10 +358,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             keyboardType: TextInputType.phone,
                             decoration: _buildInputDecoration(hint: '0901234567', icon: Icons.phone_outlined),
                             validator: (value) {
-                              if (value == null || value.trim().isEmpty) return null;
-                              final phoneRegex = RegExp(r'^(0[3|5|7|8|9])[0-9]{8}$');
-                              if (!phoneRegex.hasMatch(value.trim())) {
-                                return 'Số điện thoại không hợp lệ (10 số)';
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Vui lòng nhập số điện thoại';
+                              }
+                              final cleanPhone = value.trim().replaceAll(RegExp(r'[\s\-\.\(\)]'), '');
+                              final phoneRegex = RegExp(r'^(0|\+?84)[0-9]{8,10}$');
+                              if (!phoneRegex.hasMatch(cleanPhone)) {
+                                return 'Số điện thoại không hợp lệ (Ví dụ: 0901234567)';
                               }
                               return null;
                             },
@@ -363,8 +404,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            initialValue: _selectedArea,
-                            decoration: _buildInputDecoration(hint: 'Chọn quận/huyện', icon: Icons.map_outlined),
+                            initialValue: _availableAreas.contains(_selectedArea) ? _selectedArea : null,
+                            decoration: _buildInputDecoration(
+                              hint: _isLoadingAreas ? 'Đang tải danh sách khu vực...' : 'Chọn khu vực / phường xã',
+                              icon: Icons.map_outlined,
+                            ),
                             items: _availableAreas
                                 .map((area) => DropdownMenuItem(value: area, child: Text(area)))
                                 .toList(),
@@ -520,9 +564,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _pickAndUploadImage(ImageSource source, void Function(void Function()) setModalState, BuildContext pickerCtx) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source, imageQuality: 85);
+      if (image == null) return;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+              SizedBox(width: 12),
+              Text('Đang tải ảnh lên Cloudinary...'),
+            ],
+          ),
+          duration: Duration(seconds: 15),
+        ),
+      );
+
+      final uri = Uri.parse('${ApiConstants.baseUrl}/upload');
+      final request = http.MultipartRequest('POST', uri);
+      final bytes = await image.readAsBytes();
+      final ext = image.name.split('.').last.toLowerCase();
+      final subType = (ext == 'png') ? 'png' : (ext == 'webp') ? 'webp' : 'jpeg';
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: image.name,
+        contentType: MediaType('image', subType),
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final uploadedUrl = data['url'] ?? data['data']?['url'];
+        if (uploadedUrl != null && uploadedUrl.toString().isNotEmpty) {
+          final newAvatarUrl = uploadedUrl.toString();
+          _avatarController.text = newAvatarUrl;
+
+          // Lưu trực tiếp URL ảnh mới lên Backend & Database
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          final saveRes = await authProvider.updateProfile({'avatarUrl': newAvatarUrl});
+          if (saveRes && authProvider.user != null) {
+            userProvider.setUser(authProvider.user);
+          }
+
+          if (pickerCtx.mounted) {
+            Navigator.pop(pickerCtx);
+          }
+          if (mounted) {
+            setState(() {});
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Cập nhật ảnh đại diện mới thành công!'),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tải ảnh thất bại (Mã lỗi ${response.statusCode})'),
+            backgroundColor: const Color(0xFFE53935),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi chọn/tải ảnh: $e'),
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   void _showAvatarPicker(void Function(void Function()) setModalState) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -533,53 +667,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Chọn ảnh đại diện / Logo quán', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 70,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _presetAvatars.length,
-                separatorBuilder: (_, idx) => const SizedBox(width: 12),
-                itemBuilder: (_, idx) {
-                  final url = _presetAvatars[idx];
-                  return GestureDetector(
-                    onTap: () {
-                      setModalState(() {
-                        _avatarController.text = url;
-                      });
-                      Navigator.pop(pickerCtx);
-                    },
-                    child: CircleAvatar(
-                      radius: 32,
-                      backgroundImage: NetworkImage(url),
+            const SizedBox(height: 14),
+
+            // Nút chọn ảnh từ Thư viện điện thoại & Camera
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _pickAndUploadImage(ImageSource.gallery, setModalState, pickerCtx),
+                    icon: const Icon(Icons.photo_library_rounded, size: 18),
+                    label: const Text('Thư viện ảnh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickAndUploadImage(ImageSource.camera, setModalState, pickerCtx),
+                    icon: const Icon(Icons.photo_camera_rounded, size: 18, color: Color(0xFF2563EB)),
+                    label: const Text('Máy ảnh', style: TextStyle(fontSize: 13, color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _avatarController,
-              decoration: InputDecoration(
-                labelText: 'Hoặc dán URL ảnh trực tuyến',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.link_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  setModalState(() {});
-                  Navigator.pop(pickerCtx);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Áp dụng ảnh'),
+              child: TextButton(
+                onPressed: () => Navigator.pop(pickerCtx),
+                child: const Text('Đóng', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -730,12 +856,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E293B), size: 18),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
+        automaticallyImplyLeading: false,
         title: Text(
           isOwner ? 'Hồ sơ Quán F&B' : 'Hồ sơ cá nhân',
           style: const TextStyle(
@@ -1286,14 +1407,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
       ),
-      _buildGroupItem(
-        icon: Icons.settings_outlined,
-        iconBg: const Color(0xFFEFF6FF),
-        iconColor: const Color(0xFF2563EB),
-        title: 'Cài đặt',
-        subtitle: 'Tùy chọn ứng dụng & bảo mật',
-        isLast: true,
-        onTap: () => _openEditProfileModal(user, false),
+      Consumer<ChatProvider>(
+        builder: (context, chatProv, _) {
+          final unread = chatProv.conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+          return _buildGroupItem(
+            icon: Icons.forum_rounded,
+            iconBg: const Color(0xFFEFF6FF),
+            iconColor: const Color(0xFF2563EB),
+            title: 'Trò chuyện',
+            subtitle: 'Nhắn tin trực tiếp với các nhà hàng',
+            badgeNumber: unread > 0 ? unread : null,
+            isLast: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CustomerChatInboxScreen(),
+                ),
+              );
+            },
+          );
+        },
       ),
     ]);
   }

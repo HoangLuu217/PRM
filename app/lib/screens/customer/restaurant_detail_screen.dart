@@ -13,9 +13,11 @@ import '../../providers/favorite_provider.dart';
 import '../../models/review_model.dart';
 import '../../services/review_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../auth/login_screen.dart';
 import 'booking/booking_screen.dart';
 import 'chat/customer_chat_screen.dart';
+import 'product/product_detail_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final RestaurantModel restaurant;
@@ -971,76 +973,145 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         ),
         const SizedBox(height: 12),
         ..._menuItems.map((prod) {
+          final id = (prod['_id'] ?? prod['id'] ?? 'item_${prod['name'].hashCode}').toString();
           final name = prod['name']?.toString() ?? 'Món ngon';
           final desc = prod['description']?.toString() ?? '';
-          final price = (prod['price'] as num?)?.toInt() ?? 50000;
+          final price = (prod['price'] as num?)?.toDouble() ?? 50000.0;
           final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
           final cat = prod['category']?.toString() ?? 'Món chính';
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    img ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80',
-                    width: 76,
-                    height: 76,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 76,
-                      height: 76,
-                      color: const Color(0xFFF1F5F9),
-                      child: const Icon(Icons.fastfood_rounded, color: Color(0xFF94A3B8)),
+          final productModel = ProductModel(
+            id: id,
+            category: cat,
+            name: name,
+            description: desc,
+            price: price,
+            imageUrl: img ?? '',
+          );
+
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      product: productModel,
+                      businessId: widget.restaurant.id,
+                      businessName: widget.restaurant.name,
+                      branchId: widget.restaurant.branchId,
                     ),
                   ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          cat,
-                          style: const TextStyle(color: Color(0xFF0072FF), fontSize: 10, fontWeight: FontWeight.w600),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        img ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80',
+                        width: 76,
+                        height: 76,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 76,
+                          height: 76,
+                          color: const Color(0xFFF1F5F9),
+                          child: const Icon(Icons.fastfood_rounded, color: Color(0xFF94A3B8)),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              cat,
+                              style: const TextStyle(color: Color(0xFF0072FF), fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: Color(0xFF0F172A)),
+                          ),
+                          if (desc.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              desc,
+                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            '${price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ',
+                            style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
+                        ],
                       ),
-                      if (desc.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          desc,
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 4),
-                      Text(
-                        '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ',
-                        style: const TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13.5),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Nút + Thêm vào giỏ hàng trực tiếp
+                    ElevatedButton(
+                      onPressed: () {
+                        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                        cartProvider.addItem(
+                          product: productModel,
+                          targetBusinessId: widget.restaurant.id,
+                          targetBusinessName: widget.restaurant.name,
+                          targetBranchId: widget.restaurant.branchId,
+                          quantity: 1,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Đã thêm "$name" vào giỏ hàng!'),
+                            backgroundColor: const Color(0xFF10B981),
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0072FF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
                       ),
-                    ],
-                  ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_shopping_cart_rounded, size: 15),
+                          SizedBox(width: 4),
+                          Text('Thêm', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           );
         }),

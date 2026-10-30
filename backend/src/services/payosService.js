@@ -58,6 +58,7 @@ export const createPayOSPaymentLink = async ({
     description: cleanDescription,
     returnUrl: returnUrl || process.env.PAYOS_RETURN_URL || 'http://localhost:5173/my-bookings?payment=success',
     cancelUrl: cancelUrl || process.env.PAYOS_CANCEL_URL || 'http://localhost:5173/my-bookings?payment=cancel',
+    expiredAt: Math.floor(Date.now() / 1000) + 15 * 60,
     items,
     buyerName,
     buyerEmail,
@@ -99,8 +100,8 @@ export const createPayOSPaymentLink = async ({
 
   // Fallback: Realistic VietQR with active MBBank account
   const demoBankBin = '970422'; // MBBank BIN
-  const demoAccountNo = '1021072004';
-  const demoAccountName = 'LUONG DANG HOANG LUU';
+  const demoAccountNo = '0776101860';
+  const demoAccountName = 'DANG THANH TUNG';
   const vietQrUrl = `https://api.vietqr.io/image/${demoBankBin}-${demoAccountNo}-compact2.jpg?amount=${amount}&addInfo=${encodeURIComponent(cleanDescription)}&accountName=${encodeURIComponent(demoAccountName)}`;
 
   return {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../../core/constants/api_constants.dart';
@@ -9,13 +10,9 @@ import '../../../models/restaurant_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/booking_provider.dart';
 import '../../../providers/cart_provider.dart';
-import '../../../providers/table_provider.dart';
-import '../../../services/booking_service.dart';
-import '../../../services/order_service.dart';
 import '../../../services/notification_service.dart';
 import '../../auth/login_screen.dart';
 import '../checkout/checkout_screen.dart';
-import '../widgets/restaurant_modals.dart';
 import 'my_bookings_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -210,8 +207,174 @@ class _BookingScreenState extends State<BookingScreen> {
       setState(() {
         _selectedDate = picked;
       });
-
     }
+  }
+
+  Future<void> _selectTime() async {
+    final parts = _selectedTime.split(':');
+    final initialHour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 19 : 19;
+    final initialMinute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+
+    DateTime tempDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      initialHour,
+      initialMinute,
+    );
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          elevation: 10,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 190,
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    use24hFormat: true,
+                    initialDateTime: tempDateTime,
+                    onDateTimeChanged: (newDateTime) {
+                      tempDateTime = newDateTime;
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF0072FF),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      child: const Text(
+                        'CANCEL',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    TextButton(
+                      onPressed: () {
+                        final hourStr = tempDateTime.hour.toString().padLeft(2, '0');
+                        final minuteStr = tempDateTime.minute.toString().padLeft(2, '0');
+                        setState(() {
+                          _selectedTime = '$hourStr:$minuteStr';
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF0072FF),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _selectGuestCount() async {
+    int tempCount = _guestCount;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          elevation: 10,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 190,
+                  child: CupertinoPicker(
+                    scrollController: FixedExtentScrollController(initialItem: tempCount - 1),
+                    itemExtent: 44,
+                    selectionOverlay: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9).withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onSelectedItemChanged: (int index) {
+                      tempCount = index + 1;
+                    },
+                    children: List.generate(30, (index) {
+                      final count = index + 1;
+                      return Center(
+                        child: Text(
+                          '$count người',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF0072FF),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      child: const Text(
+                        'CANCEL',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _guestCount = tempCount);
+                        Navigator.pop(ctx);
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF0072FF),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _submitBooking() async {
@@ -272,12 +435,11 @@ class _BookingScreenState extends State<BookingScreen> {
         time: _selectedTime,
         date: _dateString,
       );
-      final booking = res['booking'] as BookingModel?;
-      final bookingId = booking?.id;
       final hasDishes = _dishesCount > 0 || (cartProvider.itemCount > 0 && cartProvider.businessId == widget.restaurant.id);
 
       // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider
       if (_dishesCount > 0) {
+        cartProvider.clearCartForBusiness(widget.restaurant.id);
         for (final p in _menuProducts) {
           final id = (p['_id'] ?? p['id'] ?? '').toString();
           final qty = _selectedDishQuantities[id] ?? 0;
@@ -538,80 +700,65 @@ class _BookingScreenState extends State<BookingScreen> {
             // Bước 2: Chọn khung giờ
             _buildSectionHeader('2. Chọn khung giờ', Icons.access_time_rounded),
             const SizedBox(height: 10),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _timeSlots.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 2.2,
+            InkWell(
+              onTap: _selectTime,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, color: Color(0xFF0072FF), size: 20),
+                        const SizedBox(width: 10),
+                        Text(
+                          _selectedTime,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
+                        ),
+                      ],
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
+                  ],
+                ),
               ),
-              itemBuilder: (ctx, idx) {
-                final time = _timeSlots[idx];
-                final isSel = _selectedTime == time;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedTime = time);
-                                },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    decoration: BoxDecoration(
-                      color: isSel ? const Color(0xFF0072FF) : Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSel ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0),
-                        width: isSel ? 1.5 : 1,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      time,
-                      style: TextStyle(
-                        color: isSel ? Colors.white : const Color(0xFF334155),
-                        fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                  ),
-                );
-              },
             ),
             const SizedBox(height: 20),
 
             // Bước 3: Số lượng khách
             _buildSectionHeader('3. Số lượng khách', Icons.people_alt_rounded),
             const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [1, 2, 3, 4, 5, 6, 8, 10, 12, 16].map((count) {
-                  final isSel = _guestCount == count;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      showCheckmark: false,
-                      label: Text('$count người'),
-                      selected: isSel,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() => _guestCount = count);
-                              }
-                      },
-                      selectedColor: const Color(0xFF0072FF),
-                      backgroundColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: isSel ? Colors.white : const Color(0xFF334155),
-                        fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: isSel ? const Color(0xFF0072FF) : const Color(0xFFE2E8F0)),
-                      ),
+            InkWell(
+              onTap: _selectGuestCount,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.people_alt_rounded, color: Color(0xFF0072FF), size: 20),
+                        const SizedBox(width: 10),
+                        Text(
+                          '$_guestCount người',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -833,8 +980,8 @@ class _BookingScreenState extends State<BookingScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
                         _dishesCount > 0
-                            ? 'Xác nhận đặt bàn & $_dishesCount món'
-                            : 'Xác nhận đặt bàn',
+                            ? 'Thanh toán'
+                            : 'Đặt bàn',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),

@@ -224,11 +224,12 @@ export const createOrder = async (req, res) => {
     }
 
     // Register PayOS Payment Link & Transaction
+    let paymentResult = null;
     if (paymentMethod === 'PAYOS_QR' || paymentMethod === 'BANK_TRANSFER') {
       try {
         const user = await User.findById(req.user._id);
         const description = `DAT MON ${numericOrderCode}`.slice(0, 25);
-        const paymentResult = await createPayOSPaymentLink({
+        paymentResult = await createPayOSPaymentLink({
           orderCode: numericOrderCode,
           amount: order.total,
           description,
@@ -322,7 +323,18 @@ export const createOrder = async (req, res) => {
       console.warn('Order notification owner warning:', notifErr.message);
     }
 
-    res.status(201).json({ success: true, data: order });
+    const orderData = order.toObject();
+    if (typeof paymentResult !== 'undefined' && paymentResult) {
+      orderData.payosData = {
+        accountNumber: paymentResult.accountNumber,
+        accountName: paymentResult.accountName,
+        bin: paymentResult.bin,
+        qrCode: paymentResult.qrCode,
+        checkoutUrl: paymentResult.checkoutUrl,
+      };
+    }
+
+    res.status(201).json({ success: true, data: orderData });
   } catch (error) {
     return operationError(res, error);
   }
