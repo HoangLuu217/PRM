@@ -58,16 +58,20 @@ export const handlePayOSWebhookController = async (req, res) => {
     const code = webhookData?.code || webhookBody?.code;
 
     // "00" indicates success in PayOS response
-    if (orderCode && (code === '00' || code === 0 || webhookBody.desc === 'success')) {
-      await completePaymentSuccess(orderCode, webhookData);
-      console.log(`✅ PayOS payment processed successfully for orderCode: ${orderCode}`);
+    if (orderCode && Number(orderCode) !== 123 && (code === '00' || code === 0 || webhookBody.desc === 'success' || webhookBody.success === true)) {
+      try {
+        await completePaymentSuccess(orderCode, webhookData);
+        console.log(`✅ PayOS payment processed successfully for orderCode: ${orderCode}`);
+      } catch (completeErr) {
+        console.warn(`⚠️ PayOS Webhook order lookup notice for ${orderCode}:`, completeErr.message);
+      }
     }
 
     // Always respond 200 OK to PayOS
     res.json({ success: true, message: 'Webhook received' });
   } catch (error) {
     console.error('PayOS Webhook error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(200).json({ success: true, message: 'Webhook acknowledged' });
   }
 };
 

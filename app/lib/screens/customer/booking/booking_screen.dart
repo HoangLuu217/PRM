@@ -979,8 +979,8 @@ class _BookingScreenState extends State<BookingScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
                         _dishesCount > 0
-                            ? 'Xác nhận đặt bàn & $_dishesCount món'
-                            : 'Xác nhận đặt bàn',
+                            ? 'Thanh toán'
+                            : 'Đặt bàn',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),

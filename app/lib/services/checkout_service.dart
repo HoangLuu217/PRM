@@ -96,6 +96,7 @@ class CheckoutService {
               'description': cleanDesc,
               'cancelUrl': cancelUrl,
               'returnUrl': returnUrl,
+              'expiredAt': (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 15 * 60,
               'signature': signature,
             }),
           )
@@ -245,12 +246,25 @@ class CheckoutService {
       if (baseCode != null) baseCode,
     };
 
+    // 1. Check directly with PayOS Gateway (instant status update on bank transfer)
     for (final code in codesToCheck) {
       if (await _isPayOSCodePaid(code)) {
         await _syncOrderConfirmedOnBackend(orderCode, token);
         return true;
       }
     }
+
+    // 2. Also check if PayOS Webhook callback has already marked Order as PAID on Backend
+    try {
+      final orders = await getMyOrders(token);
+      final targetStr = orderCode.toString();
+      for (final ord in orders) {
+        if (ord.orderCode == targetStr && ord.paymentStatus.toUpperCase() == 'PAID') {
+          return true;
+        }
+      }
+    } catch (_) {}
+
     return false;
   }
 

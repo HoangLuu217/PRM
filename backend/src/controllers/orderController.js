@@ -224,11 +224,12 @@ export const createOrder = async (req, res) => {
     }
 
     // Register PayOS Payment Link & Transaction
+    let paymentResult = null;
     if (paymentMethod === 'PAYOS_QR' || paymentMethod === 'BANK_TRANSFER') {
       try {
         const user = await User.findById(req.user._id);
         const description = `DAT MON ${numericOrderCode}`.slice(0, 25);
-        const paymentResult = await createPayOSPaymentLink({
+        paymentResult = await createPayOSPaymentLink({
           orderCode: numericOrderCode,
           amount: order.total,
           description,

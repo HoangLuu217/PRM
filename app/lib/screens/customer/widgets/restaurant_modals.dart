@@ -326,16 +326,18 @@ class RestaurantModals {
     final memo = payosData['description']!;
 
     Timer? pollTimer;
+    Timer? countdownTimer;
+    int remainingSeconds = 15 * 60;
     bool isPaymentSuccess = false;
-    bool isConfirming = false;
+    bool isExpired = false;
 
     void onDepositPaid(BuildContext modalCtx, StateSetter setModalState) {
       if (isPaymentSuccess) return;
       pollTimer?.cancel();
+      countdownTimer?.cancel();
       if (modalCtx.mounted) {
         setModalState(() {
           isPaymentSuccess = true;
-          isConfirming = false;
         });
       }
       Future.delayed(const Duration(milliseconds: 1200), () {
@@ -363,9 +365,28 @@ class RestaurantModals {
       enableDrag: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
-          if (orderCode != null && !isPaymentSuccess) {
-            pollTimer ??= Timer.periodic(const Duration(seconds: 3), (timer) async {
-              if (isPaymentSuccess) {
+          countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (timer) {
+            if (isPaymentSuccess || !ctx.mounted) {
+              timer.cancel();
+              return;
+            }
+            if (remainingSeconds <= 1) {
+              timer.cancel();
+              pollTimer?.cancel();
+              setModalState(() {
+                remainingSeconds = 0;
+                isExpired = true;
+              });
+            } else {
+              setModalState(() {
+                remainingSeconds--;
+              });
+            }
+          });
+
+          if (orderCode != null && !isPaymentSuccess && !isExpired) {
+            pollTimer ??= Timer.periodic(const Duration(seconds: 2), (timer) async {
+              if (isPaymentSuccess || isExpired) {
                 timer.cancel();
                 return;
               }
@@ -377,9 +398,13 @@ class RestaurantModals {
             });
           }
 
+          final minutesStr = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
+          final secondsStr = (remainingSeconds % 60).toString().padLeft(2, '0');
+
           return WillPopScope(
             onWillPop: () async {
               pollTimer?.cancel();
+              countdownTimer?.cancel();
               return true;
             },
             child: Container(
@@ -414,7 +439,34 @@ class RestaurantModals {
                     style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isExpired ? const Color(0xFFFEF2F2) : const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
+                          size: 15,
+                          color: isExpired ? const Color(0xFFDC2626) : const Color(0xFF0072FF),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isExpired ? 'Mã QR đã hết hạn (15:00)' : 'Mã QR hết hạn sau: $minutesStr:$secondsStr',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: isExpired ? const Color(0xFFDC2626) : const Color(0xFF0072FF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
 
                   // QR Box
                   Container(
@@ -507,29 +559,32 @@ class RestaurantModals {
                           Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 22),
                           SizedBox(width: 8),
                           Text(
-                            'ĐÃ XÁC NHẬN TIỀN CỌC THÀNH CÔNG 🎉',
+                            'CHUYỂN KHOẢN THÀNH CÔNG 🎉',
                             style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.bold, fontSize: 13.5),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 12),
-                  ] else ...[
+                  ] else if (isExpired) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
+                        color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706))),
+                          Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 20),
                           SizedBox(width: 8),
-                          Text(
-                            'Vui lòng quét mã QR và bấm xác nhận bên dưới...',
-                            style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600),
+                          Flexible(
+                            child: Text(
+                              'Mã QR đã hết hiệu lực sau 15 phút. Vui lòng tạo lại giao dịch mới.',
+                              style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold, fontSize: 12.5),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                       ),
@@ -538,44 +593,40 @@ class RestaurantModals {
                     SizedBox(
                       width: double.infinity,
                       height: 44,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0072FF),
-                          foregroundColor: Colors.white,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          pollTimer?.cancel();
+                          countdownTimer?.cancel();
+                          Navigator.pop(ctx);
+                        },
+                        style: OutlinedButton.styleFrom(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
                         ),
-                        onPressed: isConfirming || orderCode == null
-                            ? null
-                            : () async {
-                                setModalState(() {
-                                  isConfirming = true;
-                                });
-                                final bookingService = BookingService();
-                                final ok = await bookingService.confirmDepositPayment(orderCode);
-                                if (ctx.mounted) {
-                                  setModalState(() {
-                                    isConfirming = false;
-                                  });
-                                }
-                                if (ok && ctx.mounted) {
-                                  onDepositPaid(ctx, setModalState);
-                                } else if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Chưa ghi nhận được giao dịch chuyển khoản từ ngân hàng! Vui lòng quét mã QR thanh toán trước.'),
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  );
-                                }
-                              },
-                        icon: isConfirming
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.check_circle_outline_rounded, size: 18),
-                        label: Text(
-                          isConfirming ? 'Đang kiểm tra giao dịch...' : 'Xác nhận đã chuyển khoản cọc',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                        ),
+                        child: const Text('Đóng'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706))),
+                          SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              'Đang chờ bạn quét mã chuyển khoản...\nHệ thống sẽ tự động xác nhận ngay khi nhận tiền!',
+                              style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 12),
