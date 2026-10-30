@@ -182,7 +182,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               custAvatar = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(custName)}&background=E11D48&color=fff&bold=true&size=128';
             }
 
-            final lastMsgAt = item['lastMessageAt'] != null ? DateTime.tryParse(item['lastMessageAt'].toString()) : null;
+            final lastMsgAt = item['lastMessageAt'] != null ? DateTime.tryParse(item['lastMessageAt'].toString())?.toLocal() : null;
             final timeStr = lastMsgAt != null
                 ? '${lastMsgAt.hour.toString().padLeft(2, '0')}:${lastMsgAt.minute.toString().padLeft(2, '0')}'
                 : 'Vừa xong';
@@ -262,7 +262,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             final mId = m['_id']?.toString() ?? '';
             final text = m['text']?.toString() ?? '';
             final imageUrl = m['imageUrl']?.toString();
-            final createdAt = m['createdAt'] != null ? DateTime.tryParse(m['createdAt'].toString()) : null;
+            final createdAt = m['createdAt'] != null ? DateTime.tryParse(m['createdAt'].toString())?.toLocal() : null;
             final timeStr = createdAt != null
                 ? '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}'
                 : '';
