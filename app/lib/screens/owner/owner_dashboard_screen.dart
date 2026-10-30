@@ -1585,13 +1585,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              _buildUserAvatar(
+                name: author,
+                avatarUrl: photo,
                 radius: 20,
-                backgroundColor: const Color(0xFFFEE2E2),
-                backgroundImage: photo.startsWith('http') ? NetworkImage(photo) : null,
-                child: !photo.startsWith('http')
-                    ? const Icon(Icons.person, color: Color(0xFFEF4444), size: 20)
-                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
