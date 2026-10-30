@@ -8,6 +8,9 @@ import '../models/order_model.dart';
 class CheckoutService {
   final String baseUrl;
 
+  /// Map from backend orderCode -> actual PayOS orderCode used for the QR code
+  static final Map<String, int> _payosOrderCodeMap = {};
+
   CheckoutService({String? baseUrl}) : baseUrl = baseUrl ?? ApiConstants.baseUrl;
 
   String get _payosClientId =>
@@ -72,21 +75,12 @@ class CheckoutService {
     return [];
   }
 
-  /// Create a real PayOS payment request directly with PayOS Gateway
-  Future<Map<String, String>> createPayOSPaymentRequest({
-    required dynamic orderCode,
-    required int amount,
-    required String description,
-  }) async {
-    final numericOrderCode = int.tryParse(orderCode.toString().replaceAll(RegExp(r'\D'), '')) ??
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000);
-    final cleanDesc = description.length > 25 ? description.substring(0, 25) : description;
+  Future<Map<String, String>?> _tryCreatePayOSLink(int payosOrderCode, int amount, String cleanDesc) async {
     const cancelUrl = 'https://fconnect.vn/cancel';
     const returnUrl = 'https://fconnect.vn/success';
 
-    // Compute PayOS HMAC-SHA256 signature
     final dataStr =
-        'amount=$amount&cancelUrl=$cancelUrl&description=$cleanDesc&orderCode=$numericOrderCode&returnUrl=$returnUrl';
+        'amount=$amount&cancelUrl=$cancelUrl&description=$cleanDesc&orderCode=$payosOrderCode&returnUrl=$returnUrl';
     final hmac = Hmac(sha256, utf8.encode(_payosChecksumKey));
     final signature = hmac.convert(utf8.encode(dataStr)).toString();
 
@@ -97,7 +91,7 @@ class CheckoutService {
             uri,
             headers: _payosHeaders,
             body: jsonEncode({
-              'orderCode': numericOrderCode,
+              'orderCode': payosOrderCode,
               'amount': amount,
               'description': cleanDesc,
               'cancelUrl': cancelUrl,
@@ -109,31 +103,6 @@ class CheckoutService {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
-        final data = body['data'];
-        if (body['code'] == '00' && data is Map<String, dynamic>) {
-          final bin = (data['bin'] ?? '970422').toString();
-          final accNo = (data['accountNumber'] ?? '').toString();
-          final accName = (data['accountName'] ?? 'DANG THANH TUNG').toString();
-          final desc = (data['description'] ?? cleanDesc).toString();
-          final qrUrl =
-              'https://img.vietqr.io/image/$bin-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(desc)}&accountName=${Uri.encodeComponent(accName)}';
-          return {
-            'qrUrl': qrUrl,
-            'accountNumber': accNo,
-            'accountName': accName,
-            'description': desc,
-            'bin': bin,
-          };
-        }
-      }
-    } catch (_) {}
-
-    // If orderCode already exists on PayOS, fetch its info
-    try {
-      final infoUri = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$numericOrderCode');
-      final infoRes = await http.get(infoUri, headers: _payosHeaders).timeout(const Duration(seconds: 5));
-      if (infoRes.statusCode == 200) {
-        final body = jsonDecode(infoRes.body);
         final data = body['data'];
         if (body['code'] == '00' && data is Map<String, dynamic>) {
           final bin = (data['bin'] ?? '970422').toString();
@@ -154,24 +123,102 @@ class CheckoutService {
         }
       }
     } catch (_) {}
+    return null;
+  }
+
+  /// Retrieve existing PayOS VQR virtual account for an orderCode already created by Backend
+  Future<Map<String, String>?> _getExistingPayOSLinkDetails(
+    int payosOrderCode,
+    int amount,
+    String cleanDesc,
+  ) async {
+    try {
+      final infoUri = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$payosOrderCode');
+      final infoRes = await http.get(infoUri, headers: _payosHeaders).timeout(const Duration(seconds: 6));
+      if (infoRes.statusCode == 200) {
+        final body = jsonDecode(infoRes.body);
+        final data = body['data'];
+        if (body['code'] == '00' && data is Map<String, dynamic>) {
+          final linkId = (data['id'] ?? data['paymentLinkId'] ?? '').toString();
+          if (linkId.isNotEmpty) {
+            final webRes = await http
+                .get(Uri.parse('https://pay.payos.vn/web/$linkId'))
+                .timeout(const Duration(seconds: 6));
+            if (webRes.statusCode == 200) {
+              final vqrMatch = RegExp(r'VQR[A-Z0-9]+').firstMatch(webRes.body);
+              if (vqrMatch != null) {
+                final vqrAccNo = vqrMatch.group(0)!;
+                const bin = '970422';
+                const accName = 'DANG THANH TUNG';
+                final qrUrl =
+                    'https://img.vietqr.io/image/$bin-$vqrAccNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(cleanDesc)}&accountName=${Uri.encodeComponent(accName)}';
+                return {
+                  'qrUrl': qrUrl,
+                  'accountNumber': vqrAccNo,
+                  'accountName': accName,
+                  'description': cleanDesc,
+                  'bin': bin,
+                };
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Create or retrieve the real PayOS payment request (with VQR... virtual account)
+  /// so scanning the QR code always updates the exact orderCode on PayOS!
+  Future<Map<String, String>> createPayOSPaymentRequest({
+    required dynamic orderCode,
+    required int amount,
+    required String description,
+  }) async {
+    final baseOrderCode = int.tryParse(orderCode.toString().replaceAll(RegExp(r'\D'), '')) ??
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+    final cleanDesc = description.length > 25 ? description.substring(0, 25) : description;
+
+    // 1. Try creating with baseOrderCode first
+    final firstTry = await _tryCreatePayOSLink(baseOrderCode, amount, cleanDesc);
+    if (firstTry != null) {
+      _payosOrderCodeMap[orderCode.toString()] = baseOrderCode;
+      return firstTry;
+    }
+
+    // 2. If Backend already created baseOrderCode on PayOS (code 231),
+    // fetch its exact VQR... virtual account from PayOS so the same orderCode (e.g. 3482913220) receives the payment!
+    final existingDetails = await _getExistingPayOSLinkDetails(baseOrderCode, amount, cleanDesc);
+    if (existingDetails != null) {
+      _payosOrderCodeMap[orderCode.toString()] = baseOrderCode;
+      return existingDetails;
+    }
+
+    // 3. Fallback: create a fresh PayOS payment code if needed
+    final freshPayosCode = baseOrderCode + 1;
+    final freshDesc = 'DAT MON $freshPayosCode'.length > 25
+        ? 'DAT MON $freshPayosCode'.substring(0, 25)
+        : 'DAT MON $freshPayosCode';
+    final secondTry = await _tryCreatePayOSLink(freshPayosCode, amount, freshDesc);
+    if (secondTry != null) {
+      _payosOrderCodeMap[orderCode.toString()] = freshPayosCode;
+      return secondTry;
+    }
 
     final fallbackQr =
-        'https://img.vietqr.io/image/970422-1021072004-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(cleanDesc)}&accountName=${Uri.encodeComponent("DANG THANH TUNG")}';
+        'https://img.vietqr.io/image/970422-0776101860-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(cleanDesc)}&accountName=${Uri.encodeComponent("DANG THANH TUNG")}';
     return {
       'qrUrl': fallbackQr,
-      'accountNumber': '1021072004',
+      'accountNumber': '0776101860',
       'accountName': 'DANG THANH TUNG',
       'description': cleanDesc,
       'bin': '970422',
     };
   }
 
-  /// Strictly check with PayOS Gateway whether the bank transfer was actually completed.
-  /// Only when PayOS confirms status == 'PAID' (or amountPaid > 0), sync status to Backend DB.
-  Future<bool> checkPaymentStatus(dynamic orderCode, String token) async {
-    final numericOrderCode = int.tryParse(orderCode.toString().replaceAll(RegExp(r'\D'), '')) ?? orderCode;
+  Future<bool> _isPayOSCodePaid(int code) async {
     try {
-      final payosUri = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$numericOrderCode');
+      final payosUri = Uri.parse('https://api-merchant.payos.vn/v2/payment-requests/$code');
       final payosRes = await http.get(payosUri, headers: _payosHeaders).timeout(const Duration(seconds: 6));
       if (payosRes.statusCode == 200) {
         final body = jsonDecode(payosRes.body);
@@ -180,18 +227,30 @@ class CheckoutService {
           final status = (data['status'] ?? '').toString().toUpperCase();
           final amountPaid = (data['amountPaid'] as num?)?.toInt() ?? 0;
           final transactions = data['transactions'] as List<dynamic>?;
-          final isReallyPaid =
-              status == 'PAID' || amountPaid > 0 || (transactions != null && transactions.isNotEmpty);
-
-          if (isReallyPaid) {
-            // Sync PAID & CONFIRMED status to Backend (Vercel / Local)
-            await _syncOrderConfirmedOnBackend(orderCode, token);
-            return true;
-          }
-          return false;
+          return status == 'PAID' || amountPaid > 0 || (transactions != null && transactions.isNotEmpty);
         }
       }
     } catch (_) {}
+    return false;
+  }
+
+  /// Strictly check with PayOS Gateway whether the bank transfer was actually completed.
+  /// Only when PayOS confirms status == 'PAID' (or amountPaid > 0), sync status to Backend DB.
+  Future<bool> checkPaymentStatus(dynamic orderCode, String token) async {
+    final baseCode = int.tryParse(orderCode.toString().replaceAll(RegExp(r'\D'), ''));
+    final mappedCode = _payosOrderCodeMap[orderCode.toString()];
+
+    final codesToCheck = <int>{
+      if (mappedCode != null) mappedCode,
+      if (baseCode != null) baseCode,
+    };
+
+    for (final code in codesToCheck) {
+      if (await _isPayOSCodePaid(code)) {
+        await _syncOrderConfirmedOnBackend(orderCode, token);
+        return true;
+      }
+    }
     return false;
   }
 

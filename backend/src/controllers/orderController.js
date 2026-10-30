@@ -322,7 +322,18 @@ export const createOrder = async (req, res) => {
       console.warn('Order notification owner warning:', notifErr.message);
     }
 
-    res.status(201).json({ success: true, data: order });
+    const orderData = order.toObject();
+    if (typeof paymentResult !== 'undefined' && paymentResult) {
+      orderData.payosData = {
+        accountNumber: paymentResult.accountNumber,
+        accountName: paymentResult.accountName,
+        bin: paymentResult.bin,
+        qrCode: paymentResult.qrCode,
+        checkoutUrl: paymentResult.checkoutUrl,
+      };
+    }
+
+    res.status(201).json({ success: true, data: orderData });
   } catch (error) {
     return operationError(res, error);
   }

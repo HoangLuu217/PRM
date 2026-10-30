@@ -12,6 +12,7 @@ import '../../providers/chat_provider.dart';
 import '../../providers/favorite_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/administrative_division_service.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
 import '../customer/chat/customer_chat_inbox_screen.dart';
@@ -41,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   RangeValues _priceRange = const RangeValues(20000, 500000);
 
   // Available Areas in Da Nang
-  final List<String> _availableAreas = [
+  List<String> _availableAreas = [
     'Hải Châu',
     'Sơn Trà',
     'Ngũ Hành Sơn',
@@ -50,6 +51,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'Liên Chiểu',
     'Hòa Vang',
   ];
+  bool _isLoadingAreas = false;
+
+  Future<void> _loadAreasFromApi() async {
+    try {
+      if (mounted) setState(() => _isLoadingAreas = true);
+      final service = AdministrativeDivisionService();
+      // Tải danh sách đơn vị hành chính Đà Nẵng (mã 48) từ API
+      final wards = await service.fetchWards(48);
+      service.close();
+
+      if (wards.isNotEmpty) {
+        final apiAreaNames = wards.map((w) {
+          return w.name
+              .replaceAll(RegExp(r'^(Phường|Xã|Quận|Huyện|Thị trấn)\s+', caseSensitive: false), '')
+              .trim();
+        }).where((name) => name.isNotEmpty).toSet().toList();
+        apiAreaNames.sort();
+
+        if (mounted && apiAreaNames.isNotEmpty) {
+          setState(() {
+            _availableAreas = apiAreaNames;
+            _isLoadingAreas = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingAreas = false);
+      }
+    } catch (e) {
+      debugPrint('[ProfileScreen] Lỗi tải danh sách khu vực từ API: $e');
+      if (mounted) setState(() => _isLoadingAreas = false);
+    }
+  }
 
   // Available F&B Categories
   final Map<String, String> _categoryOptions = {
@@ -82,6 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserData();
+      _loadAreasFromApi();
       Provider.of<BookingProvider>(context, listen: false).fetchMyBookings();
       Provider.of<OrderProvider>(context, listen: false).fetchMyOrders();
       Provider.of<ChatProvider>(context, listen: false).fetchConversations(silent: true);
@@ -370,8 +404,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            initialValue: _selectedArea,
-                            decoration: _buildInputDecoration(hint: 'Chọn quận/huyện', icon: Icons.map_outlined),
+                            initialValue: _availableAreas.contains(_selectedArea) ? _selectedArea : null,
+                            decoration: _buildInputDecoration(
+                              hint: _isLoadingAreas ? 'Đang tải danh sách khu vực...' : 'Chọn khu vực / phường xã',
+                              icon: Icons.map_outlined,
+                            ),
                             items: _availableAreas
                                 .map((area) => DropdownMenuItem(value: area, child: Text(area)))
                                 .toList(),
