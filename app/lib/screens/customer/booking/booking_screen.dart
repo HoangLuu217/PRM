@@ -139,13 +139,29 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _loadMenuProducts() async {
     try {
       final uri = Uri.parse('${ApiConstants.baseUrl}/products?businessId=${widget.restaurant.id}');
-      final response = await http.get(uri).timeout(const Duration(seconds: 6));
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final list = (data['data'] as List<dynamic>?) ?? [];
+        if (list.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _menuProducts = list.map((item) => item as Map<String, dynamic>).toList();
+              _isLoadingMenu = false;
+            });
+          }
+          return;
+        }
+      }
+
+      final menuUri = Uri.parse('${ApiConstants.baseUrl}/businesses/${widget.restaurant.id}/menu');
+      final menuRes = await http.get(menuUri).timeout(const Duration(seconds: 12));
+      if (menuRes.statusCode == 200) {
+        final menuData = jsonDecode(menuRes.body);
+        final productsList = (menuData['data']?['products'] as List<dynamic>?) ?? [];
         if (mounted) {
           setState(() {
-            _menuProducts = list.map((item) => item as Map<String, dynamic>).toList();
+            _menuProducts = productsList.map((item) => item as Map<String, dynamic>).toList();
             _isLoadingMenu = false;
           });
           return;
@@ -153,7 +169,10 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     } catch (_) {}
     if (mounted) {
-      setState(() => _isLoadingMenu = false);
+      setState(() {
+        _menuProducts = [];
+        _isLoadingMenu = false;
+      });
     }
   }
 
@@ -537,6 +556,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
     final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final hasDishes = _dishesCount > 0 ||
+        cartProvider.items.any((i) => i.businessId == widget.restaurant.id);
 
     final res = await bookingProvider.createBooking(
       businessId: widget.restaurant.id,
@@ -545,42 +566,44 @@ class _BookingScreenState extends State<BookingScreen> {
       startTime: _selectedTime,
       guestCount: _guestCount,
       note: _noteController.text.trim(),
+      requiresPayment: hasDishes,
     );
 
     if (!mounted) return;
 
     if (res['success'] == true) {
       final bookingCode = res['bookingCode'] ?? 'Đã xác nhận';
-      // Bắn Heads-up Banner thông báo trực tiếp ra ngoài máy điện thoại
-      NotificationService().showBookingSuccessNotification(
-        bookingCode: bookingCode,
-        restaurantName: widget.restaurant.name,
-        time: _selectedTime,
-        date: _dateString,
-      );
-      final hasDishes = _dishesCount > 0 || (cartProvider.itemCount > 0 && cartProvider.businessId == widget.restaurant.id);
+      final createdBooking = res['booking'] is BookingModel ? res['booking'] as BookingModel : null;
 
-      // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider
+      if (hasDishes && createdBooking != null) {
+        cartProvider.setPendingBookingForBusiness(widget.restaurant.id, createdBooking);
+      }
+
+      // Nếu chọn món ngay tại màn hình đặt bàn, đồng bộ các món vào cartProvider và lưu đơn đặt bàn ở trạng thái chờ thanh toán
       if (_dishesCount > 0) {
-        cartProvider.clearCartForBusiness(widget.restaurant.id);
+        cartProvider.clearCartForBusiness(widget.restaurant.id, cancelPendingBooking: false);
+        if (createdBooking != null) {
+          cartProvider.setPendingBookingForBusiness(widget.restaurant.id, createdBooking);
+        }
         for (final p in _menuProducts) {
           final id = (p['_id'] ?? p['id'] ?? '').toString();
           final qty = _selectedDishQuantities[id] ?? 0;
-          if (qty > 0) {
-            final prodModel = ProductModel(
-              id: id,
-              category: p['category']?.toString() ?? 'Món ăn',
-              name: p['name']?.toString() ?? 'Món ăn',
-              description: p['description']?.toString() ?? '',
-              price: (p['price'] as num?)?.toDouble() ?? 0.0,
-              imageUrl: p['imageUrl']?.toString() ?? '',
-            );
+          if (qty > 0 && id.isNotEmpty) {
+            final prodModel = ProductModel.fromJson(p);
+            ProductSize? defaultSize;
+            if (prodModel.sizes.isNotEmpty) {
+              defaultSize = prodModel.sizes.firstWhere(
+                (s) => s.isDefault,
+                orElse: () => prodModel.sizes.first,
+              );
+            }
             cartProvider.addItem(
               product: prodModel,
               targetBusinessId: widget.restaurant.id,
               targetBusinessName: widget.restaurant.name,
               targetBranchId: widget.restaurant.branchId,
               quantity: qty,
+              selectedSize: defaultSize,
             );
           }
         }
@@ -588,24 +611,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
       if (!mounted) return;
 
-      // NẾU CÓ ĐẶT MÓN ÁN -> BẮT BUỘC CHUYỂN THẲNG SANG MÀN HÌNH THANH TOÁN MÓN
+      // NẾU CÓ ĐẶT MÓN ĂN -> CHƯA XÁC NHẬN ĐẶT BÀN THÀNH CÔNG, CHUYỂN THẲNG SANG MÀN HÌNH THANH TOÁN
       if (hasDishes) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF10B981),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('Đặt bàn #$bookingCode thành công! Đang chuyển sang thanh toán món...'),
-                ),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CheckoutScreen()),
@@ -613,7 +620,13 @@ class _BookingScreenState extends State<BookingScreen> {
         return;
       }
 
-      // NẾU CHỈ ĐẶT BÀN KHÔNG CHỌN MÓN -> HIỂN THỊ THÔNG BÁO THÀNH CÔNG THƯỜNG
+      // NẾU CHỈ ĐẶT BÀN KHÔNG CHỌN MÓN -> BẮN THÔNG BÁO & HIỂN THỊ THÀNH CÔNG NGAY
+      NotificationService().showBookingSuccessNotification(
+        bookingCode: bookingCode,
+        restaurantName: widget.restaurant.name,
+        time: _selectedTime,
+        date: _dateString,
+      );
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -912,7 +925,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: const Text(
-                  'Quán chưa cập nhật thực đơn hoặc bạn có thể gọi món trực tiếp khi tới nơi.',
+                  'Chưa có món nào.',
                   style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
                 ),
               )

@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../database/cart_database_helper.dart';
+import '../models/booking_model.dart';
 import '../models/cart_item_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
+import '../services/booking_service.dart';
 import '../services/cart_service.dart';
+import '../services/notification_service.dart';
 
 enum AddToCartResult {
   success,
@@ -47,6 +50,47 @@ class CartProvider with ChangeNotifier {
   final Map<String, OrderModel> _pendingOrders = {};
   final Map<String, Map<String, String>> _pendingQrDetails = {};
   final Map<String, DateTime> _pendingOrderCreatedAt = {};
+  final Map<String, BookingModel> _pendingBookings = {};
+
+  void setPendingBookingForBusiness(String busId, BookingModel booking) {
+    _pendingBookings[busId] = booking;
+    notifyListeners();
+  }
+
+  BookingModel? getPendingBookingForBusiness(String busId) {
+    return _pendingBookings[busId];
+  }
+
+  /// Kiểm tra xem một đơn đặt bàn có đang đi kèm món ăn nhưng chưa thanh toán hay không
+  bool isBookingPendingPayment(BookingModel b) {
+    if (_pendingBookings.values.any((pb) => pb.id == b.id || pb.bookingCode == b.bookingCode)) {
+      return true;
+    }
+    if (b.isAwaitingFoodPayment) {
+      return true;
+    }
+    final hasCartItemsForBus = _items.any(
+      (i) => i.businessId == b.businessId || (i.businessId == null && _businessId == b.businessId),
+    );
+    if (hasCartItemsForBus && b.isPending) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Được gọi khi thanh toán đơn món ăn thành công -> Chính thức xác nhận đặt bàn & xóa giỏ hàng
+  void completePaymentForBusiness(String busId) {
+    final pendingBooking = _pendingBookings.remove(busId);
+    if (pendingBooking != null) {
+      NotificationService().showBookingSuccessNotification(
+        bookingCode: pendingBooking.bookingCode,
+        restaurantName: pendingBooking.businessName,
+        time: pendingBooking.startTime,
+        date: pendingBooking.bookingDate,
+      );
+    }
+    clearCartForBusiness(busId, cancelPendingBooking: false);
+  }
 
   void setPendingOrderForBusiness(
     String busId,
@@ -150,7 +194,8 @@ class CartProvider with ChangeNotifier {
       _businessName = meta.businessName;
       _branchId = meta.branchId;
 
-      _items = await _dbHelper.getAllCartItems();
+      final rawItems = await _dbHelper.getAllCartItems();
+      _items = rawItems.where((i) => !i.product.id.startsWith('item_')).toList();
       notifyListeners();
     } catch (e) {
       debugPrint('[CartProvider SQLite Load Error]: $e');
@@ -263,11 +308,16 @@ class CartProvider with ChangeNotifier {
   }
 
   /// Clear cart for specific business
-  void clearCartForBusiness(String busId) {
+  void clearCartForBusiness(String busId, {bool cancelPendingBooking = true}) {
     _items.removeWhere((i) => i.businessId == busId || (i.businessId == null && _businessId == busId));
+    _dbHelper.deleteCartItemsByBusiness(busId);
     _pendingOrders.remove(busId);
     _pendingQrDetails.remove(busId);
     _pendingOrderCreatedAt.remove(busId);
+    final pendingBooking = _pendingBookings.remove(busId);
+    if (cancelPendingBooking && pendingBooking != null && pendingBooking.id.isNotEmpty) {
+      BookingService().cancelBooking(pendingBooking.id).catchError((_) => <String, dynamic>{});
+    }
     if (_items.isEmpty) {
       _businessId = null;
       _businessName = null;
@@ -286,10 +336,16 @@ class CartProvider with ChangeNotifier {
     if (_branchId != null && token != null && token.isNotEmpty) {
       _cartService.clearCart(_branchId!, token).catchError((_) => false);
     }
+    for (final pb in _pendingBookings.values) {
+      if (pb.id.isNotEmpty) {
+        BookingService().cancelBooking(pb.id).catchError((_) => <String, dynamic>{});
+      }
+    }
     _items.clear();
     _pendingOrders.clear();
     _pendingQrDetails.clear();
     _pendingOrderCreatedAt.clear();
+    _pendingBookings.clear();
     _businessId = null;
     _businessName = null;
     _branchId = null;

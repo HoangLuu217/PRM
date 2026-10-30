@@ -70,6 +70,7 @@ class BookingProvider with ChangeNotifier {
     String? endTime,
     required int guestCount,
     String? note,
+    bool requiresPayment = false,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -84,9 +85,10 @@ class BookingProvider with ChangeNotifier {
         endTime: endTime,
         guestCount: guestCount,
         note: note,
+        requiresPayment: requiresPayment,
       );
 
-      if (res['success'] == true && res['booking'] is BookingModel) {
+      if (!requiresPayment && res['success'] == true && res['booking'] is BookingModel) {
         _myBookings.insert(0, res['booking'] as BookingModel);
       }
 

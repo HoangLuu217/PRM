@@ -27,6 +27,8 @@ class BookingModel {
   final DateTime? checkedInAt;
   final DateTime? completedAt;
   final OrderModel? preOrder;
+  final bool depositRequired;
+  final String depositStatus;
 
   BookingModel({
     required this.id,
@@ -54,7 +56,15 @@ class BookingModel {
     this.checkedInAt,
     this.completedAt,
     this.preOrder,
+    this.depositRequired = false,
+    this.depositStatus = 'NONE',
   });
+
+  bool get isAwaitingFoodPayment {
+    if (depositRequired && depositStatus.toUpperCase() != 'PAID') return true;
+    if (preOrder != null && preOrder!.paymentStatus.toUpperCase() != 'PAID') return true;
+    return false;
+  }
 
   bool get isPending => status == 'PENDING';
   bool get isConfirmed => status == 'CONFIRMED';
@@ -206,6 +216,8 @@ class BookingModel {
           ? DateTime.tryParse(json['completedAt'].toString())
           : null,
       preOrder: pOrder,
+      depositRequired: json['depositRequired'] == true,
+      depositStatus: (json['depositStatus'] ?? 'NONE').toString().toUpperCase(),
     );
   }
 
