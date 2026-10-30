@@ -27,6 +27,7 @@ class BookingService {
     String? endTime,
     required int guestCount,
     String? note,
+    bool requiresPayment = false,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -41,6 +42,7 @@ class BookingService {
         if (endTime != null && endTime.isNotEmpty) 'endTime': endTime,
         'guestCount': guestCount,
         'note': note ?? '',
+        'depositRequired': requiresPayment,
       };
 
       debugPrint('[BookingService] -> POST $uri: $body');

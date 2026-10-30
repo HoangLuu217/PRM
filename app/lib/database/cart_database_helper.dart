@@ -138,6 +138,8 @@ class CartDatabaseHelper {
   /// Lấy toàn bộ danh sách món ăn từ giỏ hàng trong SQLite
   Future<List<CartItemModel>> getAllCartItems() async {
     final db = await database;
+    // Xóa các món mẫu giả (item_...) từng lưu nhầm trong SQLite trước đây
+    await db.delete('cart_items', where: "product_id LIKE 'item_%'");
     final meta = await getMetadata();
     final List<Map<String, dynamic>> maps = await db.query('cart_items', orderBy: 'id ASC');
 
@@ -288,6 +290,20 @@ class CartDatabaseHelper {
     );
 
     // Kiểm tra nếu giỏ hàng đã hết sạch -> Xóa cả Metadata quán
+    final remaining = await db.query('cart_items');
+    if (remaining.isEmpty) {
+      await db.delete('cart_metadata');
+    }
+  }
+
+  /// Xóa các món thuộc một nhà hàng cụ thể khỏi SQLite
+  Future<void> deleteCartItemsByBusiness(String busId) async {
+    final db = await database;
+    await db.delete(
+      'cart_items',
+      where: 'business_id = ? OR business_id IS NULL OR business_id = ""',
+      whereArgs: [busId],
+    );
     final remaining = await db.query('cart_items');
     if (remaining.isEmpty) {
       await db.delete('cart_metadata');

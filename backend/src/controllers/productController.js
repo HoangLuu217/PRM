@@ -192,6 +192,7 @@ export const createBatchProducts = async (req, res) => {
         }
         return {
           menuId: resolvedMenuId,
+          businessId: targetMenu?.businessId,
           branchId: branchId || targetMenu?.branchId,
           category: p.category || 'Đồ Uống',
           name: String(p.name).trim(),

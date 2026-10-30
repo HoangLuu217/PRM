@@ -85,16 +85,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     try {
-      final myBookings = await _bookingService.getMyBookings();
-      final validBookings = myBookings.where((b) {
-        final matchesBusiness = b.businessId == cartProvider.businessId;
-        final isValidStatus = b.isPending || b.isConfirmed || b.isCheckedIn;
-        return matchesBusiness && isValidStatus;
-      }).toList();
+      final pendingBooking = cartProvider.getPendingBookingForBusiness(cartProvider.businessId!);
+      BookingModel? resolvedBooking = pendingBooking;
+      if (resolvedBooking == null) {
+        final myBookings = await _bookingService.getMyBookings();
+        final validBookings = myBookings.where((b) {
+          final matchesBusiness = b.businessId == cartProvider.businessId;
+          final isValidStatus = b.isPending || b.isConfirmed || b.isCheckedIn;
+          return matchesBusiness && isValidStatus;
+        }).toList();
+        resolvedBooking = validBookings.isNotEmpty ? validBookings.first : null;
+      }
 
       if (mounted) {
         setState(() {
-          _activeBooking = validBookings.isNotEmpty ? validBookings.first : null;
+          _activeBooking = resolvedBooking;
           _isLoadingBooking = false;
         });
         if (widget.autoShowQr && _activeBooking != null) {
@@ -271,18 +276,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     String accName;
     String memo;
 
-    if (cachedQr != null && cachedQr['qrUrl'] != null && cachedQr['accountNumber'] != null) {
-      qrUrl = cachedQr['qrUrl']!;
+    if (cachedQr != null && cachedQr['accountNumber'] != null && cachedQr['accountNumber']!.isNotEmpty) {
       accNo = cachedQr['accountNumber']!;
       accName = cachedQr['accountName'] ?? 'DANG THANH TUNG';
       memo = cachedQr['description'] ?? defaultMemo;
+      qrUrl = CheckoutService.buildQrImageUrl(
+        bin: '970422',
+        accountNumber: accNo,
+        amount: amount,
+        description: memo,
+      );
     } else if (order.payosAccountNo != null && order.payosAccountNo!.isNotEmpty && order.payosAccountNo != '1021072004') {
       accNo = order.payosAccountNo!;
       accName = order.payosAccountName ?? 'DANG THANH TUNG';
       final bin = order.payosBin ?? '970422';
       memo = defaultMemo;
-      qrUrl = order.payosQrUrl ??
-          'https://img.vietqr.io/image/$bin-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent(accName)}';
+      qrUrl = CheckoutService.buildQrImageUrl(
+        rawEmvQrCode: order.payosQrUrl,
+        bin: bin,
+        accountNumber: accNo,
+        amount: amount,
+        description: memo,
+      );
     } else {
       final payosData = await _checkoutService.createPayOSPaymentRequest(
         orderCode: orderCode,
@@ -299,7 +314,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? payosData['accountName']!
           : 'DANG THANH TUNG';
       memo = payosData['description']!;
-      qrUrl = 'https://img.vietqr.io/image/970422-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent(accName)}';
+      qrUrl = CheckoutService.buildQrImageUrl(
+        bin: '970422',
+        accountNumber: accNo,
+        amount: amount,
+        description: memo,
+      );
     }
 
     if (effectiveBusId.isNotEmpty) {
@@ -328,7 +348,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       pollTimer?.cancel();
       countdownTimer?.cancel();
       if (effectiveBusId.isNotEmpty) {
-        cartProvider.clearCartForBusiness(effectiveBusId);
+        cartProvider.completePaymentForBusiness(effectiveBusId);
       }
       if (modalCtx.mounted) {
         setModalState(() {
@@ -345,7 +365,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Thanh toán thành công! Đơn hàng #$orderCode đã được gửi đến nhà bếp 🎉'),
+            content: Text('Thanh toán thành công! Đã xác nhận đặt bàn & đơn món #$orderCode 🎉'),
             backgroundColor: const Color(0xFF10B981),
             duration: const Duration(seconds: 4),
           ),
@@ -486,18 +506,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     height: 210,
                                     child: Center(child: CircularProgressIndicator()),
                                   ),
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              width: 210,
-                              height: 210,
-                              color: Colors.grey[100],
-                              child: const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.qr_code_rounded, size: 80, color: Color(0xFF0072FF)),
-                                  Text('VietQR Gateway', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
+                            errorBuilder: (context, error, stackTrace) {
+                              final fallbackEmv = CheckoutService.buildVietQrEmvPayload(
+                                bin: '970422',
+                                accountNumber: accNo,
+                                amount: amount,
+                                description: memo,
+                              );
+                              return Image.network(
+                                'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${Uri.encodeComponent(fallbackEmv)}',
+                                width: 210,
+                                height: 210,
+                                fit: BoxFit.contain,
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -923,16 +945,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     Container(
                       padding: const EdgeInsets.all(14.0),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
+                        color: const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
                       ),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
+                              color: const Color(0xFFF59E0B),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.event_seat_rounded, color: Colors.white, size: 22),
@@ -945,19 +967,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 Row(
                                   children: [
                                     const Text(
-                                      'Lịch đặt bàn đã liên kết',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF15803D)),
+                                      'Thông tin đặt bàn kèm món',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFFB45309)),
                                     ),
                                     const SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF15803D),
+                                        color: const Color(0xFFD97706),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: Text(
-                                        _activeBooking!.statusLabel,
-                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      child: const Text(
+                                        'Chờ thanh toán',
+                                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                   ],
@@ -965,11 +987,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 const SizedBox(height: 3),
                                 Text(
                                   'Mã: #${_activeBooking!.bookingCode.length > 12 ? _activeBooking!.bookingCode.substring(0, 12) : _activeBooking!.bookingCode} • ${_activeBooking!.bookingDate} (${_activeBooking!.startTime})',
-                                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+                                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF92400E), fontWeight: FontWeight.w600),
                                 ),
                                 Text(
-                                  'Số khách: ${_activeBooking!.guestCount} người${_activeBooking!.tableName != null ? " • Bàn: ${_activeBooking!.tableName}" : ""}',
-                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF4B5563)),
+                                  'Số khách: ${_activeBooking!.guestCount} người${_activeBooking!.tableName != null ? " • Bàn: ${_activeBooking!.tableName}" : ""} • Xác nhận sau khi thanh toán',
+                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF78350F)),
                                 ),
                               ],
                             ),

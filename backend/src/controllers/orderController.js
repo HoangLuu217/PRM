@@ -125,11 +125,32 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Số lượng mỗi món phải từ 1 đến 99' });
       }
 
-      const product = await Product.findById(item.productId);
+      let product = isValidObjectId(item.productId)
+        ? await Product.findById(item.productId)
+        : null;
+
+      if (!product) {
+        const fallbackName = (item.productName || 'Món Đặc Trưng').trim();
+        const fallbackPrice = Math.max(Number(item.unitPrice) || 20000, 0);
+        product = await Product.findOne({ businessId, name: fallbackName });
+        if (!product) {
+          product = await Product.create({
+            businessId,
+            branchId,
+            category: 'Món Chính',
+            name: fallbackName,
+            description: 'Món đặc trưng của quán',
+            price: fallbackPrice,
+            imageUrl: item.productImageUrl || '',
+            isAvailable: true,
+          });
+        }
+      }
+
       if (!product || !product.isAvailable) {
         return res.status(400).json({ success: false, message: 'Một món trong đơn không tồn tại hoặc đã hết hàng' });
       }
-      const menu = await Menu.findById(product.menuId).select('businessId branchId status');
+      const menu = product.menuId ? await Menu.findById(product.menuId).select('businessId branchId status') : null;
       const belongsToBusiness = (menu && String(menu.businessId) === String(businessId))
         || (product && String(product.businessId) === String(businessId));
 
@@ -220,7 +241,11 @@ export const createOrder = async (req, res) => {
     });
 
     if (resolvedBookingId) {
-      await Booking.findByIdAndUpdate(resolvedBookingId, { preOrderId: order._id });
+      await Booking.findByIdAndUpdate(resolvedBookingId, {
+        preOrderId: order._id,
+        depositRequired: true,
+        depositStatus: 'PENDING',
+      });
     }
 
     // Register PayOS Payment Link & Transaction

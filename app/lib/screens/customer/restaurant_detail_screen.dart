@@ -73,13 +73,30 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   Future<void> _loadMenuProducts() async {
     try {
       final uri = Uri.parse('${ApiConstants.baseUrl}/products?businessId=${widget.restaurant.id}');
-      final response = await http.get(uri).timeout(const Duration(seconds: 6));
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final list = (data['data'] as List<dynamic>?) ?? [];
+        if (list.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _menuItems = list.map((item) => item as Map<String, dynamic>).toList();
+              _isLoadingMenu = false;
+            });
+          }
+          return;
+        }
+      }
+
+      // Kiểm tra thêm từ endpoint /businesses/:id/menu nếu owner tạo món theo menu/branch
+      final menuUri = Uri.parse('${ApiConstants.baseUrl}/businesses/${widget.restaurant.id}/menu');
+      final menuRes = await http.get(menuUri).timeout(const Duration(seconds: 12));
+      if (menuRes.statusCode == 200) {
+        final menuData = jsonDecode(menuRes.body);
+        final productsList = (menuData['data']?['products'] as List<dynamic>?) ?? [];
         if (mounted) {
           setState(() {
-            _menuItems = list.map((item) => item as Map<String, dynamic>).toList();
+            _menuItems = productsList.map((item) => item as Map<String, dynamic>).toList();
             _isLoadingMenu = false;
           });
           return;
@@ -87,32 +104,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       }
     } catch (_) {}
 
-    // Fallback menu nếu không kết nối được
     if (mounted) {
       setState(() {
-        _menuItems = [
-          {
-            'name': 'Món Đặc Trưng Số 1',
-            'category': 'Món Chính',
-            'description': 'Được chế biến từ nguyên liệu tươi sống chọn lọc mỗi ngày.',
-            'price': widget.restaurant.minPrice,
-            'imageUrl': widget.restaurant.coverImageUrl,
-          },
-          {
-            'name': 'Món Đặc Trưng Số 2',
-            'category': 'Món Bếp Trưởng',
-            'description': 'Công thức bí truyền độc quyền chuẩn hương vị Đà Nẵng.',
-            'price': (widget.restaurant.minPrice + widget.restaurant.maxPrice) ~/ 2,
-            'imageUrl': widget.restaurant.coverImageUrl,
-          },
-          {
-            'name': 'Món Đặc Trưng Số 3',
-            'category': 'Món Ăn Kèm',
-            'description': 'Hương vị đậm đà hấp dẫn làm hài lòng mọi thực khách.',
-            'price': widget.restaurant.maxPrice,
-            'imageUrl': widget.restaurant.coverImageUrl,
-          },
-        ];
+        _menuItems = [];
         _isLoadingMenu = false;
       });
     }
@@ -960,7 +954,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       return Container(
         padding: const EdgeInsets.all(30),
         alignment: Alignment.center,
-        child: const Text('Thực đơn đang được quán cập nhật.', style: TextStyle(color: Color(0xFF64748B))),
+        child: const Text('Chưa có món nào.', style: TextStyle(color: Color(0xFF64748B))),
       );
     }
 
@@ -973,21 +967,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         ),
         const SizedBox(height: 12),
         ..._menuItems.map((prod) {
-          final id = (prod['_id'] ?? prod['id'] ?? 'item_${prod['name'].hashCode}').toString();
-          final name = prod['name']?.toString() ?? 'Món ngon';
-          final desc = prod['description']?.toString() ?? '';
-          final price = (prod['price'] as num?)?.toDouble() ?? 50000.0;
-          final img = prod['imageUrl']?.toString() ?? widget.restaurant.coverImageUrl;
-          final cat = prod['category']?.toString() ?? 'Món chính';
-
-          final productModel = ProductModel(
-            id: id,
-            category: cat,
-            name: name,
-            description: desc,
-            price: price,
-            imageUrl: img ?? '',
-          );
+          final productModel = ProductModel.fromJson(prod);
+          final name = productModel.name.isNotEmpty ? productModel.name : 'Món ngon';
+          final desc = productModel.description;
+          final price = productModel.price;
+          final img = productModel.imageUrl.isNotEmpty
+              ? productModel.imageUrl
+              : widget.restaurant.coverImageUrl;
+          final cat = productModel.category.isNotEmpty ? productModel.category : 'Món chính';
 
           return Material(
             color: Colors.transparent,
@@ -1075,12 +1062,20 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     ElevatedButton(
                       onPressed: () {
                         final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                        ProductSize? defaultSize;
+                        if (productModel.sizes.isNotEmpty) {
+                          defaultSize = productModel.sizes.firstWhere(
+                            (s) => s.isDefault,
+                            orElse: () => productModel.sizes.first,
+                          );
+                        }
                         cartProvider.addItem(
                           product: productModel,
                           targetBusinessId: widget.restaurant.id,
                           targetBusinessName: widget.restaurant.name,
                           targetBranchId: widget.restaurant.branchId,
                           quantity: 1,
+                          selectedSize: defaultSize,
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

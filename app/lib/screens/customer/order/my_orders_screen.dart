@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../models/order_model.dart';
 import '../../../providers/order_provider.dart';
 import 'order_detail_screen.dart';
-import 'order_tracking_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -257,37 +256,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 const SizedBox(height: 12),
 
-                // Giá tiền và nút Theo dõi đơn
+                // Giá tiền
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Tổng thanh toán', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatPrice(o.total),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0072FF)),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => OrderTrackingScreen(order: o)),
-                        );
-                      },
-                      icon: const Icon(Icons.timeline_rounded, size: 16),
-                      label: const Text('Theo dõi đơn', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0072FF),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      ),
+                    const Text('Tổng thanh toán', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                    Text(
+                      _formatPrice(o.total),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0072FF)),
                     ),
                   ],
                 ),

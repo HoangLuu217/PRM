@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models/order_model.dart';
-import 'order_tracking_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final OrderModel order;
@@ -221,26 +220,6 @@ class OrderDetailScreen extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => OrderTrackingScreen(order: order)),
-                  );
-                },
-                icon: const Icon(Icons.timeline_rounded),
-                label: const Text('Xem tiến trình chuẩn bị đơn hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0072FF),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
           ],
         ),
       ),
