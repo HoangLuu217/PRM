@@ -55,6 +55,13 @@ class OrderDetailScreen extends StatelessWidget {
                           'Đơn hàng #${order.orderCode}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
                         ),
+                        if (order.createdAt != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Tạo lúc: ${order.createdAt!.hour.toString().padLeft(2, '0')}:${order.createdAt!.minute.toString().padLeft(2, '0')} - ${order.createdAt!.day.toString().padLeft(2, '0')}/${order.createdAt!.month.toString().padLeft(2, '0')}/${order.createdAt!.year}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         Text(
                           order.statusLabel,

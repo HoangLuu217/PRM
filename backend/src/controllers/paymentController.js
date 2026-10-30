@@ -88,17 +88,24 @@ export const checkPaymentStatusController = async (req, res) => {
   }
 };
 
-// @desc    Confirm Manual Payment (For Testing / Immediate Confirmation)
+// @desc    Confirm Payment (Strictly checks PayOS payment status before confirming)
 // @route   POST /api/payments/confirm-manual/:orderCode
 // @access  Public / Private
 export const confirmManualPaymentController = async (req, res) => {
   try {
     const { orderCode } = req.params;
-    const result = await completePaymentSuccess(orderCode, { manual: true });
+    const statusResult = await checkDepositPaymentStatus(orderCode);
+    if (!statusResult.isPaid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa nhận được tiền chuyển khoản trên PayOS! Vui lòng quét mã QR thanh toán trước.',
+        data: statusResult,
+      });
+    }
     res.json({
       success: true,
       message: 'Xác nhận thanh toán thành công!',
-      data: result,
+      data: statusResult,
     });
   } catch (error) {
     console.error('Confirm manual payment error:', error);

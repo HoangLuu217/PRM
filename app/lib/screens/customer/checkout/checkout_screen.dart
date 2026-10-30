@@ -240,18 +240,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final orderCode = order.orderCode;
     final defaultMemo = 'DAT MON $orderCode';
 
-    final payosData = await _checkoutService.createPayOSPaymentRequest(
-      orderCode: orderCode,
-      amount: amount,
-      description: defaultMemo,
-    );
+    String qrUrl;
+    String accNo;
+    String accName;
+    String memo;
 
-    if (!mounted) return;
+    if (order.payosAccountNo != null && order.payosAccountNo!.isNotEmpty && order.payosAccountNo != '1021072004') {
+      accNo = order.payosAccountNo!;
+      accName = order.payosAccountName ?? 'DANG THANH TUNG';
+      final bin = order.payosBin ?? '970422';
+      memo = defaultMemo;
+      qrUrl = order.payosQrUrl ??
+          'https://img.vietqr.io/image/$bin-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent(accName)}';
+    } else {
+      final payosData = await _checkoutService.createPayOSPaymentRequest(
+        orderCode: orderCode,
+        amount: amount,
+        description: defaultMemo,
+      );
 
-    final qrUrl = payosData['qrUrl']!;
-    final accNo = payosData['accountNumber']!;
-    final accName = payosData['accountName']!;
-    final memo = payosData['description']!;
+      if (!mounted) return;
+
+      accNo = (payosData['accountNumber'] != null && payosData['accountNumber'] != '1021072004' && payosData['accountNumber']!.isNotEmpty)
+          ? payosData['accountNumber']!
+          : '0776101860';
+      accName = (payosData['accountName'] != null && payosData['accountName']!.isNotEmpty)
+          ? payosData['accountName']!
+          : 'DANG THANH TUNG';
+      memo = payosData['description']!;
+      qrUrl = 'https://img.vietqr.io/image/970422-$accNo-compact2.jpg?amount=$amount&addInfo=${Uri.encodeComponent(memo)}&accountName=${Uri.encodeComponent(accName)}';
+    }
 
     Timer? pollTimer;
     bool isPaymentSuccess = false;
