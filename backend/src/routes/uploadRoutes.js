@@ -12,7 +12,10 @@ const upload = multer({
     fileSize: 15 * 1024 * 1024, // 15MB
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const isImage = file.mimetype.startsWith('image/') ||
+      file.mimetype === 'application/octet-stream' ||
+      /\.(jpg|jpeg|png|webp|gif|heic|bmp)$/i.test(file.originalname);
+    if (isImage) {
       cb(null, true);
     } else {
       cb(new Error('Chỉ chấp nhận các tệp hình ảnh (jpg, png, webp, gif...)'), false);
