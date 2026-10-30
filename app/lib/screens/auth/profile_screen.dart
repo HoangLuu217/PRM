@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
@@ -323,10 +324,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             keyboardType: TextInputType.phone,
                             decoration: _buildInputDecoration(hint: '0901234567', icon: Icons.phone_outlined),
                             validator: (value) {
-                              if (value == null || value.trim().isEmpty) return null;
-                              final phoneRegex = RegExp(r'^(0[3|5|7|8|9])[0-9]{8}$');
-                              if (!phoneRegex.hasMatch(value.trim())) {
-                                return 'Số điện thoại không hợp lệ (10 số)';
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Vui lòng nhập số điện thoại';
+                              }
+                              final cleanPhone = value.trim().replaceAll(RegExp(r'[\s\-\.\(\)]'), '');
+                              final phoneRegex = RegExp(r'^(0|\+?84)[0-9]{8,10}$');
+                              if (!phoneRegex.hasMatch(cleanPhone)) {
+                                return 'Số điện thoại không hợp lệ (Ví dụ: 0901234567)';
                               }
                               return null;
                             },
@@ -546,10 +550,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final uri = Uri.parse('${ApiConstants.baseUrl}/upload');
       final request = http.MultipartRequest('POST', uri);
       final bytes = await image.readAsBytes();
+      final ext = image.name.split('.').last.toLowerCase();
+      final subType = (ext == 'png') ? 'png' : (ext == 'webp') ? 'webp' : 'jpeg';
       request.files.add(http.MultipartFile.fromBytes(
         'file',
         bytes,
         filename: image.name,
+        contentType: MediaType('image', subType),
       ));
 
       final streamedResponse = await request.send();
@@ -562,18 +569,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final data = jsonDecode(response.body);
         final uploadedUrl = data['url'] ?? data['data']?['url'];
         if (uploadedUrl != null && uploadedUrl.toString().isNotEmpty) {
-          setModalState(() {
-            _avatarController.text = uploadedUrl.toString();
-          });
-          if (mounted) setState(() {});
-          if (pickerCtx.mounted) Navigator.pop(pickerCtx);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tải ảnh từ điện thoại lên thành công!'),
-              backgroundColor: Color(0xFF10B981),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          final newAvatarUrl = uploadedUrl.toString();
+          _avatarController.text = newAvatarUrl;
+
+          // Lưu trực tiếp URL ảnh mới lên Backend & Database
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          final saveRes = await authProvider.updateProfile({'avatarUrl': newAvatarUrl});
+          if (saveRes && authProvider.user != null) {
+            userProvider.setUser(authProvider.user);
+          }
+
+          if (pickerCtx.mounted) {
+            Navigator.pop(pickerCtx);
+          }
+          if (mounted) {
+            setState(() {});
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Cập nhật ảnh đại diện mới thành công!'),
+                backgroundColor: Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

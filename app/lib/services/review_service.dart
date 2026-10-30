@@ -95,8 +95,8 @@ class ReviewService {
       final headers = await _getHeaders();
       final targetId = businessId.trim();
       final uri = targetId.isNotEmpty
-          ? Uri.parse('//sync-google-reviews')
-          : Uri.parse('/sync-google-reviews');
+          ? Uri.parse('${ApiConstants.baseUrl}/businesses/$targetId/sync-google-reviews')
+          : Uri.parse('${ApiConstants.baseUrl}/businesses/sync-google-reviews');
 
       final body = <String, dynamic>{};
       if (googleMapsUrl != null && googleMapsUrl.trim().isNotEmpty) {

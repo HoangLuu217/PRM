@@ -1970,6 +1970,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: phoneController,
+                  keyboardType: TextInputType.phone,
                   style: const TextStyle(color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     labelText: 'Số điện thoại liên hệ',
@@ -1977,7 +1978,17 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Vui lòng nhập số điện thoại' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Vui lòng nhập số điện thoại';
+                    }
+                    final cleanPhone = v.trim().replaceAll(RegExp(r'[\s\-\.\(\)]'), '');
+                    final phoneRegExp = RegExp(r'^(0|\+?84)[0-9]{8,10}$');
+                    if (!phoneRegExp.hasMatch(cleanPhone)) {
+                      return 'Số điện thoại không hợp lệ (Ví dụ: 0901234567)';
+                    }
+                    return null;
+                  },
                 ),
               ],
             ),
@@ -2154,24 +2165,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                   children: [
                     _buildSidebarItem(0, Icons.home_rounded, 'Dashboard', ''),
-                    _buildSidebarItem(1, Icons.restaurant_menu_rounded, 'Thực đơn & Món', 'Member 3'),
-                    _buildSidebarItem(2, Icons.calendar_month_rounded, 'Quản lý Đặt bàn', 'Member 4'),
-                    _buildSidebarItem(3, Icons.receipt_long_rounded, 'Đơn hàng', 'Member 4'),
+                    _buildSidebarItem(1, Icons.restaurant_menu_rounded, 'Thực đơn & Món', ''),
+                    _buildSidebarItem(2, Icons.calendar_month_rounded, 'Quản lý Đặt bàn', ''),
+                    _buildSidebarItem(3, Icons.receipt_long_rounded, 'Đơn hàng', ''),
                     _buildSidebarItem(4, Icons.sms_outlined, 'Messages', '', badgeCount: _totalUnreadChatCount > 0 ? _totalUnreadChatCount : null),
-                    const SizedBox(height: 12),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text(
-                        'PHÂN HỆ CỦA BẠN (MEMBER 1)',
-                        style: TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                    _buildSidebarItem(5, Icons.store_mall_directory_rounded, 'Hồ sơ Quán & Cài đặt', 'Member 1', highlight: true),
+                    _buildSidebarItem(5, Icons.store_mall_directory_rounded, 'Hồ sơ Quán & Cài đặt', ''),
                   ],
                 ),
               ),
@@ -2282,24 +2280,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         ),
                         const SizedBox(width: 14),
                         // Avatar -> Hồ sơ cá nhân
-                        Tooltip(
-                          message: 'Xem hồ sơ cá nhân',
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                              );
-                            },
-                            child: CircleAvatar(
-                              radius: 18,
-                              backgroundColor: const Color(0xFF2563EB),
-                              child: Text(
-                                (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                            ),
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: const Color(0xFF2563EB),
+                          child: Text(
+                            (user?.fullName.isNotEmpty == true ? user!.fullName[0] : 'O').toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                         ),
                       ],
@@ -2813,26 +2799,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 2,
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => _showStorefrontPreview(biz, user),
-                          icon: const Icon(Icons.remove_red_eye_rounded, size: 17, color: Color(0xFF2563EB)),
-                          label: const Text('Xem trước', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () => _showQrCodeDialog(biz),
-                          icon: const Icon(Icons.qr_code_rounded, size: 17, color: Color(0xFF2563EB)),
-                          label: const Text('QR Menu bàn', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ],
@@ -4420,7 +4386,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       children: [
         _buildSkeletonHeader(
           moduleTitle: 'Quản Lý Thực Đơn & Món Ăn',
-          memberTag: 'Thành viên 3 (Menu & Cart)',
+          memberTag: '',
           description: 'Khung sườn quản lý danh mục món, giá bán và trạng thái còn/hết hàng.',
         ),
         const SizedBox(height: 18),
@@ -7057,18 +7023,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 moduleTitle,
                 style: const TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w800),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
+              if (memberTag.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Text(
+                    memberTag,
+                    style: const TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                child: Text(
-                  memberTag,
-                  style: const TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 6),

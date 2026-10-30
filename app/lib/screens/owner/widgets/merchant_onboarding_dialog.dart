@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/auth_provider.dart';
@@ -93,6 +94,20 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
     'Tổ chức sinh nhật / Tiệc',
   ];
 
+  bool _isMatchingLocationName(String? name1, String? name2) {
+    if (name1 == null || name2 == null) return false;
+    String clean(String s) {
+      return s
+          .toLowerCase()
+          .replaceAll(RegExp(r'^(thành phố|tỉnh|quận|huyện|thị xã|phường|xã|thị trấn)\s+', caseSensitive: false), '')
+          .trim();
+    }
+    final c1 = clean(name1);
+    final c2 = clean(name2);
+    if (c1.isEmpty || c2.isEmpty) return false;
+    return c1 == c2 || c1.contains(c2) || c2.contains(c1);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -117,23 +132,36 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
         ? branchAddress
         : businessAddress ?? branchAddress;
 
+    String streetVal = savedAddress?['street']?.toString() ?? '';
+    String wardVal = savedAddress?['ward']?.toString() ?? '';
+    String cityVal = savedAddress?['city']?.toString() ?? savedAddress?['district']?.toString() ?? '';
+
+    // Nếu streetVal bị rỗng, phân tích từ chuỗi địa chỉ nguyên bản nếu được lưu dưới dạng chuỗi
+    if (streetVal.isEmpty) {
+      final rawStr = primaryBranch?['address']?.toString() ?? biz?['address']?.toString() ?? '';
+      if (rawStr.isNotEmpty && !rawStr.startsWith('{')) {
+        final parts = rawStr.split(',').map((e) => e.trim()).toList();
+        if (parts.isNotEmpty) streetVal = parts[0];
+        if (parts.length >= 2 && wardVal.isEmpty) wardVal = parts[1];
+        if (parts.length >= 3 && cityVal.isEmpty) cityVal = parts.last;
+      }
+    }
+
     _nameController = TextEditingController(
       text: biz?['name']?.toString() ?? '',
     );
     _descController = TextEditingController(
       text: biz?['description']?.toString() ?? '',
     );
-    _streetController = TextEditingController(
-      text: savedAddress?['street']?.toString() ?? '',
-    );
+    _streetController = TextEditingController(text: streetVal);
     _googleMapsController = TextEditingController(
       text: biz?['googleMapsUrl']?.toString() ?? '',
     );
     _phoneController = TextEditingController(
       text: user?.phone ?? biz?['phone']?.toString() ?? '',
     );
-    _savedProvinceName = savedAddress?['city']?.toString();
-    _savedWardName = savedAddress?['ward']?.toString();
+    _savedProvinceName = cityVal.isNotEmpty ? cityVal : 'Đà Nẵng';
+    _savedWardName = wardVal;
 
     final minP = biz?['priceRange']?['min'] ?? 20000;
     final maxP = biz?['priceRange']?['max'] ?? 100000;
@@ -185,7 +213,7 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
       final provinces = await _administrativeDivisionService.fetchProvinces();
       final selectedProvince =
           provinces.where((province) {
-            return province.name == _savedProvinceName;
+            return _isMatchingLocationName(province.name, _savedProvinceName);
           }).firstOrNull ??
           provinces.where((province) => province.code == 48).firstOrNull ??
           provinces.first;
@@ -222,7 +250,7 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
       setState(() {
         _wards = wards;
         _selectedWard = wards.where((ward) {
-          return ward.name == _savedWardName;
+          return _isMatchingLocationName(ward.name, _savedWardName);
         }).firstOrNull;
         _isLoadingWards = false;
       });
@@ -744,17 +772,33 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                           ],
                         ),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: TextFormField(
                                 controller: _minPriceController,
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 decoration: _inputDecoration(hintText: '20000'),
                                 onChanged: (v) => setState(() {}),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Vui lòng nhập giá tối thiểu';
+                                  }
+                                  final minVal = int.tryParse(v.trim());
+                                  if (minVal == null || minVal < 0) {
+                                    return 'Giá không hợp lệ';
+                                  }
+                                  final maxVal = int.tryParse(_maxPriceController.text.trim());
+                                  if (maxVal != null && minVal > maxVal) {
+                                    return 'Giá tối thiểu không được lớn hơn giá tối đa';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                               child: Text(
                                 '—',
                                 style: TextStyle(
@@ -767,10 +811,25 @@ class _MerchantOnboardingDialogState extends State<MerchantOnboardingDialog> {
                               child: TextFormField(
                                 controller: _maxPriceController,
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 decoration: _inputDecoration(
                                   hintText: '100000',
                                 ),
                                 onChanged: (v) => setState(() {}),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Vui lòng nhập giá tối đa';
+                                  }
+                                  final maxVal = int.tryParse(v.trim());
+                                  if (maxVal == null || maxVal < 0) {
+                                    return 'Giá không hợp lệ';
+                                  }
+                                  final minVal = int.tryParse(_minPriceController.text.trim());
+                                  if (minVal != null && maxVal < minVal) {
+                                    return 'Giá tối đa không được nhỏ hơn giá tối thiểu';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                           ],
