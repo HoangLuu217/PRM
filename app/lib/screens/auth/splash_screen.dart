@@ -66,11 +66,21 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else {
-        // Trên Mobile: Luôn vào giao diện Khách hàng (CustomerHomeScreen)
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-        );
+        // Trên Mobile: Dành riêng cho Khách hàng. Nếu tài khoản cũ lưu trong bộ nhớ là Chủ quán, tự động đăng xuất
+        if (authProvider.isOwner) {
+          await authProvider.logout();
+          userProvider.clearUser();
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+          );
+        }
       }
     } else {
       Navigator.pushReplacement(

@@ -13,6 +13,7 @@ import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
 import '../customer/booking/my_bookings_screen.dart';
 import '../customer/chat/customer_chat_screen.dart';
+import '../customer/chat/customer_chat_inbox_screen.dart';
 import '../customer/favorites_screen.dart';
 import '../customer/notification/customer_notification_screen.dart';
 import '../customer/order/my_orders_screen.dart';
@@ -799,12 +800,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E293B), size: 18),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
+        automaticallyImplyLeading: false,
         title: Text(
           isOwner ? 'Hồ sơ Quán F&B' : 'Hồ sơ cá nhân',
           style: const TextStyle(
@@ -1376,7 +1372,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           );
         },
-      ),
       ),
     ]);
   }

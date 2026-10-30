@@ -562,11 +562,21 @@ export const googleLogin = async (req, res) => {
         user.fullName = fullName;
         modified = true;
       }
+      // Nếu client yêu cầu vai trò USER, đồng bộ lại role là USER nếu không có quán hoạt động
+      if (role === 'USER' && user.role !== 'USER') {
+        const userBusiness = await Business.findOne({ ownerId: user._id });
+        if (!userBusiness) {
+          user.role = 'USER';
+          modified = true;
+        }
+      }
       if (modified) {
         await user.save();
       }
       const userBusiness = await Business.findOne({ ownerId: user._id });
-      await syncMerchantRole(user, userBusiness);
+      if (userBusiness) {
+        await syncMerchantRole(user, userBusiness);
+      }
     } else {
       const isOwner = role === 'MERCHANT';
       user = await User.create({
