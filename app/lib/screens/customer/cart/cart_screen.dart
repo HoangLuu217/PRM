@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../models/order_model.dart';
 import '../../../providers/auth_provider.dart';
@@ -186,36 +185,6 @@ class _CartScreenState extends State<CartScreen> {
     return '${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ';
   }
 
-  Widget _buildCopyRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          Row(
-            children: [
-              Text(
-                value,
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: value));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Đã sao chép: $value'), duration: const Duration(seconds: 1)),
-                  );
-                },
-                child: const Icon(Icons.copy_rounded, size: 15, color: Color(0xFF0072FF)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
@@ -306,10 +275,6 @@ class _CartScreenState extends State<CartScreen> {
               itemBuilder: (ctx, groupIdx) {
                 final group = groups[groupIdx];
                 final pendingOrder = cartProvider.getPendingOrderForBusiness(group.businessId);
-                final qrDetails = cartProvider.getPendingQrDetailsForBusiness(group.businessId);
-                final remSec = cartProvider.getRemainingSecondsForBusiness(group.businessId);
-                final minStr = (remSec ~/ 60).toString().padLeft(2, '0');
-                final secStr = (remSec % 60).toString().padLeft(2, '0');
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -429,130 +394,6 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ],
                             ),
-
-                            // Hiển thị trực tiếp mã QR của đơn hàng để người dùng quét thanh toán lại ngay trong Giỏ hàng
-                            if (pendingOrder != null && qrDetails != null) ...[
-                              const SizedBox(height: 14),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: const Color(0xFFBFDBFE)),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Row(
-                                          children: [
-                                            Icon(Icons.qr_code_2_rounded, color: Color(0xFF0072FF), size: 20),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'Mã QR thanh toán đơn hàng',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13.5,
-                                                color: Color(0xFF0F172A),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEFF6FF),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.timer_outlined, size: 13, color: Color(0xFF0072FF)),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '$minStr:$secStr',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF0072FF),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        qrDetails['qrUrl']!,
-                                        width: 190,
-                                        height: 190,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, _, _) => const SizedBox(
-                                          width: 190,
-                                          height: 190,
-                                          child: Center(
-                                            child: Icon(Icons.qr_code_rounded, size: 70, color: Color(0xFF0072FF)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          _buildCopyRow('Ngân hàng:', 'MBBank (Quân Đội)'),
-                                          _buildCopyRow('Số tài khoản:', qrDetails['accountNumber'] ?? '0776101860'),
-                                          _buildCopyRow('Chủ tài khoản:', qrDetails['accountName'] ?? 'DANG THANH TUNG'),
-                                          _buildCopyRow('Nội dung CK:', qrDetails['description'] ?? 'DAT MON ${pendingOrder.orderCode}'),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFFBEB),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: const Color(0xFFFDE68A)),
-                                      ),
-                                      child: const Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706)),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Flexible(
-                                            child: Text(
-                                              'Quét mã QR để thanh toán — Tự động xác nhận khi nhận tiền',
-                                              style: TextStyle(
-                                                color: Color(0xFFB45309),
-                                                fontSize: 11.5,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-
                             const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,

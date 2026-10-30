@@ -600,38 +600,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                  ] else ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706)),
-                          ),
-                          SizedBox(width: 10),
-                          Flexible(
-                            child: Text(
-                              'Đang chờ bạn quét mã chuyển khoản...\nHệ thống sẽ tự động xác nhận ngay khi nhận tiền!',
-                              style: TextStyle(
-                                color: Color(0xFFB45309),
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                   ],
                   const SizedBox(height: 12),
                 ],
